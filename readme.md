@@ -137,13 +137,14 @@ Groups will have to submit:
 * archive of the git repo with the whole project (pre-processing/training/post-processing where applicable, inference and metrics);
 * the best trained model;
 * predictions on the test set (will be shared later on);
-* predictions on their personal validation set, their validation set, and the metrics they computed.
+* predictions on the group's internal validation set, validation set, and the metrics they computed.
 
 The main criteria for scoring will include:
 * improvement of performances over baseline;
 * code quality/clear [git use](git.md);
-* correctness of their computed metrics (on the validation set);
-* (part of the report) clear description of their method;
+* the [choice of metrics](https://metrics-reloaded.dkfz.de/);
+* correctness of the computed metrics (on the validation set);
+* (part of the report) clear description of the method;
 * report.
 
 
