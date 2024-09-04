@@ -199,3 +199,8 @@ The folder should then be [tarred](https://xkcd.com/1168/) and compressed, e.g.:
 $ tar cf - group-XX/ | zstd -T0 -3 > group-XX.tar.zst
 $ tar cf group-XX.tar.gz - group-XX/
 ```
+
+
+## Known issues
+### Cannot pickle lambda in the dataloader
+Some installs (probably due to Python/Pytorch version mismatch) throw an error about an inability to pickle lambda functions (at the dataloader stage). Short of reinstalling everything, setting the number of workers to 0 seems to get around the problem (`--num_workers 0`).
