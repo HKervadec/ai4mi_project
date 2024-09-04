@@ -204,3 +204,6 @@ $ tar cf group-XX.tar.gz - group-XX/
 ## Known issues
 ### Cannot pickle lambda in the dataloader
 Some installs (probably due to Python/Pytorch version mismatch) throw an error about an inability to pickle lambda functions (at the dataloader stage). Short of reinstalling everything, setting the number of workers to 0 seems to get around the problem (`--num_workers 0`).
+
+### Pytorch not compiled for Numpy 2.0
+It may happen that Pytorch, when installed through pip, was compiled for Numpy 1.x, which creates some inconsistencies. Downgrading Numpy seems to solve it: `pip install --upgrade "numpy<2"`
