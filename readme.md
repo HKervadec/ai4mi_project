@@ -38,6 +38,7 @@ $ source ai4mi/bin/activate
 $ which python  # ensure this is not your system's python anymore
 $ python -m pip install -r requirements.txt
 ```
+Conda is an alternative to pip, but is recommended not to mix `conda install` and `pip install`.
 
 ### Getting the data
 The synthetic dataset is generated randomly, whereas for Segthor it is required to put the file [`segthor_train.zip`](https://amsuni-my.sharepoint.com/:u:/g/personal/h_t_g_kervadec_uva_nl/EfMdFte7pExAnPwt4tYUcxcBbJJO8dqxJP9r-5pm9M_ARw?e=ZNdjee) (required a UvA account) in the `data/` folder. If the computer running it is powerful enough, the recipe for `data/SEGTHOR` can be modified in the [Makefile](Makefile) to enable multi-processing (`-p -1` option, see `python slice_segthor.py --help` or its code directly).
