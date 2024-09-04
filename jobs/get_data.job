@@ -1,0 +1,18 @@
+#!/bin/bash
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=get_data
+#SBATCH --ntasks=1
+#SBATCH --time=01:00:00
+#SBATCH --output=logs/get_data_%A.out
+
+WORK_DIR=$HOME/ai4mi_project
+ENVDIR=$WORK_DIR/ai4mi/bin/activate
+cd $WORK_DIR
+
+module purge
+module load 2023
+source $ENVDIR
+
+make data/TOY2
+make data/SEGTHOR
