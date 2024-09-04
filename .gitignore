@@ -6,3 +6,4 @@ volumes/
 ai4mi/
 bin/
 __pycache__/
+jobs/logs/
