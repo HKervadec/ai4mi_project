@@ -1,0 +1,25 @@
+# Project Title
+
+## Getting Started
+
+For dependency management, I recommend to use [uv](https://github.com/astral-sh/uv), a fast and lightweight drop-in replacement for `pip` as well as a Python version manager.
+
+Otherwise, I recommend sticking to `pip` and `venv` to install the dependencies.
+
+```bash
+# If you don't have uv installed, you can install it using pip
+# pip install uv
+uv venv -p 3.12 # This will create a virtual environment with Python 3.12
+source .venv/bin/activate # This will activate the virtual environment
+uv pip sync requirements.txt # Alternatively: uv pip install -r requirements.txt
+```
+
+### Linting and Formatting
+
+It's recommended to always format your code on save with [ruff](https://github.com/astral-sh/ruff). No recommendations for linting for this project.
+
+```bash
+uv tool update-shell # This will update your shell profile to include uv tools
+uv tool install ruff
+uvx ruff format
+```
