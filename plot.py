@@ -49,7 +49,9 @@ def run(args: argparse.Namespace) -> None:
         ax.plot(epcs, y, label=f"{k=}", linewidth=1.5)
 
     if K > 2:
-        ax.plot(epcs, metrics.mean(axis=1).mean(axis=1), label="All classes", linewidth=3)
+        ax.plot(
+            epcs, metrics.mean(axis=1).mean(axis=1), label="All classes", linewidth=3
+        )
         ax.legend()
     else:
         ax.plot(epcs, metrics.mean(axis=1), linewidth=3)
@@ -63,13 +65,25 @@ def run(args: argparse.Namespace) -> None:
 
 
 def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Plot data over time')
-    parser.add_argument('--metric_file', type=Path, required=True, metavar="METRIC_MODE.npy",
-                        help="The metric file to plot.")
-    parser.add_argument('--dest', type=Path, metavar="METRIC_MODE.png",
-                        help="Optional: save the plot to a .png file")
-    parser.add_argument("--headless", action="store_true",
-                        help="Does not display the plot and save it directly (implies --dest to be provided.")
+    parser = argparse.ArgumentParser(description="Plot data over time")
+    parser.add_argument(
+        "--metric_file",
+        type=Path,
+        required=True,
+        metavar="METRIC_MODE.npy",
+        help="The metric file to plot.",
+    )
+    parser.add_argument(
+        "--dest",
+        type=Path,
+        metavar="METRIC_MODE.png",
+        help="Optional: save the plot to a .png file",
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Does not display the plot and save it directly (implies --dest to be provided.",
+    )
 
     args = parser.parse_args()
 

@@ -77,14 +77,25 @@ def sanity_gt(gt, ct) -> bool:
     return True
 
 
-resize_: Callable = partial(resize, mode="constant", preserve_range=True, anti_aliasing=False)
+resize_: Callable = partial(
+    resize, mode="constant", preserve_range=True, anti_aliasing=False
+)
 
 
-def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int, int],
-                  test_mode: bool = False) -> tuple[float, float, float]:
+def slice_patient(
+    id_: str,
+    dest_path: Path,
+    source_path: Path,
+    shape: tuple[int, int],
+    test_mode: bool = False,
+) -> tuple[float, float, float]:
     id_path: Path = source_path / ("train" if not test_mode else "test") / id_
 
-    ct_path: Path = (id_path / f"{id_}.nii.gz") if not test_mode else (source_path / "test" / f"{id_}.nii.gz")
+    ct_path: Path = (
+        (id_path / f"{id_}.nii.gz")
+        if not test_mode
+        else (source_path / "test" / f"{id_}.nii.gz")
+    )
     nib_obj = nib.load(str(ct_path))
     ct: np.ndarray = np.asarray(nib_obj.dataobj)
     # dx, dy, dz = nib_obj.header.get_zooms()
@@ -115,14 +126,15 @@ def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int
         gt_slice *= 63
         assert gt_slice.dtype == np.uint8, gt_slice.dtype
         # assert set(np.unique(gt_slice)) <= set(range(5))
-        assert set(np.unique(gt_slice)) <= set([0, 63, 126, 189, 252]), np.unique(gt_slice)
+        assert set(np.unique(gt_slice)) <= set([0, 63, 126, 189, 252]), np.unique(
+            gt_slice
+        )
 
         arrays: list[np.ndarray] = [img_slice, gt_slice]
 
         subfolders: list[str] = ["img", "gt"]
         assert len(arrays) == len(subfolders)
-        for save_subfolder, data in zip(subfolders,
-                                        arrays):
+        for save_subfolder, data in zip(subfolders, arrays):
             filename = f"{id_}_{idz:04d}.png"
 
             save_path: Path = Path(dest_path, save_subfolder)
@@ -135,13 +147,17 @@ def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int
     return dx, dy, dz
 
 
-def get_splits(src_path: Path, retains: int, fold: int) -> tuple[list[str], list[str], list[str]]:
-    ids: list[str] = sorted(map_(lambda p: p.name, (src_path / 'train').glob('*')))
+def get_splits(
+    src_path: Path, retains: int, fold: int
+) -> tuple[list[str], list[str], list[str]]:
+    ids: list[str] = sorted(map_(lambda p: p.name, (src_path / "train").glob("*")))
     print(f"Founds {len(ids)} in the id list")
     print(ids[:10])
     assert len(ids) > retains
 
-    random.shuffle(ids)  # Shuffle before to avoid any problem if the patients are sorted in any way
+    random.shuffle(
+        ids
+    )  # Shuffle before to avoid any problem if the patients are sorted in any way
     validation_slice = slice(fold * retains, (fold + 1) * retains)
     validation_ids: list[str] = ids[validation_slice]
     assert len(validation_ids) == retains
@@ -149,7 +165,9 @@ def get_splits(src_path: Path, retains: int, fold: int) -> tuple[list[str], list
     training_ids: list[str] = [e for e in ids if e not in validation_ids]
     assert (len(training_ids) + len(validation_ids)) == len(ids)
 
-    test_ids: list[str] = sorted(map_(lambda p: Path(p.stem).stem, (src_path / 'test').glob('*')))
+    test_ids: list[str] = sorted(
+        map_(lambda p: Path(p.stem).stem, (src_path / "test").glob("*"))
+    )
     print(f"Founds {len(test_ids)} test ids")
     print(test_ids[:10])
 
@@ -167,20 +185,26 @@ def main(args: argparse.Namespace):
     training_ids: list[str]
     validation_ids: list[str]
     test_ids: list[str]
-    training_ids, validation_ids, test_ids = get_splits(src_path, args.retains, args.fold)
+    training_ids, validation_ids, test_ids = get_splits(
+        src_path, args.retains, args.fold
+    )
 
     resolution_dict: dict[str, tuple[float, float, float]] = {}
 
     split_ids: list[str]
-    for mode, split_ids in zip(["train", "val", "test"], [training_ids, validation_ids, test_ids]):
+    for mode, split_ids in zip(
+        ["train", "val", "test"], [training_ids, validation_ids, test_ids]
+    ):
         dest_mode: Path = dest_path / mode
         print(f"Slicing {len(split_ids)} pairs to {dest_mode}")
 
-        pfun: Callable = partial(slice_patient,
-                                 dest_path=dest_mode,
-                                 source_path=src_path,
-                                 shape=tuple(args.shape),
-                                 test_mode=mode == 'test')
+        pfun: Callable = partial(
+            slice_patient,
+            dest_path=dest_mode,
+            source_path=src_path,
+            shape=tuple(args.shape),
+            test_mode=mode == "test",
+        )
         resolutions: list[tuple[float, float, float]]
         iterator = tqdm_(split_ids)
         match args.process:
@@ -194,22 +218,32 @@ def main(args: argparse.Namespace):
         for key, val in zip(split_ids, resolutions):
             resolution_dict[key] = val
 
-    with open(dest_path / "spacing.pkl", 'wb') as f:
+    with open(dest_path / "spacing.pkl", "wb") as f:
         pickle.dump(resolution_dict, f, pickle.HIGHEST_PROTOCOL)
         print(f"Saved spacing dictionnary to {f}")
 
 
 def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Slicing parameters')
-    parser.add_argument('--source_dir', type=str, required=True)
-    parser.add_argument('--dest_dir', type=str, required=True)
+    parser = argparse.ArgumentParser(description="Slicing parameters")
+    parser.add_argument("--source_dir", type=str, required=True)
+    parser.add_argument("--dest_dir", type=str, required=True)
 
-    parser.add_argument('--shape', type=int, nargs="+", default=[256, 256])
-    parser.add_argument('--retains', type=int, default=25, help="Number of retained patient for the validation data")
-    parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--fold', type=int, default=0)
-    parser.add_argument('--process', '-p', type=int, default=1,
-                        help="The number of cores to use for processing")
+    parser.add_argument("--shape", type=int, nargs="+", default=[256, 256])
+    parser.add_argument(
+        "--retains",
+        type=int,
+        default=25,
+        help="Number of retained patient for the validation data",
+    )
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--fold", type=int, default=0)
+    parser.add_argument(
+        "--process",
+        "-p",
+        type=int,
+        default=1,
+        help="The number of cores to use for processing",
+    )
     args = parser.parse_args()
     random.seed(args.seed)
 

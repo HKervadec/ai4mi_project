@@ -34,9 +34,12 @@ from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
 
-tqdm_ = partial(tqdm, dynamic_ncols=True,
-                leave=True,
-                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]')
+tqdm_ = partial(
+    tqdm,
+    dynamic_ncols=True,
+    leave=True,
+    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
+)
 
 
 class Dcm(AbstractContextManager):
@@ -95,7 +98,9 @@ def class2one_hot(seg: Tensor, K: int) -> Tensor:
     b, *img_shape = seg.shape
 
     device = seg.device
-    res = torch.zeros((b, K, *img_shape), dtype=torch.int32, device=device).scatter_(1, seg[:, None, ...], 1)
+    res = torch.zeros((b, K, *img_shape), dtype=torch.int32, device=device).scatter_(
+        1, seg[:, None, ...], 1
+    )
 
     assert res.shape == (b, K, *img_shape)
     assert one_hot(res)
@@ -126,26 +131,32 @@ def probs2one_hot(probs: Tensor) -> Tensor:
 
 # Save the raw predictions
 def save_images(segs: Tensor, names: Iterable[str], root: Path) -> None:
-        for seg, name in zip(segs, names):
-                save_path = (root / name).with_suffix(".png")
-                save_path.parent.mkdir(parents=True, exist_ok=True)
+    for seg, name in zip(segs, names):
+        save_path = (root / name).with_suffix(".png")
+        save_path.parent.mkdir(parents=True, exist_ok=True)
 
-                if len(seg.shape) == 2:
-                        Image.fromarray(seg.detach().cpu().numpy().astype(np.uint8)).save(save_path)
-                elif len(seg.shape) == 3:
-                        np.save(str(save_path), seg.detach().cpu().numpy())
-                else:
-                        raise ValueError(seg.shape)
+        if len(seg.shape) == 2:
+            Image.fromarray(seg.detach().cpu().numpy().astype(np.uint8)).save(save_path)
+        elif len(seg.shape) == 3:
+            np.save(str(save_path), seg.detach().cpu().numpy())
+        else:
+            raise ValueError(seg.shape)
 
 
 # Metrics
-def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+def meta_dice(
+    sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8
+) -> Tensor:
     assert label.shape == pred.shape
     assert one_hot(label)
     assert one_hot(pred)
 
-    inter_size: Tensor = einsum(sum_str, [intersection(label, pred)]).type(torch.float32)
-    sum_sizes: Tensor = (einsum(sum_str, [label]) + einsum(sum_str, [pred])).type(torch.float32)
+    inter_size: Tensor = einsum(sum_str, [intersection(label, pred)]).type(
+        torch.float32
+    )
+    sum_sizes: Tensor = (einsum(sum_str, [label]) + einsum(sum_str, [pred])).type(
+        torch.float32
+    )
 
     dices: Tensor = (2 * inter_size + smooth) / (sum_sizes + smooth)
 

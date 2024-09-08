@@ -31,12 +31,12 @@ from torch.utils.data import Dataset
 
 
 def make_dataset(root, subset) -> list[tuple[Path, Path]]:
-    assert subset in ['train', 'val', 'test']
+    assert subset in ["train", "val", "test"]
 
     root = Path(root)
 
-    img_path = root / subset / 'img'
-    full_path = root / subset / 'gt'
+    img_path = root / subset / "img"
+    full_path = root / subset / "gt"
 
     images = sorted(img_path.glob("*.png"))
     full_labels = sorted(full_path.glob("*.png"))
@@ -45,8 +45,16 @@ def make_dataset(root, subset) -> list[tuple[Path, Path]]:
 
 
 class SliceDataset(Dataset):
-    def __init__(self, subset, root_dir, img_transform=None,
-                 gt_transform=None, augment=False, equalize=False, debug=False):
+    def __init__(
+        self,
+        subset,
+        root_dir,
+        img_transform=None,
+        gt_transform=None,
+        augment=False,
+        equalize=False,
+        debug=False,
+    ):
         self.root_dir: str = root_dir
         self.img_transform: Callable = img_transform
         self.gt_transform: Callable = gt_transform
@@ -72,6 +80,4 @@ class SliceDataset(Dataset):
         K, _, _ = gt.shape
         assert gt.shape == (K, W, H)
 
-        return {"images": img,
-                "gts": gt,
-                "stems": img_path.stem}
+        return {"images": img, "gts": gt, "stems": img_path.stem}
