@@ -81,8 +81,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     net.init_weights()
     net.to(device)
 
-    lr = 0.0005
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, betas=(0.9, 0.999))
 
     # Dataset part
     B: int = datasets_params[args.dataset]["B"]
@@ -275,8 +274,14 @@ def main():
         required=True,
         help="Destination directory to save the results (predictions and weights).",
     )
-
-    parser.add_argument("--num_workers", type=int, default=5)
+    parser.add_argument(
+        "--num_workers", 
+        type=int, 
+        default=0, 
+        help="Number of subprocesses to use for data loading. "
+        "Default 0 to avoid pickle lambda error"
+    )  
+    parser.add_argument("--lr", type=float, default=0.0005) 
     parser.add_argument("--gpu", action="store_true")
     parser.add_argument(
         "--debug",
