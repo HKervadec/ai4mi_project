@@ -7,3 +7,4 @@ ai4mi/
 bin/
 __pycache__/
 jobs/logs/
+grad_figs/*.png
