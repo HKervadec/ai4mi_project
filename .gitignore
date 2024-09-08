@@ -8,6 +8,7 @@ bin/
 __pycache__/
 jobs/logs/
 grad_figs/*.png
+.DS_Store
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

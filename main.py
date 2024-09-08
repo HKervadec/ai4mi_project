@@ -62,9 +62,19 @@ datasets_params["SEGTHOR"] = {"K": 5, "net": ENet, "B": 8}
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
-    gpu: bool = args.gpu and torch.cuda.is_available()
-    device = torch.device("cuda") if gpu else torch.device("cpu")
-    print(f">> Picked {device} to run experiments")
+    if args.gpu:
+        if torch.backends.mps.is_available():
+            device = torch.device("mps")
+            print(">> Picked MPS (Apple Silicon GPU) to run experiments")
+        elif torch.cuda.is_available():
+            device = torch.device("cuda")
+            print(">> Picked CUDA to run experiments")
+        else:
+            device = torch.device("cpu")
+            print(">> CUDA/MPS not available, falling back to CPU")
+    else:
+        device = torch.device("cpu")
+        print(f">> Picked CPU to run experiments")
 
     K: int = datasets_params[args.dataset]["K"]
     net = datasets_params[args.dataset]["net"](1, K)
