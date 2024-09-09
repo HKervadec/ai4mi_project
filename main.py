@@ -37,6 +37,8 @@ from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
+from losses import CrossEntropy
+
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
@@ -49,16 +51,6 @@ from utils import (
     dice_coef,
     save_images,
 )
-
-from losses import CrossEntropy
-
-
-datasets_params: dict[str, dict[str, Any]] = {}
-# K for the number of classes
-# Avoids the clases with C (often used for the number of Channel)
-datasets_params["TOY2"] = {"K": 2, "net": shallowCNN, "B": 2}
-datasets_params["SEGTHOR"] = {"K": 5, "net": ENet, "B": 8}
-
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
@@ -75,16 +67,16 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     else:
         device = torch.device("cpu")
         print(f">> Picked CPU to run experiments")
-
-    K: int = datasets_params[args.dataset]["K"]
-    net = datasets_params[args.dataset]["net"](1, K)
+    
+    K: int = args.datasets_params[args.dataset]["K"]
+    net = args.datasets_params[args.dataset]["net"](1, K)
     net.init_weights()
     net.to(device)
 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, betas=(0.9, 0.999))
 
     # Dataset part
-    B: int = datasets_params[args.dataset]["B"]
+    B: int = args.datasets_params[args.dataset]["B"]
     root_dir = Path("data") / args.dataset
 
     img_transform = transforms.Compose(
@@ -261,13 +253,33 @@ def runTraining(args):
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
+def get_args():
 
-def main():
+    # K for the number of classes
+    # Avoids the clases with C (often used for the number of Channel)
+    datasets_params: dict[str, dict[str, Any]] = {}
+    datasets_params["TOY2"] = {"K": 2, "net": shallowCNN, "B": 2}
+    datasets_params["SEGTHOR"] = {"K": 5, "net": ENet, "B": 8}
+
     parser = argparse.ArgumentParser()
-
-    parser.add_argument("--epochs", default=200, type=int)
-    parser.add_argument("--dataset", default="TOY2", choices=datasets_params.keys())
-    parser.add_argument("--mode", default="full", choices=["partial", "full"])
+    parser.add_argument(
+        "--epochs", 
+        default=25, 
+        type=int
+    )
+    parser.add_argument(
+        "--dataset", 
+        default="TOY2", 
+        choices=datasets_params.keys(),
+        help="Which dataset to use for the training."
+    )
+    parser.add_argument(
+        "--mode", 
+        default="full", 
+        choices=["partial", "full"],
+        help="Whether to supervise all the classes ('full') or, "
+        "only a subset of them ('partial')."
+    )
     parser.add_argument(
         "--dest",
         type=Path,
@@ -281,19 +293,32 @@ def main():
         help="Number of subprocesses to use for data loading. "
         "Default 0 to avoid pickle lambda error"
     )  
-    parser.add_argument("--lr", type=float, default=0.0005) 
-    parser.add_argument("--gpu", action="store_true")
+    parser.add_argument(
+        "--lr", 
+        type=float, 
+        default=0.0005,
+        help="Learning rate for the optimizer."
+    ) 
+    parser.add_argument(
+        "--gpu", 
+        action="store_true",
+        help="Use the GPU if available, otherwise fall back to the CPU."
+    )
     parser.add_argument(
         "--debug",
         action="store_true",
         help="Keep only a fraction (10 samples) of the datasets, "
         "to test the logic around epochs and logging easily.",
     )
-
     args = parser.parse_args()
+    pprint(args)  
+    args.datasets_params = datasets_params
 
-    pprint(args)
+    return args
 
+def main():
+
+    args = get_args()
     runTraining(args)
 
 
