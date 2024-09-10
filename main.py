@@ -40,9 +40,9 @@ from torch.utils.data import DataLoader
 from losses import CrossEntropy
 
 from dataset import SliceDataset
-from ShallowNet import shallowCNN
-from ENet import ENet
-from utils import (
+from models.ShallowNet import shallowCNN
+from models.ENet import ENet
+from utils.utils import (
     Dcm,
     class2one_hot,
     probs2one_hot,
