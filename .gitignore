@@ -123,3 +123,4 @@ runs/
 
 # Lightning logs
 lightning_logs/
+**/.ruff_cache
