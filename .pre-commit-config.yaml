@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.0.1
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: isort (python)
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10  # match with pants.toml
+    hooks:
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+        types: [python]
+        files: ^.*\.py$
+      # Run the formatter.
+      - id: ruff-format
+        types: [python]
+        files: ^.*\.py$
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.20.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

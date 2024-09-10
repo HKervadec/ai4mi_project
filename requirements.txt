@@ -6,3 +6,6 @@ tqdm
 pillow
 scikit-image
 matplotlib
+pre-commit
+ruff
+isort
