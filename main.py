@@ -73,10 +73,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     net.init_weights()
     net.to(device)
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, betas=(0.9, 0.999))
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
 
     # Dataset part
-    B: int = args.datasets_params[args.dataset]["B"]
+    B: int = args.datasets_params[args.dataset]["B"] # Batch size
     root_dir = Path("data") / args.dataset
 
     img_transform = transforms.Compose(
@@ -255,7 +255,7 @@ def runTraining(args):
 
 def get_args():
 
-    # K for the number of classes
+    # K: Number of classes
     # Avoids the clases with C (often used for the number of Channel)
     datasets_params: dict[str, dict[str, Any]] = {}
     datasets_params["TOY2"] = {"K": 2, "net": shallowCNN, "B": 2}
