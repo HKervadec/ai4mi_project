@@ -3,7 +3,7 @@
 ## Project overview
 
 The project is based around the SegTHOR challenge data, which was kindly allowed by Caroline Petitjean (challenge organizer) to use for the course. The challenge was originally on the segmentation of different organs: heart, aorta, esophagus and trachea.
-![Segthor Overview](assets/segthor_overview.png)
+![Segthor Overview](assets/images/segthor_overview.png)
 
 ## Codebase features
 
@@ -30,7 +30,7 @@ In the following, a line starting by `$` usually means it is meant to be typed i
 ### Setting up the environment
 
 ```
-git clone https://github.com/HKervadec/ai4mi_project.git
+git clone https://github.com/danilotpnta/ai4mi_project.git
 cd ai4mi_project
 git submodule init
 git submodule update
@@ -112,21 +112,27 @@ Comparing some predictions with the provided [viewer](viewer/viewer.py) (right-c
 
 ```
 $ python viewer/viewer.py --img_source data/TOY2/val/img \
-    data/TOY2/val/gt results/toy2/ce/iter000/val results/toy2/ce/iter005/val results/toy2/ce/best_epoch/val \
+                                       data/TOY2/val/gt  \
+                                       results/toy2/ce/iter000/val \
+                                       results/toy2/ce/iter005/val \
+                                       results/toy2/ce/best_epoch/val \
     --show_img -C 256 --no_contour
 ```
 
-![Example of the viewer on the TOY example](assets/viewer_toy.png)
+![Example of the viewer on the TOY example](assets/images/viewer_toy.png)
+
 **Note:** if using it from a SSH session, it requires X to be forwarded ([Unix/BSD](https://man.archlinux.org/man/ssh.1#X), [Windows](https://mobaxterm.mobatek.net/documentation.html#1_4)) for it to work. Note that X forwarding also needs to be enabled on the server side.
 
 ```
 $ python viewer/viewer.py --img_source data/SEGTHOR/val/img \
-    data/SEGTHOR/val/gt results/segthor/ce/iter000/val results/segthor/ce/best_epoch/val \
+                                       data/SEGTHOR/val/gt \
+                                       results/segthor/ce/iter000/val \
+                                       results/segthor/ce/best_epoch/val \
     -n 2 -C 5 --remap "{63: 1, 126: 2, 189: 3, 252: 4}" \
     --legend --class_names background esophagus heart trachea aorta
 ```
 
-![Example of the viewer on SegTHOR](assets/viewer_segthor.png)
+![Example of the viewer on SegTHOR](assets/images/viewer_segthor.png)
 
 #### 3D viewers
 
@@ -141,10 +147,10 @@ $ python stitch.py --data_folder results/segthor/ce/best_epoch/val \
 ```
 
 [3D Slicer](https://www.slicer.org/) and [ITK Snap](http://www.itksnap.org) are two popular viewers for medical data, here comparing `GT.nii.gz` and the corresponding stitched prediction `Patient_01.nii.gz`:
-![Viewing label and prediction](assets/3dslicer.png)
+![Viewing label and prediction](assets/images/3dslicer.png)
 
 Zooming on the prediction with smoothing disabled:
-![Viewing the prediction without smoothing](assets/3dslicer_zoom.png)
+![Viewing the prediction without smoothing](assets/images/3dslicer_zoom.png)
 
 ### Plotting the metrics
 
@@ -166,7 +172,7 @@ options:
 $ python plot.py --metric_file results/segthor/ce/dice_val.npy --dest results/segthor/ce/dice_val.png
 ```
 
-![Validation DSC](assets/dice_val.png)
+![Validation DSC](assets/images/dice_val.png)
 
 ## Submission and scoring
 
@@ -180,7 +186,7 @@ Groups will have to submit:
 The main criteria for scoring will include:
 
 * improvement of performances over baseline;
-* code quality/clear [git use](git.md);
+* code quality/clear [git use](assets/documents/git.md);
 * the [choice of metrics](https://metrics-reloaded.dkfz.de/);
 * correctness of the computed metrics (on the validation set);
 * (part of the report) clear description of the method;
