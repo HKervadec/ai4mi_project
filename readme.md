@@ -30,7 +30,7 @@ In the following, a line starting by `$` usually means it is meant to be typed i
 ### Setting up the environment
 
 ```
-git clone https://github.com/HKervadec/ai4mi_project.git
+git clone https://github.com/danilotpnta/ai4mi_project.git
 cd ai4mi_project
 git submodule init
 git submodule update
@@ -112,16 +112,22 @@ Comparing some predictions with the provided [viewer](viewer/viewer.py) (right-c
 
 ```
 $ python viewer/viewer.py --img_source data/TOY2/val/img \
-    data/TOY2/val/gt results/toy2/ce/iter000/val results/toy2/ce/iter005/val results/toy2/ce/best_epoch/val \
+                                       data/TOY2/val/gt  \
+                                       results/toy2/ce/iter000/val \
+                                       results/toy2/ce/iter005/val \
+                                       results/toy2/ce/best_epoch/val \
     --show_img -C 256 --no_contour
 ```
 
 ![Example of the viewer on the TOY example](assets/images/viewer_toy.png)
+
 **Note:** if using it from a SSH session, it requires X to be forwarded ([Unix/BSD](https://man.archlinux.org/man/ssh.1#X), [Windows](https://mobaxterm.mobatek.net/documentation.html#1_4)) for it to work. Note that X forwarding also needs to be enabled on the server side.
 
 ```
 $ python viewer/viewer.py --img_source data/SEGTHOR/val/img \
-    data/SEGTHOR/val/gt results/segthor/ce/iter000/val results/segthor/ce/best_epoch/val \
+                                       data/SEGTHOR/val/gt \
+                                       results/segthor/ce/iter000/val \
+                                       results/segthor/ce/best_epoch/val \
     -n 2 -C 5 --remap "{63: 1, 126: 2, 189: 3, 252: 4}" \
     --legend --class_names background esophagus heart trachea aorta
 ```
