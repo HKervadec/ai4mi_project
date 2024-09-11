@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 import argparse
+import multiprocessing
 import warnings
 from typing import Any
 from pathlib import Path
@@ -243,6 +244,10 @@ def main():
                              "to test the logic around epochs and logging easily.")
 
     args = parser.parse_args()
+
+    # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork
+    # see https://github.com/pytest-dev/pytest-flask/issues/104
+    multiprocessing.set_start_method("fork")
 
     pprint(args)
 
