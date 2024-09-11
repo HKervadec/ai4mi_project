@@ -37,6 +37,7 @@ $ python -m venv ai4mi
 $ source ai4mi/bin/activate
 $ which python  # ensure this is not your system's python anymore
 $ python -m pip install -r requirements.txt
+$ pre-commit install
 ```
 Conda is an alternative to pip, but is recommended not to mix `conda install` and `pip install`.
 
