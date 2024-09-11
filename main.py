@@ -37,18 +37,19 @@ from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from losses import CrossEntropy
 
 from dataset import SliceDataset
 from models.ShallowNet import shallowCNN
 from models.ENet import ENet
-from utils.utils import (
+
+from utils.losses import CrossEntropy
+from utils.metrics import dice_coef
+from utils.tensor_utils import (
     Dcm,
     class2one_hot,
     probs2one_hot,
     probs2class,
     tqdm_,
-    dice_coef,
     save_images,
 )
 
