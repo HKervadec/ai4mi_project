@@ -7,3 +7,5 @@ pillow
 scikit-image
 matplotlib
 wandb
+medpy
+jupyter
