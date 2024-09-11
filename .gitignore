@@ -172,4 +172,8 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# Ignore VSCode settings folder
 .vscode/
+
+# Ignore W&B local run logs
+wandb/

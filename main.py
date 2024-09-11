@@ -52,6 +52,20 @@ from utils.tensor_utils import (
     tqdm_,
     save_images,
 )
+import wandb
+
+def setup_wandb(args):
+    # Initialize a new W&B run
+    wandb.init(
+        project="your_project_name",
+        config={
+            "epochs": args.epochs,
+            "dataset": args.dataset,
+            "learning_rate": args.lr,
+            "batch_size": args.datasets_params[args.dataset]["B"],
+            "mode": args.mode,
+        },
+    )
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
@@ -230,6 +244,13 @@ def runTraining(args):
                             for k in range(1, K)
                         }
                     tq_iter.set_postfix(postfix_dict)
+                
+                # Log the metrics after each 'e' epoch 
+                wandb.log({
+                    f"{m}_loss": log_loss[e].mean().item(),
+                    f"{m}_dice": log_dice[e, :, 1:].mean().item(),
+                    f"{m}_dice_per_class": {f"dice_{k}": log_dice[e, :, k].mean().item() for k in range(1, K)}
+                })
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -253,6 +274,10 @@ def runTraining(args):
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
+
+            # Log model checkpoint
+            wandb.save(str(args.dest / "bestmodel.pkl"))
+            wandb.save(str(args.dest / "bestweights.pt"))
 
 def get_args():
 
@@ -320,6 +345,7 @@ def get_args():
 def main():
 
     args = get_args()
+    setup_wandb(args) 
     runTraining(args)
 
 
