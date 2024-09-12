@@ -57,7 +57,7 @@ import wandb
 def setup_wandb(args):
     # Initialize a new W&B run
     wandb.init(
-        project="your_project_name",
+        project=args.wandb_project_name,
         config={
             "epochs": args.epochs,
             "dataset": args.dataset,
@@ -246,11 +246,12 @@ def runTraining(args):
                     tq_iter.set_postfix(postfix_dict)
                 
                 # Log the metrics after each 'e' epoch 
-                wandb.log({
-                    f"{m}_loss": log_loss[e].mean().item(),
-                    f"{m}_dice": log_dice[e, :, 1:].mean().item(),
-                    f"{m}_dice_per_class": {f"dice_{k}": log_dice[e, :, k].mean().item() for k in range(1, K)}
-                })
+                if not args.disable_wandb:
+                    wandb.log({
+                        f"{m}_loss": log_loss[e].mean().item(),
+                        f"{m}_dice": log_dice[e, :, 1:].mean().item(),
+                        f"{m}_dice_per_class": {f"dice_{k}": log_dice[e, :, k].mean().item() for k in range(1, K)}
+                    })
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -336,6 +337,16 @@ def get_args():
         help="Keep only a fraction (10 samples) of the datasets, "
         "to test the logic around epochs and logging easily.",
     )
+    parser.add_argument(
+        '--disable_wandb',
+        action='store_true',
+        help='Use flag to disable wandb logging, i.e. for debugging.'
+    )
+    parser.add_argument(
+        '--wandb_project_name',
+        type=str,
+        help='Project wandb will be logging run to'
+    )
     args = parser.parse_args()
     pprint(args)  
     args.datasets_params = datasets_params
@@ -343,11 +354,10 @@ def get_args():
     return args
 
 def main():
-
     args = get_args()
-    setup_wandb(args) 
+    if not args.disable_wandb:
+        setup_wandb(args) 
     runTraining(args)
-
 
 if __name__ == "__main__":
     main()
