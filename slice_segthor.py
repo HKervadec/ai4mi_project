@@ -36,7 +36,7 @@ import nibabel as nib
 from skimage.io import imsave
 from skimage.transform import resize
 
-from utils import map_, tqdm_
+from utils.tensor_utils import map_, tqdm_
 
 
 def norm_arr(img: np.ndarray) -> np.ndarray:
