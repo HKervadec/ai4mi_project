@@ -22,6 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
+# MPS issue: aten::max_unpool2d' not available for MPS devices
+# Solution: set fallback to 1 before importing torch
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
 import argparse
 import warnings
 from typing import Any
@@ -37,63 +42,34 @@ from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-
 from dataset import SliceDataset
-from models.ShallowNet import shallowCNN
-from models.ENet import ENet
-
+from models.Network_wrapper import get_model
 from utils.losses import CrossEntropy
 from utils.metrics import dice_coef
-from utils.tensor_utils import (
-    Dcm,
-    class2one_hot,
-    probs2one_hot,
-    probs2class,
-    tqdm_,
-    save_images,
-)
-import wandb
+from utils.tensor_utils import *
 
-def setup_wandb(args):
-    # Initialize a new W&B run
-    wandb.init(
-        project=args.wandb_project_name,
-        config={
-            "epochs": args.epochs,
-            "dataset": args.dataset,
-            "learning_rate": args.lr,
-            "batch_size": args.datasets_params[args.dataset]["B"],
-            "mode": args.mode,
-        },
-    )
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
-    # Networks and scheduler
-    if args.gpu:
-        if torch.backends.mps.is_available():
-            device = torch.device("mps")
-            print(">> Picked MPS (Apple Silicon GPU) to run experiments")
-        elif torch.cuda.is_available():
-            device = torch.device("cuda")
-            print(">> Picked CUDA to run experiments")
-        else:
-            device = torch.device("cpu")
-            print(">> CUDA/MPS not available, falling back to CPU")
-    else:
-        device = torch.device("cpu")
-        print(f">> Picked CPU to run experiments")
     
+    # Seed & Logging part
+    if args.seed is not None: set_seed(args.seed)
+    if not args.disable_wandb: setup_wandb(args)
+
+    # Model part
+    device = get_device(args.gpu)
     K: int = args.datasets_params[args.dataset]["K"]
-    net = args.datasets_params[args.dataset]["net"](1, K)
+    net = args.model(1, K)
     net.init_weights()
     net.to(device)
-
+    
+    # Optimizer part
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
 
     # Dataset part
     B: int = args.datasets_params[args.dataset]["B"] # Batch size
     root_dir = Path("data") / args.dataset
 
+    # Transforms
     img_transform = transforms.Compose(
         [
             lambda img: img.convert("L"),
@@ -102,7 +78,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
             lambda nd: torch.tensor(nd, dtype=torch.float32),
         ]
     )
-
     gt_transform = transforms.Compose(
         [
             lambda img: np.array(img)[...],
@@ -119,6 +94,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         ]
     )
 
+    # Datasets and loaders
     train_set = SliceDataset(
         "train",
         root_dir,
@@ -282,23 +258,20 @@ def runTraining(args):
 
 def get_args():
 
-    # K: Number of classes
-    # Avoids the clases with C (often used for the number of Channel)
-    datasets_params: dict[str, dict[str, Any]] = {}
-    datasets_params["TOY2"] = {"K": 2, "net": shallowCNN, "B": 2}
-    datasets_params["SEGTHOR"] = {"K": 5, "net": ENet, "B": 8}
-
+    # Group 1: Dataset & Model configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--epochs", 
-        default=25, 
-        type=int
-    )
     parser.add_argument(
         "--dataset", 
         default="TOY2", 
-        choices=datasets_params.keys(),
+        choices=["TOY2", "SEGTHOR"],
         help="Which dataset to use for the training."
+    )
+    parser.add_argument(
+        '--model_name',
+        type=str,
+        default='shallowCNN',
+        choices=['shallowCNN', 'ENet', 'UDBRNet'],
+        help='Model to use for training'
     )
     parser.add_argument(
         "--mode", 
@@ -307,35 +280,53 @@ def get_args():
         help="Whether to supervise all the classes ('full') or, "
         "only a subset of them ('partial')."
     )
+
+    # Group 2: Training parameters
     parser.add_argument(
-        "--dest",
-        type=Path,
-        required=True,
-        help="Destination directory to save the results (predictions and weights).",
+        "--epochs", 
+        default=25, 
+        type=int,
+        help="Number of epochs to train."
+    )
+    parser.add_argument(
+        "--lr", 
+        type=float, 
+        default=0.0005,
+        help="Learning rate for the optimizer."
     )
     parser.add_argument(
         "--num_workers", 
         type=int, 
         default=0, 
         help="Number of subprocesses to use for data loading. "
-        "Default 0 to avoid pickle lambda error"
-    )  
-    parser.add_argument(
-        "--lr", 
-        type=float, 
-        default=0.0005,
-        help="Learning rate for the optimizer."
-    ) 
+        "Default 0 to avoid pickle lambda error."
+    )
     parser.add_argument(
         "--gpu", 
         action="store_true",
         help="Use the GPU if available, otherwise fall back to the CPU."
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed for reproducibility."
+    )
+
+    # Group 3: Output directory
+    parser.add_argument(
+        "--dest",
+        type=Path,
+        required=True,
+        help="Destination directory to save the results (predictions and weights)."
+    )
+
+    # Group 4: Debugging and logging settings
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Keep only a fraction (10 samples) of the datasets, "
-        "to test the logic around epochs and logging easily.",
+        "to test the logic around epochs and logging easily."
     )
     parser.add_argument(
         '--disable_wandb',
@@ -345,18 +336,28 @@ def get_args():
     parser.add_argument(
         '--wandb_project_name',
         type=str,
-        help='Project wandb will be logging run to'
+        help='Project wandb will be logging run to.'
     )
+
     args = parser.parse_args()
-    pprint(args)  
+    pprint(args)
+
+    # Model selection
+    args.model = get_model(args.model_name)
+
+    # Dataset-specific parameters
+    datasets_params = {
+        # K = number of classes, B = batch size
+        "TOY2":    {"K": 2, "B": 2},   
+        "SEGTHOR": {"K": 5, "B": 8},
+    }
     args.datasets_params = datasets_params
 
     return args
 
+
 def main():
     args = get_args()
-    if not args.disable_wandb:
-        setup_wandb(args) 
     runTraining(args)
 
 if __name__ == "__main__":

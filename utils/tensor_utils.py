@@ -22,12 +22,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import random
 from pathlib import Path
 from functools import partial
 from multiprocessing import Pool
 from contextlib import AbstractContextManager
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
+import wandb
 import torch
 import numpy as np
 from PIL import Image
@@ -141,3 +143,47 @@ def save_images(segs: Tensor, names: Iterable[str], root: Path) -> None:
             np.save(str(save_path), seg.detach().cpu().numpy())
         else:
             raise ValueError(seg.shape)
+
+# For reproducibility
+def set_seed(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+# Get the device (MPS, CUDA, or CPU)
+def get_device(use_gpu):
+    if use_gpu:
+        if torch.backends.mps.is_available():
+            device = torch.device("mps")
+            print(">> Picked MPS (Apple Silicon GPU) to run experiments")
+        elif torch.cuda.is_available():
+            device = torch.device("cuda")
+            print(">> Picked CUDA to run experiments")
+        else:
+            device = torch.device("cpu")
+            print(">> CUDA/MPS not available, falling back to CPU")
+    else:
+        device = torch.device("cpu")
+        print(f">> Picked CPU to run experiments")
+    
+    return device
+
+
+# Initialize a new W&B run
+def setup_wandb(args):
+    wandb.init(
+        project=args.wandb_project_name,
+        config={
+            "epochs": args.epochs,
+            "dataset": args.dataset,
+            "learning_rate": args.lr,
+            "batch_size": args.datasets_params[args.dataset]["B"],
+            "mode": args.mode,
+        },
+    )
