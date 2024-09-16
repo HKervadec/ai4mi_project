@@ -317,7 +317,7 @@ def get_args():
     parser.add_argument(
         "--dest",
         type=Path,
-        required=True,
+        default=None,
         help="Destination directory to save the results (predictions and weights)."
     )
 
@@ -340,6 +340,13 @@ def get_args():
     )
 
     args = parser.parse_args()
+
+    # If dest not provided, create one
+    if args.dest is None:
+        # CE: 'args.mode = full' 
+        # Other: 'args.mode = partial'
+        args.dest = Path(f"results/{args.dataset}/{args.mode}/{args.model_name}")
+    
     pprint(args)
 
     # Model selection

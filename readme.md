@@ -3,7 +3,7 @@
 ## Project overview
 
 The project is based around the SegTHOR challenge data, which was kindly allowed by Caroline Petitjean (challenge organizer) to use for the course. The challenge was originally on the segmentation of different organs: heart, aorta, esophagus and trachea.
-![Segthor Overview](assets/segthor_overview.png)
+![Segthor Overview](assets/images/segthor_overview.png)
 
 ## Codebase features
 
@@ -29,7 +29,7 @@ In the following, a line starting by `$` usually means it is meant to be typed i
 
 ### Setting up the environment
 
-```bash
+```
 git clone https://github.com/danilotpnta/ai4mi_project.git
 cd ai4mi_project
 git submodule init
@@ -38,7 +38,7 @@ git submodule update
 
 This codebase was written for a somewhat recent python (3.10 or more recent). (**Note: Ubuntu and some other Linux distributions might make the distasteful choice to have `python` pointing to 2.+ version, and require to type `python3` explicitly.**) The required packages are listed in [`requirements.txt`](requirements.txt) and a [virtual environment](https://docs.python.org/3/library/venv.html) can easily be created from it through [pip](https://pypi.org/):
 
-```bash
+```
 python -m venv ai4mi
 source ai4mi/bin/activate
 which python  # ensure this is not your system's python anymore
@@ -51,14 +51,14 @@ Conda is an alternative to pip, but is recommended not to mix `conda install` an
 
 The synthetic dataset is generated randomly, whereas for Segthor it is required to put the file [`segthor_train.zip`](https://amsuni-my.sharepoint.com/:u:/g/personal/h_t_g_kervadec_uva_nl/EfMdFte7pExAnPwt4tYUcxcBbJJO8dqxJP9r-5pm9M_ARw?e=ZNdjee) (required a UvA account) in the `data/` folder. If the computer running it is powerful enough, the recipe for `data/SEGTHOR` can be modified in the [Makefile](Makefile) to enable multi-processing (`-p -1` option, see `python slice_segthor.py --help` or its code directly).
 
-```bash
+```
 make data/TOY2
 make data/SEGTHOR
 ```
 
 For windows users, you can use the following instead
 
-```powershell
+```
 $ rm -rf data/TOY2_tmp data/TOY2
 $ python gen_two_circles.py --dest data/TOY2_tmp -n 1000 100 -r 25 -wh 256 256
 $ mv data/TOY2_tmp data/TOY2
@@ -70,12 +70,11 @@ $ rm -rf data/SEGTHOR_tmp data/SEGTHOR
 $ python  slice_segthor.py --source_dir data/segthor_train --dest_dir data/SEGTHOR_tmp \
          --shape 256 256 --retain 10
 $ mv data/SEGTHOR_tmp data/SEGTHOR
-```
+````
 
 ### Viewing the data
 
 The data can be viewed in different ways:
-
 * looking directly at the `.png` in the sliced folder (`data/SEGTHOR`);
 * using the provided "viewer" to compare segmentations ([see below](#viewing-the-results));
 * opening the Nifti files from `data/segthor_train` with [3D Slicer](https://www.slicer.org/) or [ITK Snap](http://www.itksnap.org).
@@ -84,7 +83,7 @@ The data can be viewed in different ways:
 
 Running a training
 
-```bash
+```
 $ python main.py --help
 usage: main.py [-h] [--epochs EPOCHS] [--dataset {TOY2,SEGTHOR}] [--mode {partial,full}] --dest DEST [--gpu] [--debug]
 
@@ -96,13 +95,13 @@ options:
   --dest DEST           Destination directory to save the results (predictions and weights).
   --gpu
   --debug               Keep only a fraction (10 samples) of the datasets, to test the logic around epochs and logging easily.
-$ python main.py --dataset TOY2 --mode full --epoch 25 --dest results/toy2/ce --gpu
+$ python -O main.py --dataset SEGTHOR --model_name ENet --mode full
 ```
 
 The codebase uses a lot of assertions for control and self-documentation, they can easily be disabled with the `-O` option (for faster training) once everything is known to be correct (for instance run the previous command for 1/2 epochs, then kill it and relaunch it):
 
-```bash
-python -O main.py --dataset TOY2 --mode full --epoch 25 --dest results/toy2/ce --gpu
+```
+python -O main.py --dataset SEGTHOR --model_name ENet --mode full
 ```
 
 ### Viewing the results
@@ -111,30 +110,36 @@ python -O main.py --dataset TOY2 --mode full --epoch 25 --dest results/toy2/ce -
 
 Comparing some predictions with the provided [viewer](viewer/viewer.py) (right-click to go to the next set of images, left-click to go back):
 
-```bash
+```
 $ python viewer/viewer.py --img_source data/TOY2/val/img \
-    data/TOY2/val/gt results/toy2/ce/iter000/val results/toy2/ce/iter005/val results/toy2/ce/best_epoch/val \
+                                       data/TOY2/val/gt  \
+                                       results/toy2/ce/iter000/val \
+                                       results/toy2/ce/iter005/val \
+                                       results/toy2/ce/best_epoch/val \
     --show_img -C 256 --no_contour
 ```
 
-![Example of the viewer on the TOY example](assets/viewer_toy.png)
+![Example of the viewer on the TOY example](assets/images/viewer_toy.png)
+
 **Note:** if using it from a SSH session, it requires X to be forwarded ([Unix/BSD](https://man.archlinux.org/man/ssh.1#X), [Windows](https://mobaxterm.mobatek.net/documentation.html#1_4)) for it to work. Note that X forwarding also needs to be enabled on the server side.
 
-```bash
+```
 $ python viewer/viewer.py --img_source data/SEGTHOR/val/img \
-    data/SEGTHOR/val/gt results/segthor/ce/iter000/val results/segthor/ce/best_epoch/val \
+                                       data/SEGTHOR/val/gt \
+                                       results/segthor/ce/iter000/val \
+                                       results/segthor/ce/best_epoch/val \
     -n 2 -C 5 --remap "{63: 1, 126: 2, 189: 3, 252: 4}" \
     --legend --class_names background esophagus heart trachea aorta
 ```
 
-![Example of the viewer on SegTHOR](assets/viewer_segthor.png)
+![Example of the viewer on SegTHOR](assets/images/viewer_segthor.png)
 
 #### 3D viewers
 
 To look at the results in 3D, it is necessary to reconstruct the 3D volume from the individual 2D predictions saved as images.
 To stitch the `.png` back to a nifti file:
 
-```bash
+```
 $ python stitch.py --data_folder results/segthor/ce/best_epoch/val \
     --dest_folder volumes/segthor/ce \
     --num_classes 255 --grp_regex "(Patient_\d\d)_\d\d\d\d" \
@@ -142,16 +147,16 @@ $ python stitch.py --data_folder results/segthor/ce/best_epoch/val \
 ```
 
 [3D Slicer](https://www.slicer.org/) and [ITK Snap](http://www.itksnap.org) are two popular viewers for medical data, here comparing `GT.nii.gz` and the corresponding stitched prediction `Patient_01.nii.gz`:
-![Viewing label and prediction](assets/3dslicer.png)
+![Viewing label and prediction](assets/images/3dslicer.png)
 
 Zooming on the prediction with smoothing disabled:
-![Viewing the prediction without smoothing](assets/3dslicer_zoom.png)
+![Viewing the prediction without smoothing](assets/images/3dslicer_zoom.png)
 
 ### Plotting the metrics
 
 There are some facilities to plot the metrics saved by [`main.py`](main.py):
 
-```bash
+```
 $ python plot.py --help
 usage: plot.py [-h] --metric_file METRIC_MODE.npy [--dest METRIC_MODE.png] [--headless]
 
@@ -167,7 +172,7 @@ options:
 $ python plot.py --metric_file results/segthor/ce/dice_val.npy --dest results/segthor/ce/dice_val.png
 ```
 
-![Validation DSC](assets/dice_val.png)
+![Validation DSC](assets/images/dice_val.png)
 
 ## Submission and scoring
 
@@ -181,7 +186,7 @@ Groups will have to submit:
 The main criteria for scoring will include:
 
 * improvement of performances over baseline;
-* code quality/clear [git use](git.md);
+* code quality/clear [git use](assets/documents/git.md);
 * the [choice of metrics](https://metrics-reloaded.dkfz.de/);
 * correctness of the computed metrics (on the validation set);
 * (part of the report) clear description of the method;
@@ -199,7 +204,7 @@ The main criteria for scoring will include:
 
 All files should be grouped in single folder with the following structure
 
-```bash
+```
 group-XX/
     test/
         pred/
@@ -226,7 +231,7 @@ The metrics should be numpy `ndarray` with the shape `NxKxD`, with `N` the numbe
 
 The folder should then be [tarred](https://xkcd.com/1168/) and compressed, e.g.:
 
-```bash
+```
 tar cf - group-XX/ | zstd -T0 -3 > group-XX.tar.zst
 tar cf group-XX.tar.gz - group-XX/
 ```
