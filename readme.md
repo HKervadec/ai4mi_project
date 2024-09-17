@@ -25,7 +25,7 @@ In the following, a line starting by `$` usually means it is meant to be typed i
 
 ### Setting up the environment
 ```
-$ git clone https://github.com/HKervadec/ai4mi_project.git
+$ git clone https://github.com/raoulritter/ai4mi_project.git
 $ cd ai4mi_project
 $ git submodule init
 $ git submodule update
