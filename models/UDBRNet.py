@@ -128,6 +128,8 @@ class RefUnet(nn.Module):
         enc, _ = self.ref_encoder(x)
 
         if isinstance(weights, torch.Tensor):
+            # print(f"Shape of weights: {weights.shape}")
+            # Shape of weights: torch.Size([8, 5, 256, 256])
             _, skips = self.ref_attention(weights)
 
         dec = self.ref_decoder(enc, skips)
@@ -280,11 +282,25 @@ class UDBRNet(nn.Module):
         output2 = self.conv(decoded2)
         output3 = self.conv(decoded3)
 
+        # print(f"Shape of output1: {output1.shape}")
+        # Shape of output1: torch.Size([8, 5, 256, 256])
+        
         self.uncertainity_weight = self.uncertainity.get_attention(output1, output2, output3)
+        
+        # Ensure that self.uncertainity_weight has the correct dimensions
+        if self.uncertainity_weight.dim() == 5:
+            self.uncertainity_weight = self.uncertainity_weight.squeeze(0)
+            
+        # refined = self.ref_unet(output1, self.uncertainity_weight[None, :, :, :])
 
-        refined = self.ref_unet(output1, self.uncertainity_weight[None, :, :, :])
+        # self.uncertainity_weight is of shape [8, 5, 256, 256]
+        # rm None because is adding an extra dimension
+        refined = self.ref_unet(output1, self.uncertainity_weight)
 
-        return output1, output2, output3, refined
+        # return output1, output2, output3, refined
+
+        # Return only first output for debugging
+        return output1
     
     def init_weights(self, *args, **kwargs):
         for m in self.modules():

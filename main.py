@@ -170,6 +170,9 @@ def runTraining(args):
                     img = data["images"].to(device)
                     gt = data["gts"].to(device)
 
+                    # print(f"Shape of img at epoch {e}, batch {i}: {img.shape}")
+                    # Shape of img at epoch 0, batch 0: torch.Size([8, 1, 256, 256])
+
                     if opt:  # So only for training
                         opt.zero_grad()
 

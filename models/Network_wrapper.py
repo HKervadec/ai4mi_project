@@ -1,5 +1,5 @@
 from models.ENet import ENet
-# from models.Other_Net import other_net
+from models.UDBRNet import UDBRNet
 from models.ShallowNet import shallowCNN
 
 def get_model(model_name):
@@ -10,7 +10,7 @@ def get_model(model_name):
     architecture = {
         "shallowCNN": shallowCNN,
         "ENet": ENet,
-        # "Other_Net": other_net
+        "UDBRNet": UDBRNet
     }
     
     model = architecture[model_name]
