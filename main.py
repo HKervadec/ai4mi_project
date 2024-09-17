@@ -26,7 +26,6 @@ import argparse
 import warnings
 from typing import Any
 from pathlib import Path
-from pprint import pprint
 from operator import itemgetter
 from shutil import copytree, rmtree
 
@@ -53,6 +52,9 @@ from utils.tensor_utils import (
     save_images,
 )
 import wandb
+from lightning.fabric import Fabric
+from lightning import seed_everything
+
 
 def setup_wandb(args):
     # Initialize a new W&B run
@@ -64,10 +66,15 @@ def setup_wandb(args):
             "learning_rate": args.lr,
             "batch_size": args.datasets_params[args.dataset]["B"],
             "mode": args.mode,
+            "seed": args.seed,
         },
     )
 
-def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+
+def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
+    seed_everything(args.seed)
+    fabric = Fabric(precision=args.precision)
+
     # Networks and scheduler
     if args.gpu:
         if torch.backends.mps.is_available():
@@ -81,17 +88,18 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
             print(">> CUDA/MPS not available, falling back to CPU")
     else:
         device = torch.device("cpu")
-        print(f">> Picked CPU to run experiments")
-    
+        print(">> Picked CPU to run experiments")
+
     K: int = args.datasets_params[args.dataset]["K"]
     net = args.datasets_params[args.dataset]["net"](1, K)
     net.init_weights()
-    net.to(device)
+    # net.to(device)
 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
+    net, optimizer = fabric.setup(net, optimizer)
 
     # Dataset part
-    B: int = args.datasets_params[args.dataset]["B"] # Batch size
+    B: int = args.datasets_params[args.dataset]["B"]  # Batch size
     root_dir = Path("data") / args.dataset
 
     img_transform = transforms.Compose(
@@ -141,14 +149,16 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         val_set, batch_size=B, num_workers=args.num_workers, shuffle=False
     )
 
+    train_loader, val_loader = fabric.setup_dataloaders(train_loader, val_loader)
+
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    return (net, optimizer, device, train_loader, val_loader, K, fabric)
 
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    net, optimizer, device, train_loader, val_loader, K, fabric = setup(args)
 
     if args.mode == "full":
         loss_fn = CrossEntropy(
@@ -191,8 +201,8 @@ def runTraining(args):
                 j = 0
                 tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
                 for i, data in tq_iter:
-                    img = data["images"].to(device)
-                    gt = data["gts"].to(device)
+                    img = data["images"]
+                    gt = data["gts"]
 
                     if opt:  # So only for training
                         opt.zero_grad()
@@ -218,8 +228,7 @@ def runTraining(args):
                     )  # One loss value per batch (averaged in the loss)
 
                     if opt:  # Only for training
-                        loss.backward()
-                        opt.step()
+                        fabric.backward(loss)
 
                     if m == "val":
                         with warnings.catch_warnings():
@@ -244,14 +253,19 @@ def runTraining(args):
                             for k in range(1, K)
                         }
                     tq_iter.set_postfix(postfix_dict)
-                
-                # Log the metrics after each 'e' epoch 
-                if not args.disable_wandb:
-                    wandb.log({
-                        f"{m}_loss": log_loss[e].mean().item(),
-                        f"{m}_dice": log_dice[e, :, 1:].mean().item(),
-                        f"{m}_dice_per_class": {f"dice_{k}": log_dice[e, :, k].mean().item() for k in range(1, K)}
-                    })
+
+                # Log the metrics after each 'e' epoch
+                if not args.wandb_project_name:
+                    wandb.log(
+                        {
+                            f"{m}_loss": log_loss[e].mean().item(),
+                            f"{m}_dice": log_dice[e, :, 1:].mean().item(),
+                            f"{m}_dice_per_class": {
+                                f"dice_{k}": log_dice[e, :, k].mean().item()
+                                for k in range(1, K)
+                            },
+                        }
+                    )
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -277,11 +291,12 @@ def runTraining(args):
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
             # Log model checkpoint
-            wandb.save(str(args.dest / "bestmodel.pkl"))
-            wandb.save(str(args.dest / "bestweights.pt"))
+            if not args.wandb_project_name:
+                wandb.save(str(args.dest / "bestmodel.pkl"))
+                wandb.save(str(args.dest / "bestweights.pt"))
+
 
 def get_args():
-
     # K: Number of classes
     # Avoids the clases with C (often used for the number of Channel)
     datasets_params: dict[str, dict[str, Any]] = {}
@@ -289,47 +304,49 @@ def get_args():
     datasets_params["SEGTHOR"] = {"K": 5, "net": ENet, "B": 8}
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--epochs", default=25, type=int)
     parser.add_argument(
-        "--epochs", 
-        default=25, 
-        type=int
+        "--seed", default=42, type=int, help="Seed to use for reproducibility."
     )
     parser.add_argument(
-        "--dataset", 
-        default="TOY2", 
+        "--dataset",
+        default="TOY2",
         choices=datasets_params.keys(),
-        help="Which dataset to use for the training."
+        help="Which dataset to use for the training.",
     )
     parser.add_argument(
-        "--mode", 
-        default="full", 
+        "--mode",
+        default="full",
         choices=["partial", "full"],
         help="Whether to supervise all the classes ('full') or, "
-        "only a subset of them ('partial')."
+        "only a subset of them ('partial').",
     )
     parser.add_argument(
         "--dest",
         type=Path,
-        required=True,
+        default=Path("results"),
         help="Destination directory to save the results (predictions and weights).",
     )
     parser.add_argument(
-        "--num_workers", 
-        type=int, 
-        default=0, 
+        "--num_workers",
+        type=int,
+        default=0,
         help="Number of subprocesses to use for data loading. "
-        "Default 0 to avoid pickle lambda error"
-    )  
+        "Default 0 to avoid pickle lambda error",
+    )
     parser.add_argument(
-        "--lr", 
-        type=float, 
-        default=0.0005,
-        help="Learning rate for the optimizer."
-    ) 
+        "--precision",
+        default=32,
+        type=str,
+        choices=['bf16', 'bf16-mixed', 'bf16-true', '16', '16-mixed', '16-true', '32', '64'],
+    )
     parser.add_argument(
-        "--gpu", 
+        "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
+    )
+    parser.add_argument(
+        "--gpu",
         action="store_true",
-        help="Use the GPU if available, otherwise fall back to the CPU."
+        help="Use the GPU if available, otherwise fall back to the CPU.",
     )
     parser.add_argument(
         "--debug",
@@ -338,26 +355,23 @@ def get_args():
         "to test the logic around epochs and logging easily.",
     )
     parser.add_argument(
-        '--disable_wandb',
-        action='store_true',
-        help='Use flag to disable wandb logging, i.e. for debugging.'
-    )
-    parser.add_argument(
-        '--wandb_project_name',
+        "--wandb_project_name",  # clean code dictates I leave this as "--wandb" but I'm not breaking people's flows yet
         type=str,
-        help='Project wandb will be logging run to'
+        help="Project wandb will be logging run to",
     )
     args = parser.parse_args()
-    pprint(args)  
     args.datasets_params = datasets_params
 
     return args
 
+
 def main():
     args = get_args()
-    if not args.disable_wandb:
-        setup_wandb(args) 
+    print(args)
+    if not args.wandb_project_name:
+        setup_wandb(args)
     runTraining(args)
+
 
 if __name__ == "__main__":
     main()
