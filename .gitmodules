@@ -1,3 +1,3 @@
 [submodule "viewer"]
 	path = viewer
-	url = https://github.com/HKervadec/segmentation_viewer
+	url = https://github.com/raoulritter/segmentation_viewer
