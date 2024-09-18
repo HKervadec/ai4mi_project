@@ -53,6 +53,22 @@ class PartialCrossEntropy(CrossEntropy):
         super().__init__(idk=[1], **kwargs)
 
 
+class DiceLoss():
+    def __init__(self, smooth=1e-5):
+        self.smooth = smooth
+
+    def __call__(self, pred_softmax: Tensor, target: Tensor) -> Tensor:
+        assert pred_softmax.shape == target.shape
+        assert simplex(pred_softmax)
+        assert sset(target, [0, 1])
+
+        intersection = torch.sum(pred_softmax * target, dim=(2, 3))
+        union = torch.sum(pred_softmax, dim=(2, 3)) + torch.sum(target, dim=(2, 3))
+        
+        dice = (2. * intersection + self.smooth) / (union + self.smooth)
+        return 1 - dice.mean()
+
+
 class FocalLoss():
     def __init__(self, alpha=1, gamma=2, reduction='mean'):
         self.alpha = alpha
@@ -70,3 +86,16 @@ class FocalLoss():
             return focal_loss.sum()
         else:
             return focal_loss
+
+
+class CombinedLoss:
+    def __init__(self, alpha=0.5, beta=0.5, **kwargs):
+        self.alpha = alpha
+        self.beta = beta
+        self.ce_loss = CrossEntropy(**kwargs)
+        self.dice_loss = DiceLoss()
+
+    def __call__(self, pred_softmax: Tensor, target: Tensor) -> Tensor:
+        ce = self.ce_loss(pred_softmax, target)
+        dice = self.dice_loss(pred_softmax, target)
+        return self.alpha * ce + self.beta * dice
