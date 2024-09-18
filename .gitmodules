@@ -1,3 +1,7 @@
 [submodule "viewer"]
 	path = viewer
 	url = https://github.com/danilotpnta/segmentation_viewer
+
+[submodule "segvol"]
+	path = segvol
+	url = https://github.com/m-krastev/segevolution
