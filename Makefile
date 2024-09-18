@@ -21,6 +21,7 @@ data/segthor_train: data/segthor_train.zip
 	$(info $(yellow)unzip $<$(reset))
 	sha256sum -c data/segthor_train.sha256
 	unzip -q $<
+	rm -f $@/.DS_STORE
 
 data/SEGTHOR: data/segthor_train
 	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
