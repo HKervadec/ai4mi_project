@@ -22,11 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
+import torch
 from torch import einsum
-
+from torch import Tensor
+from torch.nn import functional as F
 from utils import simplex, sset
-
 
 class CrossEntropy():
     def __init__(self, **kwargs):
@@ -51,3 +51,22 @@ class CrossEntropy():
 class PartialCrossEntropy(CrossEntropy):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
+
+
+class FocalLoss():
+    def __init__(self, alpha=1, gamma=2, reduction='mean'):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def __call__(self, inputs: Tensor, targets: Tensor) -> Tensor:
+        ce_loss = F.cross_entropy(inputs, targets.argmax(dim=1), reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
+
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        else:
+            return focal_loss
