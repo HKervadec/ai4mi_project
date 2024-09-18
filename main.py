@@ -42,6 +42,7 @@ from models.ShallowNet import shallowCNN
 from models.ENet import ENet
 
 from utils.losses import CrossEntropy
+from monai.losses import DiceCELoss, DiceFocalLoss
 from utils.metrics import dice_coef
 from utils.tensor_utils import (
     Dcm,
@@ -160,14 +161,17 @@ def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K, fabric = setup(args)
 
-    if args.mode == "full":
-        loss_fn = CrossEntropy(
-            idk=list(range(K))
-        )  # Supervise both background and foreground
-    elif args.mode in ["partial"] and args.dataset in ["SEGTHOR", "SEGTHOR_STUDENTS"]:
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
-    else:
-        raise ValueError(args.mode, args.dataset)
+    loss_fn = DiceCELoss(smooth_nr=1e-5, smooth_dr=1e-5, lambda_ce=9, include_background=False)
+    loss_fn = DiceFocalLoss(sigmoid=True, gamma=0.5, smooth_nr=1e-5, smooth_dr=1e-5, lambda_dice=1, lambda_focal=1, include_background=False)
+    # loss_fn = CELoss
+    # if args.mode == "full":
+    #     loss_fn = CrossEntropy(
+    #         idk=list(range(K))
+    #     )  # Supervise both background and foreground
+    # elif args.mode in ["partial"] and args.dataset in ["SEGTHOR", "SEGTHOR_STUDENTS"]:
+    #     loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+    # else:
+    #     raise ValueError(args.mode, args.dataset)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -229,6 +233,7 @@ def runTraining(args):
 
                     if opt:  # Only for training
                         fabric.backward(loss)
+                        opt.step()
 
                     if m == "val":
                         with warnings.catch_warnings():
@@ -340,6 +345,8 @@ def get_args():
         type=str,
         choices=['bf16', 'bf16-mixed', 'bf16-true', '16', '16-mixed', '16-true', '32', '64'],
     )
+    
+    # TODO: Check delta between 
     parser.add_argument(
         "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
     )
