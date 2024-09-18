@@ -50,12 +50,15 @@ from utils import (Dcm,
 
 from losses import (CrossEntropy)
 
+# import Unet
+from UNet.unet_model import UNet
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
 # Avoids the clases with C (often used for the number of Channel)
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
-datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
+# datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR"] = {'K': 5, 'net': UNet, 'B': 8}
 
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:

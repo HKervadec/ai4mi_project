@@ -5,7 +5,7 @@
 #SBATCH --job-name=requirement
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=01:00:00
+#SBATCH --time=03:00:00
 #SBATCH --output=../slurm_output/slurm_output_%A.out
 
 module purge
@@ -17,5 +17,17 @@ cd ai4mi_project
 source ai4mi/bin/activate
 # python -m pip install -r requirements.txt
 
-python main.py --dataset SEGTHOR --mode full --epoch 25 --dest results/segthor/ce --gpu
+# python main.py --dataset SEGTHOR --mode full --epoch 25 --dest results/segthor/UNet/ce --gpu
 # python main.py --dataset TOY2 --mode full --epoch 25 --dest results/toy2/ce --gpu
+
+python stitch.py --data_folder results/segthor/UNet/ce/best_epoch/val \
+    --dest_folder volumes/segthor/UNet/ce \
+    --num_classes 255 --grp_regex "(Patient_\d\d)_\d\d\d\d" \
+    --source_scan_pattern "data/segthor_train/train/{id_}/GT.nii.gz"
+
+# Evaluation
+python plot.py --metric_file results/segthor/UNet/ce/dice_val.npy --dest results/segthor/UNet/ce/dice_val.png
+
+python evaluation.py --source_scan_pattern "ai4mi_project/data/segthor_train/train/Patient_{id_}/GT.nii.gz" --prediction_folder "ai4mi_project/volumes/segthor/UNet/ce"
+
+# /home/scur1765/ai4mi_project/volumes/segthor/UNet/ce/Patient_28.nii.gz

@@ -2,8 +2,15 @@
 
 from .unet_parts import *
 
+# this function comes from ENet
+def random_weights_init(m):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                nn.init.xavier_normal_(m.weight.data)
+        elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.normal_(1.0, 0.02)
+                m.bias.data.fill_(0)
 
-class UNet(nn.Module):
+class UNet(nn.Module): #(1, K) - one channel, K classes
     def __init__(self, n_channels, n_classes, bilinear=False):
         super(UNet, self).__init__()
         self.n_channels = n_channels
@@ -46,3 +53,9 @@ class UNet(nn.Module):
         self.up3 = torch.utils.checkpoint(self.up3)
         self.up4 = torch.utils.checkpoint(self.up4)
         self.outc = torch.utils.checkpoint(self.outc)
+
+    # this is added 
+     
+
+    def init_weights(self, *args, **kwargs):
+                self.apply(random_weights_init)
