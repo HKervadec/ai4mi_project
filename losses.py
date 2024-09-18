@@ -75,8 +75,8 @@ class FocalLoss():
         self.gamma = gamma
         self.reduction = reduction
 
-    def __call__(self, inputs: Tensor, targets: Tensor) -> Tensor:
-        ce_loss = F.cross_entropy(inputs, targets.argmax(dim=1), reduction='none')
+    def __call__(self, pred_softmax: Tensor, targets: Tensor) -> Tensor:
+        ce_loss = F.cross_entropy(pred_softmax, targets.argmax(dim=1), reduction='none')
         pt = torch.exp(-ce_loss)
         focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
 
