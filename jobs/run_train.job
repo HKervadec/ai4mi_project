@@ -14,4 +14,4 @@ module purge
 module load 2023
 source $ENVDIR
 
-python -O main.py --dataset SEGTHOR --mode full --epoch 1 --dest results/segthor/ce --gpu
+python -O main.py --dataset SEGTHOR --model_name ENet --mode full
