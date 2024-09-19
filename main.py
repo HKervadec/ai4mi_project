@@ -43,12 +43,10 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from dataset import SliceDataset
-from models.Network_wrapper import get_model
+from models import get_model
 from utils.losses import CrossEntropy
 from monai.losses import DiceCELoss, DiceFocalLoss
 from utils.metrics import dice_coef
-from utils.tensor_utils import *
-
 
 from utils.tensor_utils import (
     Dcm,
