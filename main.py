@@ -385,9 +385,6 @@ def get_args():
         action="store_true",
         help="Use the GPU if available, otherwise fall back to the CPU.",
     )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="Seed for reproducibility."
-    )
 
     # Group 3: Output directory
     parser.add_argument(
