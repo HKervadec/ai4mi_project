@@ -6,3 +6,4 @@ tqdm
 pillow
 scikit-image
 matplotlib
+SimpleITK

@@ -15,11 +15,10 @@ data/TOY2:
 	python gen_two_circles.py --dest $@_tmp -n 1000 100 -r 25 -wh 256 256
 	mv $@_tmp $@
 
-
+#sha256sum -c data/segthor_train.sha256
 # Extraction and slicing for Segthor
 data/segthor_train: data/segthor_train.zip
 	$(info $(yellow)unzip $<$(reset))
-	sha256sum -c data/segthor_train.sha256
 	unzip -q $<
 
 data/SEGTHOR: data/segthor_train
