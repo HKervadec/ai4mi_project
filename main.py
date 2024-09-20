@@ -29,6 +29,8 @@ import os
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import argparse
+import os
+import nibabel as nib
 import warnings
 from typing import Any
 from pathlib import Path
@@ -41,12 +43,13 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from skimage.transform import resize
 
 from dataset import SliceDataset
 from models import get_model
 from utils.losses import CrossEntropy
 from monai.losses import DiceCELoss, DiceFocalLoss
-from utils.metrics import dice_coef
+from utils.metrics import dice_coef, dice_batch
 
 from utils.tensor_utils import (
     Dcm,
@@ -158,12 +161,27 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K, fabric)
+    # For each patient in dataset, get the ground truth volume shape
+    gt_shape = {'train': {}, 'val': {}}
+    for split, dataset in [('train', train_set), ('val', val_set)]:
+        if args.debug:
+            split_patient_ids = set([x['stems'].split('_')[1] for x in dataset])
+        else:
+            split_patient_ids = set([x.split('_')[1] for x in os.listdir(f'{root_dir}/{split}/gt')])
+        
+        for patient_number in split_patient_ids:
+            patient_id = f'Patient_{patient_number}'
+
+            orig_nib = nib.load(f'{args.data_source}/{patient_id}/GT.nii.gz')    
+            orig_vol = np.asarray(orig_nib.dataobj)
+            gt_shape[split][patient_id] = orig_vol.shape
+
+    return (net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric)
 
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K, fabric = setup(args)
+    net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric = setup(args)
 
     loss_fn = DiceCELoss(
         smooth_nr=1e-5, smooth_dr=1e-5, lambda_ce=9, include_background=False
@@ -193,6 +211,10 @@ def runTraining(args):
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
+    # The 3d dice log works per patient
+    log_dice_3d_tra : Tensor = torch.zeros(((args.epochs, len(gt_shape['train'].keys()), K)))
+    log_dice_3d_val : Tensor = torch.zeros(((args.epochs, len(gt_shape['val'].keys()), K)))
+
     best_dice: float = 0
 
     for e in range(args.epochs):
@@ -206,6 +228,7 @@ def runTraining(args):
                     loader = train_loader
                     log_loss = log_loss_tra
                     log_dice = log_dice_tra
+                    log_dice_3d = log_dice_3d_tra
                 case "val":
                     net.eval()
                     opt = None
@@ -214,6 +237,13 @@ def runTraining(args):
                     loader = val_loader
                     log_loss = log_loss_val
                     log_dice = log_dice_val
+                    log_dice_3d = log_dice_3d_val
+
+            # Prep for 3D dice computation
+            gt_volumes = {p : np.zeros((Z, K, X, Y), dtype=np.int16) 
+                for p, (X,Y,Z) in gt_shape[m].items()}
+            pred_volumes = {p : np.zeros((Z, K, X, Y), dtype=np.int16) 
+                for p, (X,Y,Z) in gt_shape[m].items()}
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -252,11 +282,24 @@ def runTraining(args):
                         fabric.backward(loss)
                         opt.step()
 
+                    # Save predictions and gt slice for 3D Dice computation
+                    for i, seg_class in enumerate(pred_seg):
+                        stem = data['stems'][i]
+                        _, patient_n, z = stem.split('_')
+                        patient_id = f'Patient_{patient_n}'
+
+                        X, Y, _ = gt_shape[m][patient_id]
+                        
+                        resize_and_save_slice(seg_class, K, X, Y, z, pred_volumes[patient_id])
+                        resize_and_save_slice(gt[i], K, X, Y, z, gt_volumes[patient_id])
+
                     if m == "val":
                         with warnings.catch_warnings():
                             warnings.filterwarnings("ignore", category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
                             mult: int = 63 if K == 5 else (255 / (K - 1))
+
+                            # Save predictions in logging
                             save_images(
                                 predicted_class * mult,
                                 data["stems"],
@@ -276,18 +319,27 @@ def runTraining(args):
                         }
                     tq_iter.set_postfix(postfix_dict)
 
-                # Log the metrics after each 'e' epoch
+                log_dict = {m : {
+                        "loss": log_loss[e].mean().item(),
+                        "dice": log_dice[e, :, 1:].mean().item(),
+                        "dice_class": get_dice_per_class(args, log_dice, K, e),
+                    }}
+
+                # Compute 3D Dice   
+                if m == 'val':  
+                    print('Computing 3D dice...')
+                    for i, (patient_id, pred_vol) in tqdm_(enumerate(pred_volumes.items()), total=len(pred_volumes)):
+                        gt_vol = torch.from_numpy(gt_volumes[patient_id]).to(device)
+                        pred_vol = torch.from_numpy(pred_vol).to(device)
+
+                        dice_3d = dice_batch(gt_vol, pred_vol)
+                        log_dice_3d[e, i, :] = dice_3d
+                    log_dict["dice_3d"] = log_dice_3d[e, :, 1:].mean().item(), 
+                    log_dict["dice_3d_class"] = get_dice_per_class(args, log_dice_3d, K, e)       
+
+                # Log the metrics after each 'e' epoch 
                 if not args.wandb_project_name:
-                    wandb.log(
-                        {
-                            f"{m}_loss": log_loss[e].mean().item(),
-                            f"{m}_dice": log_dice[e, :, 1:].mean().item(),
-                            f"{m}_dice_per_class": {
-                                f"dice_{k}": log_dice[e, :, k].mean().item()
-                                for k in range(1, K)
-                            },
-                        }
-                    )
+                    wandb.log(log_dict)  
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -317,6 +369,25 @@ def runTraining(args):
                 wandb.save(str(args.dest / "bestmodel.pkl"))
                 wandb.save(str(args.dest / "bestweights.pt"))
 
+def get_dice_per_class(args, log, K, e):
+    if args.dataset == 'SEGTHOR': 
+        class_names = [(1,'background'), (2,'esophagus'), (3,'heart'), (4,'trachea'), (5,'aorta')]
+        dice_per_class = {f"dice_{k}_{n}": log[e, :, k-1].mean().item() for k,n in class_names}
+    else:
+        dice_per_class = {f"dice_{k}": log[e, :, k].mean().item() for k in range(1, K)}
+    
+    return dice_per_class
+
+def resize_and_save_slice(arr, K, X, Y, z, target_arr):
+    resized_arr = resize(
+        arr.cpu().numpy(), 
+        (K, X, Y), 
+        mode="constant",
+        preserve_range=True,
+        anti_aliasing=False,
+        order=0,
+    )
+    target_arr[int(z),:,:,:] = resized_arr[...]
 
 def get_args():
     # Dataset-specific parameters
@@ -333,6 +404,12 @@ def get_args():
         default=next(iter(datasets_params)),
         choices=list(datasets_params),
         help="Which dataset to use for the training.",
+    )
+    parser.add_argument(
+        "--data_source",
+        type=Path,
+        default='./data/segthor_train/train',
+        help="The path to get the GT scan, in order to get the correct number of slices"
     )
     parser.add_argument(
         "--model_name",
