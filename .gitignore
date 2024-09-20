@@ -14,6 +14,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# ignore snellius job files
+*.job
+
 # C extensions
 *.so
 
