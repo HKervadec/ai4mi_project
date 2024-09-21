@@ -6,12 +6,26 @@ For dependency management, I recommend to use [uv](https://github.com/astral-sh/
 
 Otherwise, I recommend sticking to `pip` and `venv` to install the dependencies.
 
+
+### Setting up the environment
+
 ```bash
+git clone https://github.com/danilotpnta/ai4mi_project.git
+cd ai4mi_project
+git submodule update --init
+
+
 # If you don't have uv installed, you can install it using pip
-# pip install uv
+# curl -LsSf https://astral.sh/uv/install.sh | sh
 uv venv -p 3.12 # This will create a virtual environment with Python 3.12
 source .venv/bin/activate # This will activate the virtual environment
 uv pip sync requirements.txt # Alternatively: uv pip install -r requirements.txt
+```
+### Downloading the dataset
+
+```bash
+uv tool install gdown
+gdown -O data/ --folder 1-0wSgpMgTgJX9wybz4XTT-WxNy16kaE4
 ```
 
 ### Linting and Formatting
