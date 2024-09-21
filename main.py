@@ -61,6 +61,7 @@ from utils.tensor_utils import (
     tqdm_,
 )
 
+torch.set_float32_matmul_precision('medium')
 
 def setup_wandb(args):
     # Initialize a new W&B run
@@ -322,7 +323,7 @@ def runTraining(args):
                     )
 
                 # Log the metrics after each 'e' epoch
-                if not args.wandb_project_name:
+                if args.wandb_project_name:
                     wandb.log(log_dict)
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
@@ -349,7 +350,7 @@ def runTraining(args):
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
             # Log model checkpoint
-            if not args.wandb_project_name:
+            if args.wandb_project_name:
                 wandb.save(str(args.dest / "bestmodel.pkl"))
                 wandb.save(str(args.dest / "bestweights.pt"))
 
@@ -509,7 +510,7 @@ def get_args():
 def main():
     args = get_args()
     print(args)
-    if not args.wandb_project_name:
+    if args.wandb_project_name:
         setup_wandb(args)
     runTraining(args)
 
