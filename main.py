@@ -159,18 +159,18 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
     args.dest.mkdir(parents=True, exist_ok=True)
 
     # For each patient in dataset, get the ground truth volume shape
-    gt_shape = {'train': {}, 'val': {}}
+    gt_shape = {"train": {}, "val": {}}
     for split in gt_shape:
         directory = root_dir / split / "gt"
-        split_patient_ids = set(x.stem.split('_')[1] for x in directory.iterdir())
+        split_patient_ids = set(x.stem.split("_")[1] for x in directory.iterdir())
 
         for patient_number in split_patient_ids:
-            patient_id = f'Patient_{patient_number}'
+            patient_id = f"Patient_{patient_number}"
             patients = list(directory.glob(patient_id + "*"))
 
-            H,W = Image.open(patients[0]).size
+            H, W = Image.open(patients[0]).size
             D = len(patients)
-            gt_shape[split][patient_id] = (H,W, D)
+            gt_shape[split][patient_id] = (H, W, D)
 
     return (net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric)
 
@@ -208,8 +208,12 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
     # The 3d dice log works per patient
-    log_dice_3d_tra : Tensor = torch.zeros(((args.epochs, len(gt_shape['train'].keys()), K)))
-    log_dice_3d_val : Tensor = torch.zeros(((args.epochs, len(gt_shape['val'].keys()), K)))
+    log_dice_3d_tra: Tensor = torch.zeros(
+        ((args.epochs, len(gt_shape["train"].keys()), K))
+    )
+    log_dice_3d_val: Tensor = torch.zeros(
+        ((args.epochs, len(gt_shape["val"].keys()), K))
+    )
 
     best_dice: float = 0
 
@@ -236,10 +240,14 @@ def runTraining(args):
                     log_dice_3d = log_dice_3d_val
 
             # Prep for 3D dice computation
-            gt_volumes = {p : np.zeros((Z, K, X, Y), dtype=np.int16) 
-                for p, (X,Y,Z) in gt_shape[m].items()}
-            pred_volumes = {p : np.zeros((Z, K, X, Y), dtype=np.int16) 
-                for p, (X,Y,Z) in gt_shape[m].items()}
+            gt_volumes = {
+                p: np.zeros((Z, K, X, Y), dtype=np.int16)
+                for p, (X, Y, Z) in gt_shape[m].items()
+            }
+            pred_volumes = {
+                p: np.zeros((Z, K, X, Y), dtype=np.int16)
+                for p, (X, Y, Z) in gt_shape[m].items()
+            }
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -280,13 +288,15 @@ def runTraining(args):
 
                     # Save predictions and gt slice for 3D Dice computation
                     for i, seg_class in enumerate(pred_seg):
-                        stem = data['stems'][i]
-                        _, patient_n, z = stem.split('_')
-                        patient_id = f'Patient_{patient_n}'
+                        stem = data["stems"][i]
+                        _, patient_n, z = stem.split("_")
+                        patient_id = f"Patient_{patient_n}"
 
                         X, Y, _ = gt_shape[m][patient_id]
-                        
-                        resize_and_save_slice(seg_class, K, X, Y, z, pred_volumes[patient_id])
+
+                        resize_and_save_slice(
+                            seg_class, K, X, Y, z, pred_volumes[patient_id]
+                        )
                         resize_and_save_slice(gt[i], K, X, Y, z, gt_volumes[patient_id])
 
                     if m == "val":
@@ -315,27 +325,33 @@ def runTraining(args):
                         }
                     tq_iter.set_postfix(postfix_dict)
 
-                log_dict = {m : {
+                log_dict = {
+                    m: {
                         "loss": log_loss[e].mean().item(),
                         "dice": log_dice[e, :, 1:].mean().item(),
                         "dice_class": get_dice_per_class(args, log_dice, K, e),
-                    }}
+                    }
+                }
 
-                # Compute 3D Dice   
-                if m == 'val':  
-                    print('Computing 3D dice...')
-                    for i, (patient_id, pred_vol) in tqdm_(enumerate(pred_volumes.items()), total=len(pred_volumes)):
+                # Compute 3D Dice
+                if m == "val":
+                    print("Computing 3D dice...")
+                    for i, (patient_id, pred_vol) in tqdm_(
+                        enumerate(pred_volumes.items()), total=len(pred_volumes)
+                    ):
                         gt_vol = torch.from_numpy(gt_volumes[patient_id]).to(device)
                         pred_vol = torch.from_numpy(pred_vol).to(device)
 
                         dice_3d = dice_batch(gt_vol, pred_vol)
                         log_dice_3d[e, i, :] = dice_3d
-                    log_dict["dice_3d"] = log_dice_3d[e, :, 1:].mean().item(), 
-                    log_dict["dice_3d_class"] = get_dice_per_class(args, log_dice_3d, K, e)       
+                    log_dict["dice_3d"] = (log_dice_3d[e, :, 1:].mean().item(),)
+                    log_dict["dice_3d_class"] = get_dice_per_class(
+                        args, log_dice_3d, K, e
+                    )
 
-                # Log the metrics after each 'e' epoch 
+                # Log the metrics after each 'e' epoch
                 if not args.wandb_project_name:
-                    wandb.log(log_dict)  
+                    wandb.log(log_dict)
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -365,25 +381,36 @@ def runTraining(args):
                 wandb.save(str(args.dest / "bestmodel.pkl"))
                 wandb.save(str(args.dest / "bestweights.pt"))
 
+
 def get_dice_per_class(args, log, K, e):
-    if args.dataset == 'SEGTHOR': 
-        class_names = [(1,'background'), (2,'esophagus'), (3,'heart'), (4,'trachea'), (5,'aorta')]
-        dice_per_class = {f"dice_{k}_{n}": log[e, :, k-1].mean().item() for k,n in class_names}
+    if args.dataset == "SEGTHOR":
+        class_names = [
+            (1, "background"),
+            (2, "esophagus"),
+            (3, "heart"),
+            (4, "trachea"),
+            (5, "aorta"),
+        ]
+        dice_per_class = {
+            f"dice_{k}_{n}": log[e, :, k - 1].mean().item() for k, n in class_names
+        }
     else:
         dice_per_class = {f"dice_{k}": log[e, :, k].mean().item() for k in range(1, K)}
-    
+
     return dice_per_class
+
 
 def resize_and_save_slice(arr, K, X, Y, z, target_arr):
     resized_arr = resize(
-        arr.cpu().numpy(), 
-        (K, X, Y), 
+        arr.cpu().numpy(),
+        (K, X, Y),
         mode="constant",
         preserve_range=True,
         anti_aliasing=False,
         order=0,
     )
-    target_arr[int(z),:,:,:] = resized_arr[...]
+    target_arr[int(z), :, :, :] = resized_arr[...]
+
 
 def get_args():
     # Dataset-specific parameters
@@ -404,8 +431,8 @@ def get_args():
     parser.add_argument(
         "--data_dir",
         type=Path,
-        default='data',
-        help="The path to get the GT scan, in order to get the correct number of slices"
+        default="data",
+        help="The path to get the GT scan, in order to get the correct number of slices",
     )
     parser.add_argument(
         "--model_name",
