@@ -17,5 +17,9 @@ python -O main.py \
     --dataset SEGTHOR \
     --mode full \
     --epoch 25 \
-    --dest results/segthor/ce \
+    --dest results/segthor/ce/baseline \
     --gpu
+
+python plot.py \
+    --metric_file results/segthor/ce/baseline/dice_val.npy \
+    --dest results/segthor/ce/baseline/dice_val.png
