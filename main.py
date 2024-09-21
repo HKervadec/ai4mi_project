@@ -30,38 +30,36 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import argparse
 import os
-import nibabel as nib
 import warnings
-from typing import Any
 from pathlib import Path
-from operator import itemgetter
 from shutil import copytree, rmtree
+from typing import Any
 
-import torch
 import numpy as np
+import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
-from torchvision import transforms
-from torch.utils.data import DataLoader
+from lightning import seed_everything
+from lightning.fabric import Fabric
+from PIL import Image
 from skimage.transform import resize
+from torch import Tensor, nn
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
+import wandb
 from dataset import SliceDataset
 from models import get_model
-from utils.losses import CrossEntropy
-from monai.losses import DiceCELoss, DiceFocalLoss
-from utils.metrics import dice_coef, dice_batch
-
+from utils.losses import get_loss
+from utils.metrics import dice_batch, dice_coef
 from utils.tensor_utils import (
     Dcm,
     class2one_hot,
-    probs2one_hot,
+    get_device,
     probs2class,
-    tqdm_,
+    probs2one_hot,
     save_images,
+    tqdm_,
 )
-import wandb
-from lightning.fabric import Fabric
-from lightning import seed_everything
 
 
 def setup_wandb(args):
@@ -75,29 +73,22 @@ def setup_wandb(args):
             "batch_size": args.datasets_params[args.dataset]["B"],
             "mode": args.mode,
             "seed": args.seed,
+            "model": args.model_name,
+            "loss": args.loss,
+            "precision": args.precision,
+            "include_background": args.include_background,
         },
     )
 
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
     seed_everything(args.seed)
-    fabric = Fabric(precision=args.precision)
+    fabric = Fabric(precision=args.precision, accelerator="cpu" if args.cpu else "auto")
 
     # Networks and scheduler
-    if args.gpu:
-        if torch.backends.mps.is_available():
-            device = torch.device("mps")
-            print(">> Picked MPS (Apple Silicon GPU) to run experiments")
-        elif torch.cuda.is_available():
-            device = torch.device("cuda")
-            print(">> Picked CUDA to run experiments")
-        else:
-            device = torch.device("cpu")
-            print(">> CUDA/MPS not available, falling back to CPU")
-    else:
-        device = torch.device("cpu")
-        print(">> Picked CPU to run experiments")
-
+    # device = get_device(not args.cpu)
+    device = fabric.device
+    print(f">>> Running on {device}")
     K: int = args.datasets_params[args.dataset]["K"]
     net = args.model(1, K)
     net.init_weights()
@@ -107,30 +98,28 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
 
     # Dataset part
     B: int = args.datasets_params[args.dataset]["B"]  # Batch size
-    root_dir = Path("data") / args.dataset
+    root_dir: Path = Path(args.data_dir) / str(args.dataset)
 
     # Transforms
     img_transform = transforms.Compose(
         [
             lambda img: img.convert("L"),
-            lambda img: np.array(img)[np.newaxis, ...],
-            lambda nd: nd / 255,  # max <= 1
-            lambda nd: torch.tensor(nd, dtype=torch.float32),
+            transforms.PILToTensor(),
+            lambda img: img / 255,
         ]
     )
     gt_transform = transforms.Compose(
         [
-            lambda img: np.array(img)[...],
+            lambda img: np.array(img),
             # The idea is that the classes are mapped to {0, 255} for binary cases
             # {0, 85, 170, 255} for 4 classes
             # {0, 51, 102, 153, 204, 255} for 6 classes
             # Very sketchy but that works here and that simplifies visualization
             lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
-            lambda nd: torch.tensor(nd, dtype=torch.int64)[
+            lambda nd: torch.from_numpy(nd).to(dtype=torch.int64, device=fabric.device)[
                 None, ...
             ],  # Add one dimension to simulate batch
-            lambda t: class2one_hot(t, K=K),
-            itemgetter(0),
+            lambda t: class2one_hot(t, K=K)[0],
         ]
     )
 
@@ -162,19 +151,18 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
     args.dest.mkdir(parents=True, exist_ok=True)
 
     # For each patient in dataset, get the ground truth volume shape
-    gt_shape = {'train': {}, 'val': {}}
-    for split, dataset in [('train', train_set), ('val', val_set)]:
-        if args.debug:
-            split_patient_ids = set([x['stems'].split('_')[1] for x in dataset])
-        else:
-            split_patient_ids = set([x.split('_')[1] for x in os.listdir(f'{root_dir}/{split}/gt')])
-        
-        for patient_number in split_patient_ids:
-            patient_id = f'Patient_{patient_number}'
+    gt_shape = {"train": {}, "val": {}}
+    for split in gt_shape:
+        directory = root_dir / split / "gt"
+        split_patient_ids = set(x.stem.split("_")[1] for x in directory.iterdir())
 
-            orig_nib = nib.load(f'{args.data_source}/{patient_id}/GT.nii.gz')    
-            orig_vol = np.asarray(orig_nib.dataobj)
-            gt_shape[split][patient_id] = orig_vol.shape
+        for patient_number in split_patient_ids:
+            patient_id = f"Patient_{patient_number}"
+            patients = list(directory.glob(patient_id + "*"))
+
+            H, W = Image.open(patients[0]).size
+            D = len(patients)
+            gt_shape[split][patient_id] = (H, W, D)
 
     return (net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric)
 
@@ -183,27 +171,7 @@ def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric = setup(args)
 
-    loss_fn = DiceCELoss(
-        smooth_nr=1e-5, smooth_dr=1e-5, lambda_ce=9, include_background=False
-    )
-    loss_fn = DiceFocalLoss(
-        sigmoid=True,
-        gamma=0.5,
-        smooth_nr=1e-5,
-        smooth_dr=1e-5,
-        lambda_dice=1,
-        lambda_focal=1,
-        include_background=False,
-    )
-    # loss_fn = CELoss
-    # if args.mode == "full":
-    #     loss_fn = CrossEntropy(
-    #         idk=list(range(K))
-    #     )  # Supervise both background and foreground
-    # elif args.mode in ["partial"] and args.dataset in ["SEGTHOR", "SEGTHOR_STUDENTS"]:
-    #     loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
-    # else:
-    #     raise ValueError(args.mode, args.dataset)
+    loss_fn = get_loss(args.loss, K, include_background=args.include_background)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -212,8 +180,12 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
     # The 3d dice log works per patient
-    log_dice_3d_tra : Tensor = torch.zeros(((args.epochs, len(gt_shape['train'].keys()), K)))
-    log_dice_3d_val : Tensor = torch.zeros(((args.epochs, len(gt_shape['val'].keys()), K)))
+    log_dice_3d_tra: Tensor = torch.zeros(
+        ((args.epochs, len(gt_shape["train"].keys()), K))
+    )
+    log_dice_3d_val: Tensor = torch.zeros(
+        ((args.epochs, len(gt_shape["val"].keys()), K))
+    )
 
     best_dice: float = 0
 
@@ -240,10 +212,14 @@ def runTraining(args):
                     log_dice_3d = log_dice_3d_val
 
             # Prep for 3D dice computation
-            gt_volumes = {p : np.zeros((Z, K, X, Y), dtype=np.int16) 
-                for p, (X,Y,Z) in gt_shape[m].items()}
-            pred_volumes = {p : np.zeros((Z, K, X, Y), dtype=np.int16) 
-                for p, (X,Y,Z) in gt_shape[m].items()}
+            gt_volumes = {
+                p: np.zeros((Z, K, X, Y), dtype=np.int16)
+                for p, (X, Y, Z) in gt_shape[m].items()
+            }
+            pred_volumes = {
+                p: np.zeros((Z, K, X, Y), dtype=np.int16)
+                for p, (X, Y, Z) in gt_shape[m].items()
+            }
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -284,13 +260,15 @@ def runTraining(args):
 
                     # Save predictions and gt slice for 3D Dice computation
                     for i, seg_class in enumerate(pred_seg):
-                        stem = data['stems'][i]
-                        _, patient_n, z = stem.split('_')
-                        patient_id = f'Patient_{patient_n}'
+                        stem = data["stems"][i]
+                        _, patient_n, z = stem.split("_")
+                        patient_id = f"Patient_{patient_n}"
 
                         X, Y, _ = gt_shape[m][patient_id]
-                        
-                        resize_and_save_slice(seg_class, K, X, Y, z, pred_volumes[patient_id])
+
+                        resize_and_save_slice(
+                            seg_class, K, X, Y, z, pred_volumes[patient_id]
+                        )
                         resize_and_save_slice(gt[i], K, X, Y, z, gt_volumes[patient_id])
 
                     if m == "val":
@@ -319,27 +297,33 @@ def runTraining(args):
                         }
                     tq_iter.set_postfix(postfix_dict)
 
-                log_dict = {m : {
+                log_dict = {
+                    m: {
                         "loss": log_loss[e].mean().item(),
                         "dice": log_dice[e, :, 1:].mean().item(),
                         "dice_class": get_dice_per_class(args, log_dice, K, e),
-                    }}
+                    }
+                }
 
-                # Compute 3D Dice   
-                if m == 'val':  
-                    print('Computing 3D dice...')
-                    for i, (patient_id, pred_vol) in tqdm_(enumerate(pred_volumes.items()), total=len(pred_volumes)):
+                # Compute 3D Dice
+                if m == "val":
+                    print("Computing 3D dice...")
+                    for i, (patient_id, pred_vol) in tqdm_(
+                        enumerate(pred_volumes.items()), total=len(pred_volumes)
+                    ):
                         gt_vol = torch.from_numpy(gt_volumes[patient_id]).to(device)
                         pred_vol = torch.from_numpy(pred_vol).to(device)
 
                         dice_3d = dice_batch(gt_vol, pred_vol)
                         log_dice_3d[e, i, :] = dice_3d
-                    log_dict["dice_3d"] = log_dice_3d[e, :, 1:].mean().item(), 
-                    log_dict["dice_3d_class"] = get_dice_per_class(args, log_dice_3d, K, e)       
+                    log_dict["dice_3d"] = (log_dice_3d[e, :, 1:].mean().item(),)
+                    log_dict["dice_3d_class"] = get_dice_per_class(
+                        args, log_dice_3d, K, e
+                    )
 
-                # Log the metrics after each 'e' epoch 
+                # Log the metrics after each 'e' epoch
                 if not args.wandb_project_name:
-                    wandb.log(log_dict)  
+                    wandb.log(log_dict)
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -369,25 +353,36 @@ def runTraining(args):
                 wandb.save(str(args.dest / "bestmodel.pkl"))
                 wandb.save(str(args.dest / "bestweights.pt"))
 
+
 def get_dice_per_class(args, log, K, e):
-    if args.dataset == 'SEGTHOR': 
-        class_names = [(1,'background'), (2,'esophagus'), (3,'heart'), (4,'trachea'), (5,'aorta')]
-        dice_per_class = {f"dice_{k}_{n}": log[e, :, k-1].mean().item() for k,n in class_names}
+    if args.dataset == "SEGTHOR":
+        class_names = [
+            (1, "background"),
+            (2, "esophagus"),
+            (3, "heart"),
+            (4, "trachea"),
+            (5, "aorta"),
+        ]
+        dice_per_class = {
+            f"dice_{k}_{n}": log[e, :, k - 1].mean().item() for k, n in class_names
+        }
     else:
         dice_per_class = {f"dice_{k}": log[e, :, k].mean().item() for k in range(1, K)}
-    
+
     return dice_per_class
+
 
 def resize_and_save_slice(arr, K, X, Y, z, target_arr):
     resized_arr = resize(
-        arr.cpu().numpy(), 
-        (K, X, Y), 
+        arr.cpu().numpy(),
+        (K, X, Y),
         mode="constant",
         preserve_range=True,
         anti_aliasing=False,
         order=0,
     )
-    target_arr[int(z),:,:,:] = resized_arr[...]
+    target_arr[int(z), :, :, :] = resized_arr[...]
+
 
 def get_args():
     # Dataset-specific parameters
@@ -406,11 +401,24 @@ def get_args():
         help="Which dataset to use for the training.",
     )
     parser.add_argument(
-        "--data_source",
+        "--data_dir",
         type=Path,
-        default='./data/segthor_train/train',
-        help="The path to get the GT scan, in order to get the correct number of slices"
+        default="data",
+        help="The path to get the GT scan, in order to get the correct number of slices",
     )
+    parser.add_argument(
+        "--loss",
+        choices=["ce", "dice", "dicece", "dicefocal", "ce_torch"],
+        default="dicefocal",
+        help="Loss function to use for training.",
+    )
+
+    parser.add_argument(
+        "--include_background",
+        action="store_true",
+        help="Whether to include the background class in the loss computation.",
+    )
+
     parser.add_argument(
         "--model_name",
         type=str,
@@ -458,12 +466,9 @@ def get_args():
         "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
     )
     parser.add_argument(
-        "--gpu",
+        "--cpu",
         action="store_true",
-        help="Use the GPU if available, otherwise fall back to the CPU.",
-    )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="Seed for reproducibility."
+        help="Force the code to run on CPU, even if a GPU is available.",
     )
 
     # Group 3: Output directory
@@ -497,9 +502,7 @@ def get_args():
 
     # Model selection
     args.model = get_model(args.model_name)
-
     args.datasets_params = datasets_params
-
     return args
 
 
