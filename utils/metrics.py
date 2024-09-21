@@ -5,6 +5,7 @@ from functools import partial
 from torch import Tensor, einsum
 from utils.tensor_utils import one_hot, sset
 
+
 def meta_dice(
     sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8
 ) -> Tensor:
@@ -69,7 +70,6 @@ def hausdorff_distance(pred: Tensor, label: Tensor) -> Tensor:
     label_np = label.cpu().numpy()
 
     if np.sum(label_np) == 0 or np.sum(pred_np) == 0:
-        return torch.tensor(float('nan'))
+        return torch.tensor(float("nan"))
 
     return torch.tensor(metric.hd(pred_np, label_np))
-

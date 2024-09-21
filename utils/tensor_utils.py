@@ -144,6 +144,7 @@ def save_images(segs: Tensor, names: Iterable[str], root: Path) -> None:
         else:
             raise ValueError(seg.shape)
 
+
 # For reproducibility
 def set_seed(seed):
     np.random.seed(seed)
@@ -171,7 +172,7 @@ def get_device(use_gpu):
     else:
         device = torch.device("cpu")
         print(f">> Picked CPU to run experiments")
-    
+
     return device
 
 

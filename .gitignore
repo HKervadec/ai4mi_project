@@ -17,6 +17,7 @@ __pycache__/
 
 # ignore snellius job files
 *.job
+*.out
 
 # C extensions
 *.so

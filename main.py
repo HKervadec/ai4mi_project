@@ -61,7 +61,8 @@ from utils.tensor_utils import (
     tqdm_,
 )
 
-torch.set_float32_matmul_precision('medium')
+torch.set_float32_matmul_precision("medium")
+
 
 def setup_wandb(args):
     # Initialize a new W&B run
@@ -71,7 +72,7 @@ def setup_wandb(args):
             "epochs": args.epochs,
             "dataset": args.dataset,
             "learning_rate": args.lr,
-            "batch_size": args.datasets_params[args.dataset]["B"],
+            "batch_size": args.batch_size,
             "mode": args.mode,
             "seed": args.seed,
             "model": args.model_name,
@@ -387,18 +388,12 @@ def resize_and_save_slice(arr, K, X, Y, z, target_arr):
 
 def get_args():
     # Dataset-specific parameters
-    datasets_params = {
-        # K = number of classes, B = batch size
-        "TOY2": {"K": 2, "B": 2},
-        "SEGTHOR": {"K": 5, "B": 8},
-    }
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", default=25, type=int)
     parser.add_argument(
         "--dataset",
-        default=next(iter(datasets_params)),
-        choices=list(datasets_params),
+        default="SEGTHOR",
+        choices=["SEGTHOR", "TOY2"],
         help="Which dataset to use for the training.",
     )
     parser.add_argument(
@@ -437,6 +432,8 @@ def get_args():
         help="Whether to supervise all the classes ('full') or, "
         "only a subset of them ('partial').",
     )
+
+    parser.add_argument("--batch_size", default=8, type=int)
 
     parser.add_argument(
         "--num_workers",
@@ -503,7 +500,11 @@ def get_args():
 
     # Model selection
     args.model = get_model(args.model_name)
-    args.datasets_params = datasets_params
+    args.datasets_params = {
+        # K = number of classes, B = batch size
+        "TOY2": {"K": 2, "B": args.batch_size},
+        "SEGTHOR": {"K": 5, "B": args.batch_size},
+    }
     return args
 
 
