@@ -30,11 +30,10 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import argparse
 import os
-import nibabel as nib
+from PIL import Image
 import warnings
 from typing import Any
 from pathlib import Path
-from operator import itemgetter
 from shutil import copytree, rmtree
 
 import torch
@@ -107,30 +106,28 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
 
     # Dataset part
     B: int = args.datasets_params[args.dataset]["B"]  # Batch size
-    root_dir = Path("data") / args.dataset
+    root_dir: Path = Path(args.data_dir) / str(args.dataset)
 
     # Transforms
     img_transform = transforms.Compose(
         [
             lambda img: img.convert("L"),
-            lambda img: np.array(img)[np.newaxis, ...],
-            lambda nd: nd / 255,  # max <= 1
-            lambda nd: torch.tensor(nd, dtype=torch.float32),
+            transforms.PILToTensor(),
+            lambda img: img / 255,
         ]
     )
     gt_transform = transforms.Compose(
         [
-            lambda img: np.array(img)[...],
+            lambda img: np.array(img),
             # The idea is that the classes are mapped to {0, 255} for binary cases
             # {0, 85, 170, 255} for 4 classes
             # {0, 51, 102, 153, 204, 255} for 6 classes
             # Very sketchy but that works here and that simplifies visualization
             lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
-            lambda nd: torch.tensor(nd, dtype=torch.int64)[
+            lambda nd: torch.from_numpy(nd).to(dtype=torch.int64)[
                 None, ...
             ],  # Add one dimension to simulate batch
-            lambda t: class2one_hot(t, K=K),
-            itemgetter(0),
+            lambda t: class2one_hot(t, K=K)[0],
         ]
     )
 
@@ -163,18 +160,17 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
 
     # For each patient in dataset, get the ground truth volume shape
     gt_shape = {'train': {}, 'val': {}}
-    for split, dataset in [('train', train_set), ('val', val_set)]:
-        if args.debug:
-            split_patient_ids = set([x['stems'].split('_')[1] for x in dataset])
-        else:
-            split_patient_ids = set([x.split('_')[1] for x in os.listdir(f'{root_dir}/{split}/gt')])
-        
+    for split in gt_shape:
+        directory = root_dir / split / "gt"
+        split_patient_ids = set(x.stem.split('_')[1] for x in directory.iterdir())
+
         for patient_number in split_patient_ids:
             patient_id = f'Patient_{patient_number}'
+            patients = list(directory.glob(patient_id + "*"))
 
-            orig_nib = nib.load(f'{args.data_source}/{patient_id}/GT.nii.gz')    
-            orig_vol = np.asarray(orig_nib.dataobj)
-            gt_shape[split][patient_id] = orig_vol.shape
+            H,W = Image.open(patients[0]).size
+            D = len(patients)
+            gt_shape[split][patient_id] = (H,W, D)
 
     return (net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric)
 
@@ -406,9 +402,9 @@ def get_args():
         help="Which dataset to use for the training.",
     )
     parser.add_argument(
-        "--data_source",
+        "--data_dir",
         type=Path,
-        default='./data/segthor_train/train',
+        default='data',
         help="The path to get the GT scan, in order to get the correct number of slices"
     )
     parser.add_argument(
@@ -494,9 +490,7 @@ def get_args():
 
     # Model selection
     args.model = get_model(args.model_name)
-
     args.datasets_params = datasets_params
-
     return args
 
 
