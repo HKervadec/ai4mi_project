@@ -30,37 +30,36 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import argparse
 import os
-from PIL import Image
 import warnings
-from typing import Any
 from pathlib import Path
 from shutil import copytree, rmtree
+from typing import Any
 
-import torch
 import numpy as np
+import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
-from torchvision import transforms
-from torch.utils.data import DataLoader
+from lightning import seed_everything
+from lightning.fabric import Fabric
+from PIL import Image
 from skimage.transform import resize
+from torch import Tensor, nn
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
+import wandb
 from dataset import SliceDataset
 from models import get_model
-from utils.losses import CrossEntropy
-from monai.losses import DiceCELoss, DiceFocalLoss
-from utils.metrics import dice_coef, dice_batch
-
+from utils.losses import get_loss
+from utils.metrics import dice_batch, dice_coef
 from utils.tensor_utils import (
     Dcm,
     class2one_hot,
-    probs2one_hot,
+    get_device,
     probs2class,
-    tqdm_,
+    probs2one_hot,
     save_images,
+    tqdm_,
 )
-import wandb
-from lightning.fabric import Fabric
-from lightning import seed_everything
 
 
 def setup_wandb(args):
@@ -74,29 +73,22 @@ def setup_wandb(args):
             "batch_size": args.datasets_params[args.dataset]["B"],
             "mode": args.mode,
             "seed": args.seed,
+            "model": args.model_name,
+            "loss": args.loss,
+            "precision": args.precision,
+            "include_background": args.include_background,
         },
     )
 
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
     seed_everything(args.seed)
-    fabric = Fabric(precision=args.precision)
+    fabric = Fabric(precision=args.precision, accelerator="cpu" if args.cpu else "auto")
 
     # Networks and scheduler
-    if args.gpu:
-        if torch.backends.mps.is_available():
-            device = torch.device("mps")
-            print(">> Picked MPS (Apple Silicon GPU) to run experiments")
-        elif torch.cuda.is_available():
-            device = torch.device("cuda")
-            print(">> Picked CUDA to run experiments")
-        else:
-            device = torch.device("cpu")
-            print(">> CUDA/MPS not available, falling back to CPU")
-    else:
-        device = torch.device("cpu")
-        print(">> Picked CPU to run experiments")
-
+    # device = get_device(not args.cpu)
+    device = fabric.device
+    print(f">>> Running on {device}")
     K: int = args.datasets_params[args.dataset]["K"]
     net = args.model(1, K)
     net.init_weights()
@@ -124,7 +116,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
             # {0, 51, 102, 153, 204, 255} for 6 classes
             # Very sketchy but that works here and that simplifies visualization
             lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
-            lambda nd: torch.from_numpy(nd).to(dtype=torch.int64)[
+            lambda nd: torch.from_numpy(nd).to(dtype=torch.int64, device=fabric.device)[
                 None, ...
             ],  # Add one dimension to simulate batch
             lambda t: class2one_hot(t, K=K)[0],
@@ -179,27 +171,7 @@ def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric = setup(args)
 
-    loss_fn = DiceCELoss(
-        smooth_nr=1e-5, smooth_dr=1e-5, lambda_ce=9, include_background=False
-    )
-    loss_fn = DiceFocalLoss(
-        sigmoid=True,
-        gamma=0.5,
-        smooth_nr=1e-5,
-        smooth_dr=1e-5,
-        lambda_dice=1,
-        lambda_focal=1,
-        include_background=False,
-    )
-    # loss_fn = CELoss
-    # if args.mode == "full":
-    #     loss_fn = CrossEntropy(
-    #         idk=list(range(K))
-    #     )  # Supervise both background and foreground
-    # elif args.mode in ["partial"] and args.dataset in ["SEGTHOR", "SEGTHOR_STUDENTS"]:
-    #     loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
-    # else:
-    #     raise ValueError(args.mode, args.dataset)
+    loss_fn = get_loss(args.loss, K, include_background=args.include_background)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -435,6 +407,19 @@ def get_args():
         help="The path to get the GT scan, in order to get the correct number of slices",
     )
     parser.add_argument(
+        "--loss",
+        choices=["ce", "dice", "dicece", "dicefocal", "ce_torch"],
+        default="dicefocal",
+        help="Loss function to use for training.",
+    )
+
+    parser.add_argument(
+        "--include_background",
+        action="store_true",
+        help="Whether to include the background class in the loss computation.",
+    )
+
+    parser.add_argument(
         "--model_name",
         type=str,
         default="shallowCNN",
@@ -481,9 +466,9 @@ def get_args():
         "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
     )
     parser.add_argument(
-        "--gpu",
+        "--cpu",
         action="store_true",
-        help="Use the GPU if available, otherwise fall back to the CPU.",
+        help="Force the code to run on CPU, even if a GPU is available.",
     )
 
     # Group 3: Output directory
