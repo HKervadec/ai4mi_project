@@ -10,3 +10,4 @@ grad_figs/*.png
 output/*
 jobs/*
 environment.yaml
+*.job
