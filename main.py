@@ -29,6 +29,7 @@ from pathlib import Path
 from pprint import pprint
 from operator import itemgetter
 from shutil import copytree, rmtree
+from os import environ
 
 import torch
 import numpy as np
@@ -77,7 +78,11 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
-    root_dir = Path("data") / args.dataset
+    if args.scratch:
+        tmpdir = environ["TMPDIR"]
+        root_dir = Path(tmpdir+"/data") / args.dataset
+    else:
+        root_dir = Path("data") / args.dataset
 
     img_transform = transforms.Compose([
         lambda img: img.convert('L'),
@@ -326,6 +331,8 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
+
+    parser.add_argument('--scratch', type=bool, default=False, help="Leave False to use ./data, True for using scratch folder")
 
     args = parser.parse_args()
 
