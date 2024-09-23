@@ -48,7 +48,7 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import (CrossEntropy)
+from losses import (CrossEntropy, JaccardLoss)
 
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -130,6 +130,8 @@ def runTraining(args):
         loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
     else:
         raise ValueError(args.mode, args.dataset)
+
+    loss_fn = JaccardLoss(idk=list(range(K)))
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
