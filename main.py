@@ -38,7 +38,6 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn.functional as F
-from lightning import seed_everything
 from lightning.fabric import Fabric
 from PIL import Image
 from skimage.transform import resize
@@ -54,43 +53,26 @@ from utils.metrics import dice_batch, dice_coef
 from utils.tensor_utils import (
     Dcm,
     class2one_hot,
-    get_device,
     probs2class,
     probs2one_hot,
     save_images,
     tqdm_,
+    print_args,
+    setup_wandb,
+    set_seed
 )
 
 torch.set_float32_matmul_precision("medium")
 
-
-def setup_wandb(args):
-    # Initialize a new W&B run
-    wandb.init(
-        project=args.wandb_project_name,
-        config={
-            "epochs": args.epochs,
-            "dataset": args.dataset,
-            "learning_rate": args.lr,
-            "batch_size": args.batch_size,
-            "mode": args.mode,
-            "seed": args.seed,
-            "model": args.model_name,
-            "loss": args.loss,
-            "precision": args.precision,
-            "include_background": args.include_background,
-        },
-    )
-
-
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
-    seed_everything(args.seed)
+    
+    # Seed and Fabric initialization
+    set_seed(args.seed)
     fabric = Fabric(precision=args.precision, accelerator="cpu" if args.cpu else "auto")
 
     # Networks and scheduler
-    # device = get_device(not args.cpu)
     device = fabric.device
-    print(f">>> Running on {device}")
+    print(f">> Running on device '{device}'")
     K: int = args.datasets_params[args.dataset]["K"]
     net = args.model(1, K)
     net.init_weights()
@@ -102,26 +84,25 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
     B: int = args.datasets_params[args.dataset]["B"]  # Batch size
     root_dir: Path = Path(args.data_dir) / str(args.dataset)
 
-    # Transforms
+    # Transforms for images and ground truth
     img_transform = transforms.Compose(
         [
-            lambda img: img.convert("L"),
-            transforms.PILToTensor(),
-            lambda img: img / 255,
+            lambda img: img.convert("L"), # Convert to grayscale
+            transforms.PILToTensor(),     # Convert to tensor 
+            lambda img: img / 255,        # Normalize to [0, 1]
         ]
-    )
+    ) # img_tensor.shape = [1, H, W]
     gt_transform = transforms.Compose(
         [
-            lambda img: np.array(img),
-            # The idea is that the classes are mapped to {0, 255} for binary cases
-            # {0, 85, 170, 255} for 4 classes
-            # {0, 51, 102, 153, 204, 255} for 6 classes
-            # Very sketchy but that works here and that simplifies visualization
-            lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
+            lambda img: np.array(img), # img values are in [0, 255]
+            # For 2 classes, the classes are mapped to {0, 255}.
+            # For 4 classes, the classes are mapped to {0, 85, 170, 255}.
+            # For 6 classes, the classes are mapped to {0, 51, 102, 153, 204, 255}.
+            lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # Normalization
             lambda nd: torch.from_numpy(nd).to(dtype=torch.int64, device=fabric.device)[
                 None, ...
             ],  # Add one dimension to simulate batch
-            lambda t: class2one_hot(t, K=K)[0],
+            lambda t: class2one_hot(t, K=K)[0], # Tensor: One-hot encoding [B, K, H, W]
         ]
     )
 
@@ -170,26 +151,24 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
 
 
 def runTraining(args):
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
+
+    print(f">>> Setting up to train on '{args.dataset}' with '{args.mode}'")
     net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric = setup(args)
-
-    loss_fn = get_loss(args.loss, K, include_background=args.include_background)
-
-    # Notice one has the length of the _loader_, and the other one of the _dataset_
+    
+    # Logging loss per batch for each epoch = [epochs, num_batches], num_batches = data_size/B
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
-    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
-    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
-    # The 3d dice log works per patient
-    log_dice_3d_tra: Tensor = torch.zeros(
-        ((args.epochs, len(gt_shape["train"].keys()), K))
-    )
-    log_dice_3d_val: Tensor = torch.zeros(
-        ((args.epochs, len(gt_shape["val"].keys()), K))
-    )
+    # Logging 2D Dice loss per sample and class = [epochs, num_samples, num_classes]
+    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K)) #[e, 5453, K]
+    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))   #[e, 1967, K]
+
+    # Logging 3D Dice loss per patient and class = [epochs, num_patients, num_classes]
+    log_dice_3d_tra: Tensor = torch.zeros(((args.epochs, len(gt_shape["train"].keys()), K))) #[e, 30, K]
+    log_dice_3d_val: Tensor = torch.zeros(((args.epochs, len(gt_shape["val"].keys()), K)))   #[e, 10, K]
 
     best_dice: float = 0
+    loss_fn = get_loss(args.loss, K, include_background=args.include_background)
 
     for e in range(args.epochs):
         for m in ["train", "val"]:
@@ -213,7 +192,8 @@ def runTraining(args):
                     log_dice = log_dice_val
                     log_dice_3d = log_dice_3d_val
 
-            # Prep for 3D dice computation
+            # Initialize 3D volumes [Z, K, X, Y] for each patient 
+            # Z: Depth, K: Number of classes, (X, Y): Spatial dimensions
             gt_volumes = {
                 p: np.zeros((Z, K, X, Y), dtype=np.int16)
                 for p, (X, Y, Z) in gt_shape[m].items()
@@ -223,7 +203,7 @@ def runTraining(args):
                 for p, (X, Y, Z) in gt_shape[m].items()
             }
 
-            with cm():  # Either dummy context manager, or the torch.no_grad for validation
+            with cm():  # Train: dummy context manager, Val: torch.no_grad 
                 j = 0
                 tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
                 for i, data in tq_iter:
@@ -241,9 +221,7 @@ def runTraining(args):
                     B, _, W, H = img.shape
 
                     pred_logits = net(img)
-                    pred_probs = F.softmax(
-                        1 * pred_logits, dim=1
-                    )  # 1 is the temperature parameter
+                    pred_probs = F.softmax(pred_logits / args.temperature, dim=1)
 
                     # Metrics computation, not used for training
                     pred_seg = probs2one_hot(pred_probs)
@@ -387,9 +365,23 @@ def resize_and_save_slice(arr, K, X, Y, z, target_arr):
 
 
 def get_args():
-    # Dataset-specific parameters
+
+    # Group 1: Dataset & Model configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", default=25, type=int)
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default="shallowCNN",
+        choices=["shallowCNN", "ENet", "UDBRNet"],
+        help="Model to use for training",
+    )
+    parser.add_argument(
+        "--mode",
+        default="full",
+        choices=["partial", "full"],
+        help="Whether to supervise all the classes ('full') or, "
+        "only a subset of them ('partial').",
+    )
     parser.add_argument(
         "--dataset",
         default="SEGTHOR",
@@ -400,7 +392,15 @@ def get_args():
         "--data_dir",
         type=Path,
         default="data",
-        help="The path to get the GT scan, in order to get the correct number of slices",
+        help="Path to get the GT scan, in order to get the correct number of slices",
+    )
+
+    # Group 2: Training parameters
+    parser.add_argument("--epochs", default=25, type=int)
+    parser.add_argument("--batch_size", default=8, type=int)
+    parser.add_argument('--temperature', default=1, type=float)
+    parser.add_argument(
+        "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
     )
     parser.add_argument(
         "--loss",
@@ -408,41 +408,14 @@ def get_args():
         default="dicefocal",
         help="Loss function to use for training.",
     )
-
     parser.add_argument(
         "--include_background",
         action="store_true",
         help="Whether to include the background class in the loss computation.",
     )
-
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        default="shallowCNN",
-        choices=["shallowCNN", "ENet", "UDBRNet"],
-        help="Model to use for training",
-    )
     parser.add_argument(
         "--seed", default=42, type=int, help="Seed to use for reproducibility."
     )
-    parser.add_argument(
-        "--mode",
-        default="full",
-        choices=["partial", "full"],
-        help="Whether to supervise all the classes ('full') or, "
-        "only a subset of them ('partial').",
-    )
-
-    parser.add_argument("--batch_size", default=8, type=int)
-
-    parser.add_argument(
-        "--num_workers",
-        type=int,
-        default=0,
-        help="Number of subprocesses to use for data loading. "
-        "Default 0 to avoid pickle lambda error.",
-    )
-
     parser.add_argument(
         "--precision",
         default=32,
@@ -458,15 +431,17 @@ def get_args():
             "64",
         ],
     )
-
-    # TODO: Check delta between
-    parser.add_argument(
-        "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
-    )
     parser.add_argument(
         "--cpu",
         action="store_true",
         help="Force the code to run on CPU, even if a GPU is available.",
+    )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=0,
+        help="Number of subprocesses to use for data loading. "
+        "Default 0 to avoid pickle lambda error.",
     )
 
     # Group 3: Output directory
@@ -500,6 +475,8 @@ def get_args():
 
     # Model selection
     args.model = get_model(args.model_name)
+    print_args(args)
+
     args.datasets_params = {
         # K = number of classes, B = batch size
         "TOY2": {"K": 2, "B": args.batch_size},
@@ -510,9 +487,7 @@ def get_args():
 
 def main():
     args = get_args()
-    print(args)
-    if args.wandb_project_name:
-        setup_wandb(args)
+    if args.wandb_project_name: setup_wandb(args)
     runTraining(args)
 
 

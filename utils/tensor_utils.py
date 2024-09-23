@@ -35,6 +35,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor
+import logging
+from lightning import seed_everything
 
 tqdm_ = partial(
     tqdm,
@@ -91,6 +93,7 @@ def one_hot(t: Tensor, axis=1) -> bool:
 
 
 def class2one_hot(seg: Tensor, K: int) -> Tensor:
+    # seg.shape = [B, height, width]
     # Breaking change but otherwise can't deal with both 2d and 3d
     # if len(seg.shape) == 3:  # Only w, h, d, used by the dataloader
     #     return class2one_hot(seg.unsqueeze(dim=0), K)[0]
@@ -184,7 +187,50 @@ def setup_wandb(args):
             "epochs": args.epochs,
             "dataset": args.dataset,
             "learning_rate": args.lr,
-            "batch_size": args.datasets_params[args.dataset]["B"],
+            "batch_size": args.batch_size,
             "mode": args.mode,
+            "seed": args.seed,
+            "model": args.model_name,
+            "loss": args.loss,
+            "precision": args.precision,
+            "include_background": args.include_background,
         },
     )
+
+# Print Args in columns
+def print_args(args, num_columns=2):
+    print(">>> Arguments:")
+    # Convert args (Namespace) to dictionary
+    args_dict = vars(args)
+    
+    # Find the maximum length of the keys and values to ensure proper alignment
+    max_key_len = max(len(str(key)) for key in args_dict.keys())
+    max_val_len = max(len(str(value)) for value in map(str, args_dict.values()))  # Convert values to strings for formatting
+    
+    # Prepare a format string for aligned output (key and value alignment)
+    format_string = '{:<'+str(max_key_len)+'} : {:<'+str(max_val_len)+'}'
+
+    # Get all the items in the dictionary
+    items = list(args_dict.items())
+
+    # Determine the number of rows based on the number of columns
+    num_rows = (len(items) + num_columns - 1) // num_columns  # Ceiling division
+
+    # Print the dictionary in the specified number of columns
+    for row in range(num_rows):
+        row_str = []
+        for col in range(num_columns):
+            index = row + col * num_rows
+            if index < len(items):
+                key, value = items[index]
+                row_str.append(format_string.format(key, str(value)))  # Ensure value is converted to string
+        print('; '.join(row_str))
+    print()
+
+# Avoid printing 'Seed set to 42' already in print_args
+def set_seed(seed, workers=False):
+    # Suppress PyTorch Lightning INFO logging (which includes the seed message)
+    logging.getLogger("lightning.fabric.utilities.seed").setLevel(logging.WARNING)
+    
+    # Set the seed
+    seed_everything(seed, workers=workers)
