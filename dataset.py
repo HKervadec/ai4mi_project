@@ -46,7 +46,7 @@ def make_dataset(root, subset) -> list[tuple[Path, Path]]:
 
 class SliceDataset(Dataset):
     def __init__(self, subset, root_dir, img_transform=None,
-                 gt_transform=None, augment=False, equalize=False, debug=False):
+                 gt_transform=None, augment=False, equalize=False, debug=False, remove_unannotated = False):
         self.root_dir: str = root_dir
         self.img_transform: Callable = img_transform
         self.gt_transform: Callable = gt_transform
@@ -54,6 +54,17 @@ class SliceDataset(Dataset):
         self.equalize: bool = equalize
 
         self.files = make_dataset(root_dir, subset)
+
+        if remove_unannotated:
+            removed = 0
+            for file in self.files:
+                _, gt_path = file
+                gt: Tensor = self.gt_transform(Image.open(gt_path))
+                if gt[1:].sum() == 0:
+                    self.files.remove(file)
+                    removed += 1
+            print(f">> Removed {removed} unannotated images...")
+
         if debug:
             self.files = self.files[:10]
 
