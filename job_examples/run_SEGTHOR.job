@@ -1,0 +1,20 @@
+# Insert your arguments here
+
+module purge
+module load 2022
+module load Anaconda3/2022.05
+
+# Copy the SEGTHOR zip to scratch and unpack
+cd $TMPDIR
+mkdir data
+cp $HOME/ai4mi_project/data/SEGTHOR.zip ./data
+cd ./data
+srun unzip -q SEGTHOR.zip
+wait
+
+cd $HOME/ai4mi_project
+
+# Activate your environment
+source activate ai4mi
+
+srun python3 main.py --epochs 10 --dest ./output --dataset SEGTHOR --scratch True --gpu
