@@ -6,8 +6,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=9
 #SBATCH --time=00:10:00
-#SBATCH --output=/home/scur0248/output/success/out-%x.%A.out
-#SBATCH --error=/home/scur0248/output/error/out-%x.%A.err
+#SBATCH --output=/home/scur2504/output/success/out-%x.%A.out
+#SBATCH --error=/home/scur2504/output/error/out-%x.%A.err
 
 module purge
 module load 2022
