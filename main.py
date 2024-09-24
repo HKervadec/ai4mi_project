@@ -46,10 +46,13 @@ from utils import (Dcm,
                    probs2class,
                    tqdm_,
                    dice_coef,
+                   jaccard_coef,
+                   average_hausdorff_distance,
+                   average_symmetric_surface_distance,
                    save_images)
 
 from losses import (CrossEntropy)
-
+import matplotlib.pyplot as plt
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -119,6 +122,33 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     return (net, optimizer, device, train_loader, val_loader, K)
 
+def skip_empty_masks(gt: Tensor, pred_seg: Tensor) -> bool:
+    """
+    Returns True if both ground truth & predicted segmentation masks are empty,
+    Useful for AHD metric - patients with multiple sliced images.
+    """
+    return gt.sum().item() == 0 and pred_seg.sum().item() == 0
+
+def visualize_gt_and_pred(image, gt, pred, epoch, batch_idx):
+    """
+    Plotting for SEGTHOR dataset inspection 
+    """
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 3, 1)
+    plt.imshow(image.cpu().numpy()[0], cmap='gray')
+    plt.title(f"Original Image (Epoch {epoch}, Batch {batch_idx})")
+    
+    plt.subplot(1, 3, 2)
+    plt.imshow(gt.cpu().numpy()[0], cmap='gray')
+    plt.title(f"Ground Truth (Epoch {epoch}, Batch {batch_idx})")
+    
+    plt.subplot(1, 3, 3)
+    plt.imshow(pred.cpu().numpy()[0], cmap='gray')
+    plt.title(f"Prediction (Epoch {epoch}, Batch {batch_idx})")
+    
+    plt.savefig(f"results/segthor/ce/visualization_epoch_{epoch}_batch_{batch_idx}.png")
+    plt.close()
+
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
@@ -136,7 +166,12 @@ def runTraining(args):
     log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
-
+    log_jacc_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_jacc_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_ahd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset)))
+    log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset))) 
+    log_assd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset)))
+    log_assd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset)))
     best_dice: float = 0
 
     for e in range(args.epochs):
@@ -150,6 +185,10 @@ def runTraining(args):
                     loader = train_loader
                     log_loss = log_loss_tra
                     log_dice = log_dice_tra
+                    log_ahd = log_ahd_tra
+                    log_jacc = log_jacc_tra
+                    log_assd = log_assd_tra
+
                 case 'val':
                     net.eval()
                     opt = None
@@ -158,6 +197,9 @@ def runTraining(args):
                     loader = val_loader
                     log_loss = log_loss_val
                     log_dice = log_dice_val
+                    log_ahd = log_ahd_val
+                    log_jacc = log_jacc_val
+                    log_assd = log_assd_val
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -179,6 +221,31 @@ def runTraining(args):
                     # Metrics computation, not used for training
                     pred_seg = probs2one_hot(pred_probs)
                     log_dice[e, j:j + B, :] = dice_coef(gt, pred_seg)  # One DSC value per sample and per class
+                    log_jacc[e, j:j + B, :] = jaccard_coef(gt, pred_seg)
+
+
+                    pred_seg = pred_seg.to(device)
+                    gt = gt.to(device)
+
+                    for batch_idx in range(B):
+                        # print(f"Checking batch {batch_idx}...")
+                        # print(f"Ground Truth sum: {gt[batch_idx].sum().item()}")
+                        # print(f"Predicted Segmentation sum: {pred_seg[batch_idx].sum().item()}")
+                        # print(f"Ground Truth: {gt[batch_idx].unique()}") #Debugging
+                        # print(f"Predicted Seg: {pred_seg[batch_idx].unique()}")
+
+                        # if e == 0 and batch_idx < 5:  #Sanity check: visualizing for the first 5 batches in the first epoch 
+                        #     visualize_gt_and_pred(img[batch_idx], gt[batch_idx], pred_seg[batch_idx], e, batch_idx)
+                            
+                        if skip_empty_masks(gt[batch_idx], pred_seg[batch_idx]):
+                            print(f"Skipping empty mask at batch {batch_idx}")
+                            continue #Skipping AHD calculation if both masks are empty
+
+                        ahd_value = average_hausdorff_distance(gt[batch_idx], pred_seg[batch_idx])
+                        log_ahd[e, j + batch_idx] = ahd_value
+
+                        assd_value = average_symmetric_surface_distance(gt[batch_idx], pred_seg[batch_idx])
+                        log_assd[e, j + batch_idx] = assd_value
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
@@ -200,16 +267,34 @@ def runTraining(args):
                     # For the DSC average: do not take the background class (0) into account:
                     postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
                                                     "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
+                    postfix_dict["AHD"] = f"{log_ahd[e, :j].mean():05.3f}"
+                    postfix_dict["ASSD"] = f"{log_assd[e, :j].mean():05.3f}"
+                    postfix_dict["Jaccard"] = f"{log_jacc[e, :j, 1:].mean():05.3f}"
+
                     if K > 2:
                         postfix_dict |= {f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
                                          for k in range(1, K)}
+                        postfix_dict |= {f"Jaccard-{k}": f"{log_jacc[e, :j, k].mean():05.3f}"
+                                         for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
+
+                print(f"Epoch {e} - {m} AHD: {log_ahd[e, :j].mean().item():.5f}")
+                print(f"Epoch {e} - {m} Jaccard: {log_jacc[e, :j, 1:].mean().item():.5f}")
+                print(f"Epoch {e} - {m} ASSD: {log_assd[e, :j].mean().item():.5f}")
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
         np.save(args.dest / "dice_tra.npy", log_dice_tra)
         np.save(args.dest / "loss_val.npy", log_loss_val)
         np.save(args.dest / "dice_val.npy", log_dice_val)
+        np.save(args.dest / "ahd_tra.npy", log_ahd_tra)
+        np.save(args.dest / "ahd_val.npy", log_ahd_val)
+        np.save(args.dest / "jaccard_tra.npy",log_jacc_tra)
+        np.save(args.dest / "jaccards_val.npy",log_jacc_val)
+        np.save(args.dest / "assd_tra.npy", log_assd_tra)
+        np.save(args.dest / "assd_val.npy", log_assd_val)
+
+
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
