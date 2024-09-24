@@ -18,5 +18,5 @@ module load Anaconda3/2022.05
 source activate ai4mi_project
 
 # Go to the directory that contains the project, the runnable
-cd $HOME/project/ai4mi_project
+cd $HOME/ai4mi_project
 srun python -O main.py --dataset SEGTHOR --mode partial --epoch 5 --dest results/segthor/ce --debug
