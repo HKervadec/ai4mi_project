@@ -99,3 +99,35 @@ class CombinedLoss:
         ce = self.ce_loss(pred_softmax, target)
         dice = self.dice_loss(pred_softmax, target)
         return self.alpha * ce + self.beta * dice
+    
+
+class CombinedLossWithFocal:
+    def __init__(self, alpha=0.5, beta=0.5, gamma=2, **kwargs):
+        self.alpha = alpha
+        self.beta = beta
+        self.ce_loss = FocalLoss(gamma=gamma)
+        self.dice_loss = DiceLoss()
+
+    def __call__(self, pred_softmax: Tensor, target: Tensor) -> Tensor:
+        ce = self.ce_loss(pred_softmax, target)
+        dice = self.dice_loss(pred_softmax, target)
+        return self.alpha * ce + self.beta * dice
+    
+
+class TverskyLoss:
+    def __init__(self, alpha=0.5, beta=0.5, smooth=1e-5):
+        self.alpha = alpha
+        self.beta = beta
+        self.smooth = smooth
+
+    def __call__(self, pred_softmax: Tensor, target: Tensor) -> Tensor:
+        assert pred_softmax.shape == target.shape
+        assert simplex(pred_softmax)
+        assert sset(target, [0, 1])
+
+        true_pos = torch.sum(pred_softmax * target, dim=(2, 3))
+        false_neg = torch.sum(target * (1 - pred_softmax), dim=(2, 3))
+        false_pos = torch.sum(pred_softmax * (1 - target), dim=(2, 3))
+
+        tversky = (true_pos + self.smooth) / (true_pos + self.alpha * false_neg + self.beta * false_pos + self.smooth)
+        return 1 - tversky.mean()
