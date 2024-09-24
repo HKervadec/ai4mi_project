@@ -19,4 +19,4 @@ source activate ai4mi
 
 # Go to the directory that contains the project, the runnable
 cd $HOME/ai4mi_project
-srun python -O main.py --gpu --mode partial --epoch 5 --dataset SEGTHOR --dest results/segthor/ce
+srun python -O main.py --gpu --dataset SEGTHOR --dest results/segthor/ce

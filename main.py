@@ -24,6 +24,7 @@
 
 import argparse
 import multiprocessing
+import time
 import warnings
 from typing import Any
 from pathlib import Path
@@ -125,6 +126,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
 def runTraining(args):
 
+    start = time.time()
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
@@ -231,8 +233,6 @@ def runTraining(args):
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
-        print("Shape of log_loss_tra")
-
         metrics = {
             "train/loss": log_loss_tra[e, :].mean().item(),
             "train/dice_avg": log_dice_tra[e, :, 1:].mean().item(),
@@ -243,6 +243,9 @@ def runTraining(args):
             metrics[f"train/dice-{k}"] = log_dice_tra[e, :, k].mean().item()
             metrics[f"valid/dice-{k}"] = log_dice_val[e, :, k].mean().item()
         wandb.log(metrics)
+
+    end = time.time()
+    print(f"[FINISHED] Duration: {(end - start):0.2f} s")
 
 
 def main():
@@ -260,19 +263,18 @@ def main():
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
     parser.add_argument('--model', type=str, default='ENet', choices=['ENet'])
+    parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
 
     args = parser.parse_args()
+    prefix = args.run_prefix + '_' if args.run_prefix else ''
+    run_name = f'{prefix}{args.model}_{args.dataset[:3]}'
 
     # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork
     # see https://github.com/pytest-dev/pytest-flask/issues/104
     multiprocessing.set_start_method("fork")
 
-    pprint(args)
-
     prepare_wandb_login()
     wandb.login()
-
-    run_name = f'{args.dataset}_{args.model}'
     if args.debug:
         print(">> DEBUG <<")
         run_name = 'DEBUG_' + run_name
@@ -284,6 +286,7 @@ def main():
         mode="disabled" if args.debug else "online"
     )
 
+    pprint(args)
     runTraining(args)
 
 
