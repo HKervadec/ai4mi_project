@@ -13,3 +13,7 @@ grad_figs/*.png
 .DS_Store
 
 output/*
+
+# WandB files
+wandb
+wandb.password

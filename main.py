@@ -47,10 +47,12 @@ from utils import (Dcm,
                    probs2class,
                    tqdm_,
                    dice_coef,
-                   save_images)
+                   save_images,
+                   prepare_wandb_login)
 
 from losses import (CrossEntropy)
 
+import wandb #TODO: remove all wandb instances on final submission
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -122,6 +124,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
 
 def runTraining(args):
+
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
@@ -206,11 +209,12 @@ def runTraining(args):
                                          for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
+
         # I save it at each epochs, in case the code crashes or I decide to stop it early
-        np.save(args.dest / "loss_tra.npy", log_loss_tra)
-        np.save(args.dest / "dice_tra.npy", log_dice_tra)
-        np.save(args.dest / "loss_val.npy", log_loss_val)
-        np.save(args.dest / "dice_val.npy", log_dice_val)
+        # np.save(args.dest / "loss_tra.npy", log_loss_tra)
+        # np.save(args.dest / "dice_tra.npy", log_dice_tra)
+        # np.save(args.dest / "loss_val.npy", log_loss_val)
+        # np.save(args.dest / "dice_val.npy", log_dice_val)
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
@@ -227,6 +231,19 @@ def runTraining(args):
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
+        print("Shape of log_loss_tra")
+
+        metrics = {
+            "train/loss": log_loss_tra[e, :].mean().item(),
+            "train/dice_avg": log_dice_tra[e, :, 1:].mean().item(),
+            "valid/loss": log_loss_val[e, :].mean().item(),
+            "valid/dice_avg": log_dice_val[e, :, 1:].mean().item(),
+        }
+        for k in range(1, K):
+            metrics[f"train/dice-{k}"] = log_dice_tra[e, :, k].mean().item()
+            metrics[f"valid/dice-{k}"] = log_dice_val[e, :, k].mean().item()
+        wandb.log(metrics)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -242,6 +259,7 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
+    parser.add_argument('--model', type=str, default='ENet', choices=['ENet'])
 
     args = parser.parse_args()
 
@@ -250,6 +268,21 @@ def main():
     multiprocessing.set_start_method("fork")
 
     pprint(args)
+
+    prepare_wandb_login()
+    wandb.login()
+
+    run_name = f'{args.dataset}_{args.model}'
+    if args.debug:
+        print(">> DEBUG <<")
+        run_name = 'DEBUG_' + run_name
+    wandb.init(
+        entity="ai_4_mi",
+        project="SegTHOR",
+        name=run_name,
+        config=vars(args),
+        mode="disabled" if args.debug else "online"
+    )
 
     runTraining(args)
 
