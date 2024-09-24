@@ -107,7 +107,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                              root_dir,
                              img_transform=img_transform,
                              gt_transform=gt_transform,
-                             debug=args.debug)
+                             debug=args.debug,
+                             remove_unannotated=args.remove_unannotated)
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=args.num_workers,
@@ -117,7 +118,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                            root_dir,
                            img_transform=img_transform,
                            gt_transform=gt_transform,
-                           debug=args.debug)
+                           debug=args.debug,
+                           remove_unannotated=args.remove_unannotated)
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=args.num_workers,
@@ -332,7 +334,8 @@ def main():
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
 
-    parser.add_argument('--scratch', type=bool, default=False, help="Leave False to use ./data, True for using scratch folder")
+    parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
+    parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
 
     args = parser.parse_args()
 
