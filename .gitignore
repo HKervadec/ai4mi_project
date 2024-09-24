@@ -11,3 +11,5 @@ grad_figs/*.png
 # Pycharm locally generated files and profiles
 .idea
 .DS_Store
+
+output/*
