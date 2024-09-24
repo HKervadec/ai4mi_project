@@ -181,6 +181,6 @@ def union(a: Tensor, b: Tensor) -> Tensor:
 
 def prepare_wandb_login():
     with open("wandb.password", "rt") as f:
-        pw = f.readline()
+        pw = f.readline().strip()
         os.environ["WANDB_API_KEY"] = pw
 
