@@ -1,0 +1,19 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --job-name=CheckEnvironment
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=00:10:00
+#SBATCH --output=/home/scur2504/output/success/out-%x.%A.out
+#SBATCH --error=/home/scur2504/output/error/out-%x.%A.err
+
+module purge
+module load 2022
+module load Anaconda3/2022.05
+
+# Activate your environment
+source activate ai4mi
+# Check whether the GPU is available
+python -uc "import torch; print('\n\nGPU available?', torch.cuda.is_available())"

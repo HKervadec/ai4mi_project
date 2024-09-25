@@ -33,6 +33,7 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
+import os #TODO: remove on final submission
 
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
@@ -176,3 +177,13 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+
+def prepare_wandb_login():
+    try:
+        with open("wandb.password", "rt") as f:
+            pw = f.readline().strip()
+            os.environ["WANDB_API_KEY"] = pw
+    except FileNotFoundError:
+        print("!! File wandb.password was not found in the project root. WandB will be disabled during this run !!")
+
