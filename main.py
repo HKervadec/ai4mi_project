@@ -189,7 +189,7 @@ def runTraining(args):
 
                     # Metrics computation, not used for training
                     pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j:j + B, :] = dice_coef(gt, pred_seg)  # One DSC value per sample and per class
+                    log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
@@ -268,6 +268,11 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
+    
+    parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
+    parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
+    parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
+    parser.add_argument('--focal_gamma', type=float, default=2.0, help="Gamma parameter for Focal Loss")
 
     # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")

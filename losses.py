@@ -43,13 +43,15 @@ def create_loss_fn(args, K: int):
         case 'Dice':
             loss_fn = DiceLoss()
         case 'FocalLoss':
-            loss_fn = FocalLoss(alpha=.25, gamma=2, idk=idk)  # Use Focal Loss instead
+            loss_fn = FocalLoss(alpha=args.focal_alpha, gamma=args.focal_gamma, idk=idk)  # Preference for alpha=0.25 and gamma=2
         case 'CombinedLoss':
-            loss_fn = CombinedLoss(alpha=.5, beta=.5, idk=idk)  # Pass idk parameter
+            loss_fn = CombinedLoss(alpha=args.alpha, beta=args.beta, idk=idk)  # Pass idk parameter
         case 'FocalDiceLoss':
-            loss_fn = FocalDiceLoss(alpha=1, beta=1, focal_alpha=.25, focal_gamma=2, idk=idk)
+            # Preference for alpha=0.3, beta=0.5, focal_alpha=0.25 and focal_gamma=2
+            # This focuses more on the foreground classes
+            loss_fn = FocalDiceLoss(alpha=args.alpha, beta=args.beta, focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma, idk=idk)
         case 'TverskyLoss':
-            loss_fn = TverskyLoss(alpha=0.5, beta=0.5)  # Use Tversky Loss
+            loss_fn = TverskyLoss(alpha=args.alpha, beta=args.beta)
         case _:
             raise ValueError(f"{args.loss} is not supported as a loss")
     return loss_fn
