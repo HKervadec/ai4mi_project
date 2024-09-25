@@ -30,7 +30,6 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import argparse
 import os
-import sys
 import warnings
 from pathlib import Path
 from shutil import copytree, rmtree
@@ -45,7 +44,6 @@ from skimage.transform import resize
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
-import torch.multiprocessing as mp
 
 import wandb
 from dataset import SliceDataset
@@ -83,56 +81,6 @@ def setup_wandb(args):
         },
     )
 
-# Define the individual functions globally
-# to avoid the lambda pickle error when using num_workers > 0
-# for mg_transform: Image transform
-def convert_to_grayscale(img):
-    return img.convert("L")
-
-def normalize_img_tensor(img):
-    return img / 255.0
-
-# for gt_transform: Ground truth transform
-def img_to_array(img):
-    return np.array(img)
-
-def normalize_classes(nd, K):
-    if K != 5:
-        return nd / (255 / (K - 1))
-    else:
-        return nd / 63
-
-def array_to_tensor(nd, fabric_device):
-    return torch.from_numpy(nd).to(dtype=torch.int64, device=fabric_device)[None, ...]
-
-def one_hot_encode(t, K):
-    return class2one_hot(t, K=K)[0]
-    
-# Rewrite gt_transform as a Compose transform without lambdas
-class GTTransform:
-    def __init__(self, K, fabric_device):
-        self.K = K
-        self.fabric_device = fabric_device
-        self.transform = transforms.Compose([
-            img_to_array,                          # Convert image to array
-            self.normalize_classes_wrapper,        # Normalize classes
-            self.array_to_tensor_wrapper,          # Convert to tensor and move to device
-            self.one_hot_encode_wrapper            # Apply one-hot encoding
-        ])
-
-    def normalize_classes_wrapper(self, img):
-        return normalize_classes(img, self.K)
-
-    def array_to_tensor_wrapper(self, img):
-        return array_to_tensor(img, self.fabric_device)
-
-    def one_hot_encode_wrapper(self, img):
-        return one_hot_encode(img, self.K)
-
-    def __call__(self, img):
-        return self.transform(img)
-
-
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
     
     # Seed and Fabric initialization
@@ -153,8 +101,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
     B: int = args.datasets_params[args.dataset]["B"]  # Batch size
     root_dir: Path = Path(args.data_dir) / str(args.dataset)
 
-    # if num_workers > 0 this bugs out because of the lambdas
-    """
     # Transforms for images and ground truth
     img_transform = transforms.Compose(
         [
@@ -176,17 +122,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
             lambda t: class2one_hot(t, K=K)[0], # Tensor: One-hot encoding [B, K, H, W]
         ]
     )
-    """
-    # Rewrite mg_transform without lambdas
-    img_transform = transforms.Compose(
-        [
-            convert_to_grayscale,           # Convert to grayscale
-            transforms.PILToTensor(),       # Convert to tensor
-            normalize_img_tensor,           # Normalize to [0, 1]
-        ]
-    )
-
-    gt_transform = GTTransform(K=K, fabric_device=fabric.device)
 
     # Datasets and loaders
     train_set = SliceDataset(
@@ -287,9 +222,8 @@ def runTraining(args):
 
             with cm():  # Train: dummy context manager, Val: torch.no_grad 
                 j = 0
-                tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc, file=sys.stdout, disable=False)
+                tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
                 for i, data in tq_iter:
-                    sys.stdout.flush()
                     img = data["images"]
                     gt = data["gts"]
 
@@ -379,7 +313,7 @@ def runTraining(args):
 
                         dice_3d = dice_batch(gt_vol, pred_vol)
                         log_dice_3d[e, i, :] = dice_3d
-                    log_dict["dice_3d"] = (log_dice_3d[e, :, 1:].mean().item(),)
+                    log_dict["dice_3d"] = log_dice_3d[e, :, 1:].mean().item()
                     log_dict["dice_3d_class"] = get_dice_per_class(
                         args, log_dice_3d, K, e
                     )
@@ -576,5 +510,4 @@ def main():
 
 
 if __name__ == "__main__":
-    mp.set_start_method('spawn', force=True)
     main()
