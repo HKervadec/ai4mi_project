@@ -31,6 +31,7 @@ from pathlib import Path
 from pprint import pprint
 from operator import itemgetter
 from shutil import copytree, rmtree
+from os import environ
 
 import torch
 import numpy as np
@@ -51,7 +52,7 @@ from utils import (Dcm,
                    save_images,
                    prepare_wandb_login)
 
-from losses import (CrossEntropy)
+from losses import CrossEntropy, DiceLoss, FocalLoss, CombinedLoss, FocalDiceLoss, TverskyLoss
 
 import wandb #TODO: remove all wandb instances on final submission
 
@@ -78,7 +79,11 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
-    root_dir = Path("data") / args.dataset
+    if args.scratch:
+        tmpdir = environ["TMPDIR"]
+        root_dir = Path(tmpdir+"/data") / args.dataset
+    else:
+        root_dir = Path("data") / args.dataset
 
     img_transform = transforms.Compose([
         lambda img: img.convert('L'),
@@ -103,7 +108,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                              root_dir,
                              img_transform=img_transform,
                              gt_transform=gt_transform,
-                             debug=args.debug)
+                             debug=args.debug,
+                             remove_unannotated=args.remove_unannotated)
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=args.num_workers,
@@ -113,7 +119,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                            root_dir,
                            img_transform=img_transform,
                            gt_transform=gt_transform,
-                           debug=args.debug)
+                           debug=args.debug,
+                           remove_unannotated=args.remove_unannotated)
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=args.num_workers,
@@ -132,6 +139,16 @@ def runTraining(args):
 
     if args.mode == "full":
         loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
+    elif args.mode == "dice":
+        loss_fn = DiceLoss()
+    elif args.mode == "FocalLoss":
+        loss_fn = FocalLoss(alpha=.25, gamma=2, idk=list(range(K)))  # Use Focal Loss instead
+    elif args.mode == "CombinedLoss":
+        loss_fn = CombinedLoss(alpha=.5, beta=.5, idk=list(range(K)))  # Pass idk parameter
+    elif args.mode == "FocalDiceLoss":
+        loss_fn = FocalDiceLoss(alpha=1, beta=1, focal_alpha=.25, focal_gamma=2, idk=list(range(K)))
+    elif args.mode == "TverskyLoss":
+        loss_fn = TverskyLoss(alpha=0.5, beta=0.5)  # Use Tversky Loss
     elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
         loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
     else:
@@ -253,7 +270,8 @@ def main():
 
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
-    parser.add_argument('--mode', default='full', choices=['partial', 'full'])
+    parser.add_argument('--mode', default='full', choices=['partial', 'full', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
+    parser.add_argument('--args', default='')
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
 
@@ -264,6 +282,9 @@ def main():
                              "to test the logic around epochs and logging easily.")
     parser.add_argument('--model', type=str, default='ENet', choices=['ENet'])
     parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
+
+    parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
+    parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
 
     args = parser.parse_args()
     prefix = args.run_prefix + '_' if args.run_prefix else ''
