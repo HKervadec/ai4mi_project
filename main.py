@@ -58,11 +58,28 @@ from utils.tensor_utils import (
     save_images,
     tqdm_,
     print_args,
-    setup_wandb,
     set_seed
 )
 
 torch.set_float32_matmul_precision("medium")
+
+# Initialize a new W&B run
+def setup_wandb(args):
+    wandb.init(
+        project=args.wandb_project_name,
+        config={
+            "epochs": args.epochs,
+            "dataset": args.dataset,
+            "learning_rate": args.lr,
+            "batch_size": args.batch_size,
+            "mode": args.mode,
+            "seed": args.seed,
+            "model": args.model_name,
+            "loss": args.loss,
+            "precision": args.precision,
+            "include_background": args.include_background,
+        },
+    )
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
     
@@ -487,7 +504,8 @@ def get_args():
 
 def main():
     args = get_args()
-    if args.wandb_project_name: setup_wandb(args)
+    if args.wandb_project_name: 
+        setup_wandb(args)
     runTraining(args)
 
 

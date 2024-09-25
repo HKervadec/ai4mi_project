@@ -1,5 +1,6 @@
 results*
 data/*
+data_corrupted/*
 !data/*.b3sum
 !data/*.sha256
 results/

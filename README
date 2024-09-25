@@ -20,6 +20,18 @@ git submodule update --init
 uv venv -p 3.12 # This will create a virtual environment with Python 3.12
 source .venv/bin/activate # This will activate the virtual environment
 uv pip sync requirements.txt # Alternatively: uv pip install -r requirements.txt
+
+# For Snellius we need python>3.10
+WORK_DIR=$HOME/ai4mi_project
+cd $WORK_DIR
+
+module load Python/3.11.3-GCCcore-12.3.0  # installs python 3.11 
+python3 -m venv ai4mi
+module purge 
+source ai4mi/bin/activate
+pip install -r requirements_snellius.txt
+
+
 ```
 ### Downloading the dataset
 

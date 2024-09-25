@@ -9,9 +9,6 @@
 WORK_DIR=$HOME/ai4mi_project
 ENVDIR=$WORK_DIR/ai4mi/bin/activate
 cd $WORK_DIR
-
-module purge
-module load 2023
 source $ENVDIR
 
-python -O main.py --dataset SEGTHOR --model_name ENet --mode full
+python -O main.py --model_name ENet --mode full --wandb_project_name ENet_training 

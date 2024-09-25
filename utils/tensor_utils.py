@@ -29,7 +29,6 @@ from multiprocessing import Pool
 from contextlib import AbstractContextManager
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
-import wandb
 import torch
 import numpy as np
 from PIL import Image
@@ -179,23 +178,6 @@ def get_device(use_gpu):
     return device
 
 
-# Initialize a new W&B run
-def setup_wandb(args):
-    wandb.init(
-        project=args.wandb_project_name,
-        config={
-            "epochs": args.epochs,
-            "dataset": args.dataset,
-            "learning_rate": args.lr,
-            "batch_size": args.batch_size,
-            "mode": args.mode,
-            "seed": args.seed,
-            "model": args.model_name,
-            "loss": args.loss,
-            "precision": args.precision,
-            "include_background": args.include_background,
-        },
-    )
 
 # Print Args in columns
 def print_args(args, num_columns=2):
