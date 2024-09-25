@@ -14,9 +14,18 @@ module purge
 module load 2022
 module load Anaconda3/2022.05
 
+# Copy the SEGTHOR zip to scratch and unpack
+cd $TMPDIR
+mkdir data
+# Put both dataset folders (SEGTHOR and TOY2) into a zip file in data/datasets.zip
+cp $HOME/ai4mi_project/data/datasets.zip ./data
+cd ./data
+srun unzip -q datasets.zip
+wait
+
 # Activate your environment
 source activate ai4mi
 
 # Go to the directory that contains the project, the runnable
 cd $HOME/ai4mi_project
-srun python -O main.py --gpu --dataset SEGTHOR --dest results/segthor/ce
+srun python main.py --gpu --dest ./output --dataset SEGTHOR --scratch
