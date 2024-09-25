@@ -133,7 +133,7 @@ def runTraining(args):
     elif args.mode == "CombinedLoss":
         loss_fn = CombinedLoss(alpha=.5, beta=.5, idk=list(range(K)))  # Pass idk parameter
     elif args.mode == "FocalDiceLoss":
-        loss_fn = FocalDiceLoss(alpha=1, beta=1, focal_alpha=.25, focal_gamma=2, idk=list(range(K)))
+        loss_fn = FocalDiceLoss(alpha=.3, beta=.5, focal_alpha=.25, focal_gamma=2, idk=list(range(K)))
     elif args.mode == "TverskyLoss":
         loss_fn = TverskyLoss(alpha=0.5, beta=0.5)  # Use Tversky Loss
     elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
