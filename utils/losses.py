@@ -59,6 +59,7 @@ def get_loss(
     K: int,
     lambda_dice: float = 1,
     lambda_ce: float = 1,
+    lambda_focal: float = 1,
     include_background: bool = False,
 ):
     match loss.lower():
@@ -66,7 +67,7 @@ def get_loss(
             return DiceLoss(include_background=include_background)
         case "dicece":
             return DiceCELoss(
-                lambda_ce=lambda_ce, include_background=include_background
+                lambda_ce=lambda_ce, lambda_dice=lambda_dice, include_background=include_background
             )
         case "dicefocal":
             return DiceFocalLoss(
