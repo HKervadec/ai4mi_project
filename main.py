@@ -311,12 +311,17 @@ class MyModel(pl.LightningModule):
             }
         return dice_per_class
 
-    def save_model(self):
-        torch.save(self.net, self.args.dest / "bestmodel.pkl")
-        torch.save(self.net.state_dict(), self.args.dest / "bestweights.pt")
-        if not self.args.wandb_project_name:
-            self.logger.save_checkpoint(str(self.args.dest / "bestweights.pt"))
+    # def save_model(self):
+    #     torch.save(self.net, self.args.dest / "bestmodel.pkl")
+    #     torch.save(self.net.state_dict(), self.args.dest / "bestweights.pt")
+    #     if not self.args.wandb_project_name:
+    #         self.logger.save_checkpoint(str(self.args.dest / "bestweights.pt"))
 
+    def save_model(self):
+        torch.save(self.net.state_dict(), self.args.dest / "bestweights.pt")
+
+        if self.args.wandb_project_name:
+            wandb.save(str(self.args.dest / "bestweights.pt"))
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
