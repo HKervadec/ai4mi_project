@@ -52,7 +52,7 @@ from utils import (Dcm,
                    save_images,
                    prepare_wandb_login)
 
-from losses import CrossEntropy, DiceLoss, FocalLoss, CombinedLoss, FocalDiceLoss, TverskyLoss
+from losses import create_loss_fn
 
 import wandb #TODO: remove all wandb instances on final submission
 
@@ -70,7 +70,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
-    net = datasets_params[args.dataset]['net'](1, K)
+    try:
+        net = eval(args.model)(1, K)
+    except NameError:
+        raise ValueError(f"Model {args.model} does not exist")
     net.init_weights()
     net.to(device)
 
@@ -134,25 +137,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 def runTraining(args):
 
     start = time.time()
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
+    print(f">>> Setting up to train on {args.dataset} with {args.model}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
-    if args.mode == "full":
-        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
-    elif args.mode == "dice":
-        loss_fn = DiceLoss()
-    elif args.mode == "FocalLoss":
-        loss_fn = FocalLoss(alpha=.25, gamma=2, idk=list(range(K)))  # Use Focal Loss instead
-    elif args.mode == "CombinedLoss":
-        loss_fn = CombinedLoss(alpha=.5, beta=.5, idk=list(range(K)))  # Pass idk parameter
-    elif args.mode == "FocalDiceLoss":
-        loss_fn = FocalDiceLoss(alpha=1, beta=1, focal_alpha=.25, focal_gamma=2, idk=list(range(K)))
-    elif args.mode == "TverskyLoss":
-        loss_fn = TverskyLoss(alpha=0.5, beta=0.5)  # Use Tversky Loss
-    elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
-    else:
-        raise ValueError(args.mode, args.dataset)
+    loss_fn = create_loss_fn(args, K)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -270,7 +258,7 @@ def main():
 
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
-    parser.add_argument('--mode', default='full', choices=['partial', 'full', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
+    parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--args', default='')
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
@@ -280,15 +268,19 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    parser.add_argument('--model', type=str, default='ENet', choices=['ENet'])
-    parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
 
+    # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
+
+    # Arguments for more flexibility of the run
     parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
+    parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'Dice', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
+    parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN'])
+    parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
 
     args = parser.parse_args()
     prefix = args.run_prefix + '_' if args.run_prefix else ''
-    run_name = f'{prefix}{args.model}_{args.dataset[:3]}'
+    run_name = f'{prefix}{args.loss}_{args.model}_{args.dataset[:3]}'
 
     # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork
     # see https://github.com/pytest-dev/pytest-flask/issues/104
@@ -297,7 +289,6 @@ def main():
     prepare_wandb_login()
     wandb.login()
     if args.debug:
-        print(">> DEBUG <<")
         run_name = 'DEBUG_' + run_name
     wandb.init(
         entity="ai_4_mi",
@@ -307,6 +298,7 @@ def main():
         mode="disabled" if args.debug else "online"
     )
 
+    print(f">> {run_name} <<")
     pprint(args)
     runTraining(args)
 

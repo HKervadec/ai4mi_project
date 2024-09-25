@@ -27,6 +27,34 @@ from torch import einsum
 from torch import Tensor
 from utils import simplex, sset
 
+
+def create_loss_fn(args, K: int):
+    # Select the classes we want to supervise.
+    if args.mode == 'full':
+        idk = list(range(K))        # Supervise both background and foreground
+    elif args.mode == 'partial':
+        idk = [0, 1, 3, 4]          # Do not supervise the heart (class 2)
+    else:
+        raise ValueError(f"{args.mode} is not supported as a mode")
+
+    match args.loss:
+        case 'CrossEntropy':
+            loss_fn = CrossEntropy(idk=idk)
+        case 'Dice':
+            loss_fn = DiceLoss()
+        case 'FocalLoss':
+            loss_fn = FocalLoss(alpha=.25, gamma=2, idk=idk)  # Use Focal Loss instead
+        case 'CombinedLoss':
+            loss_fn = CombinedLoss(alpha=.5, beta=.5, idk=idk)  # Pass idk parameter
+        case 'FocalDiceLoss':
+            loss_fn = FocalDiceLoss(alpha=1, beta=1, focal_alpha=.25, focal_gamma=2, idk=idk)
+        case 'TverskyLoss':
+            loss_fn = TverskyLoss(alpha=0.5, beta=0.5)  # Use Tversky Loss
+        case _:
+            raise ValueError(f"{args.loss} is not supported as a loss")
+    return loss_fn
+
+
 class CrossEntropy():
     def __init__(self, **kwargs):
         # Self.idk is used to filter out some classes of the target mask. Use fancy indexing

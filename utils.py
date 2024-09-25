@@ -180,7 +180,10 @@ def union(a: Tensor, b: Tensor) -> Tensor:
 
 
 def prepare_wandb_login():
-    with open("wandb.password", "rt") as f:
-        pw = f.readline().strip()
-        os.environ["WANDB_API_KEY"] = pw
+    try:
+        with open("wandb.password", "rt") as f:
+            pw = f.readline().strip()
+            os.environ["WANDB_API_KEY"] = pw
+    except FileNotFoundError:
+        print("!! File wandb.password was not found in the project root. WandB will be disabled during this run !!")
 
