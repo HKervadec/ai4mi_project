@@ -129,13 +129,15 @@ def runTraining(args):
     elif args.mode == "dice":
         loss_fn = DiceLoss()
     elif args.mode == "FocalLoss":
-        loss_fn = FocalLoss(alpha=.25, gamma=2, idk=list(range(K)))  # Use Focal Loss instead
+        loss_fn = FocalLoss(alpha=args.focal_alpha, gamma=args.focal_gamma, idk=list(range(K)))  # Preference for alpha=0.25 and gamma=2
     elif args.mode == "CombinedLoss":
-        loss_fn = CombinedLoss(alpha=.5, beta=.5, idk=list(range(K)))  # Pass idk parameter
+        loss_fn = CombinedLoss(alpha=args.alpha, beta=args.beta, idk=list(range(K)))  # Pass idk parameter
     elif args.mode == "FocalDiceLoss":
-        loss_fn = FocalDiceLoss(alpha=.3, beta=.5, focal_alpha=.25, focal_gamma=2, idk=list(range(K)))
+        # Preference for alpha=0.3, beta=0.5, focal_alpha=0.25 and focal_gamma=2
+        # This focuses more on the foreground classes
+        loss_fn = FocalDiceLoss(alpha=args.alpha, beta=args.beta, focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma, idk=list(range(K)))
     elif args.mode == "TverskyLoss":
-        loss_fn = TverskyLoss(alpha=0.5, beta=0.5)  # Use Tversky Loss
+        loss_fn = TverskyLoss(alpha=args.alpha, beta=args.beta)  # Use Tversky Loss
     elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
         loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
     else:
@@ -188,7 +190,7 @@ def runTraining(args):
 
                     # Metrics computation, not used for training
                     pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j:j + B, :] = dice_coef(gt, pred_seg)  # One DSC value per sample and per class
+                    log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
@@ -252,6 +254,11 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
+    
+    parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
+    parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
+    parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
+    parser.add_argument('--focal_gamma', type=float, default=2.0, help="Gamma parameter for Focal Loss")
 
     args = parser.parse_args()
 
