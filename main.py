@@ -63,6 +63,26 @@ from utils.tensor_utils import (
 )
 
 
+class ReScale(v2.Transform):
+    def __init__(self, K):
+        self.scale = 1 / (255 / (K - 1)) if K != 5 else 1 / 63
+
+    def __call__(self, img):
+        return img * self.scale
+
+class Class2OneHot(v2.Transform):
+    def __init__(self, K):
+        self.K = K
+
+    def __call__(self, seg):
+        b, *img_shape = seg.shape
+
+        device = seg.device
+        res = torch.zeros((b, self.K, *img_shape), dtype=torch.int32, device=device).scatter_(
+            1, seg[:, None, ...], 1
+        )
+        return res[0]
+
 def setup_wandb(args):
     # Initialize a new W&B run
     wandb.init(
@@ -104,6 +124,10 @@ class MyModel(pl.LightningModule):
         self.K: int = args.datasets_params[args.dataset]["K"]
         self.net = args.model(1, self.K)
         self.net.init_weights()
+        
+        if True:
+            self.net = torch.compile(self.net)
+        
         self.loss_fn = get_loss(
             args.loss, self.K, include_background=args.include_background
         )
@@ -156,6 +180,8 @@ class MyModel(pl.LightningModule):
         self.log_dice_tra[
             self.current_epoch, batch_idx : batch_idx + img.size(0), :
         ] = dice_coef(pred_seg, gt)
+        
+        self.log("train/loss", loss, on_step=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -243,14 +269,13 @@ def runTraining(args):
         ]
     )
     
-    # class 
     
     gt_transform = v2.Compose(
         [
-            v2.Lambda(lambda x: x/ (255 / (K - 1)) if K != 5 else x / 63),
+            ReScale(K),
             v2.ToDtype(torch.int64),
             # v2.Lambda(lambda x: x[None, ...]),
-            v2.Lambda(lambda x: class2one_hot(x, K=K)[0]),
+            Class2OneHot(K),
 
             # lambda img: np.array(img),
             # # The idea is that the classes are mapped to {0, 255} for binary cases
