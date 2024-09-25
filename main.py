@@ -155,7 +155,7 @@ class MyModel(pl.LightningModule):
         args.dest.mkdir(parents=True, exist_ok=True)
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(
+        return torch.optim.Adam(
             filter(lambda x: x.requires_grad, self.net.parameters()), lr=self.args.lr
         )
 
@@ -221,14 +221,9 @@ class MyModel(pl.LightningModule):
         self.log("train/loss", loss, on_step=True, prog_bar=True, logger=True)
         self.log_dict(
             {
-                f"train/dice/{k}": v
-                for k, v in self.get_dice_per_class(
-                    self.log_dice_tra, self.K, self.current_epoch
-                ).items()
+                f"train/dice/{k}": self.log_dice_tra[self.current_epoch, :batch_idx + img.size(0), k].mean() for k in range(1,self.K)
             },
-            prog_bar=True,
-            logger=True,
-            on_step=True,
+            prog_bar=True, logger=False, on_step=True,
         )
         return loss
 
@@ -263,10 +258,6 @@ class MyModel(pl.LightningModule):
                 gt_vol = torch.from_numpy(self.gt_volumes[patient_id]).to(self.device)
                 pred_vol = torch.from_numpy(pred_vol).to(self.device)
 
-                print(
-                    gt_vol.unique(return_counts=True),
-                    pred_vol.unique(return_counts=True),
-                )
                 dice_3d = dice_batch(gt_vol, pred_vol)
                 self.log_dice_3d_val[self.current_epoch, i, :] = dice_3d
 
