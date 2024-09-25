@@ -25,7 +25,6 @@
 import torch
 from torch import einsum
 from torch import Tensor
-from torch.nn import functional as F
 from utils import simplex, sset
 
 class CrossEntropy():
@@ -70,15 +69,16 @@ class DiceLoss():
 
 
 class FocalLoss():
-    def __init__(self, alpha=1, gamma=2, reduction='mean'):
+    def __init__(self, alpha=.25, gamma=2, reduction='mean', **kwargs):
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+        self.ce_loss = CrossEntropy(**kwargs)
 
-    def __call__(self, pred_softmax: Tensor, targets: Tensor) -> Tensor:
-        ce_loss = F.cross_entropy(pred_softmax, targets.argmax(dim=1), reduction='none')
-        pt = torch.exp(-ce_loss)
-        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
+    def __call__(self, pred_softmax: Tensor, target: Tensor) -> Tensor:
+        ce = self.ce_loss(pred_softmax, target)
+        pt = torch.exp(-ce)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce
 
         if self.reduction == 'mean':
             return focal_loss.mean()
@@ -101,21 +101,21 @@ class CombinedLoss:
         return self.alpha * ce + self.beta * dice
     
 
-class CombinedLossWithFocal:
-    def __init__(self, alpha=0.5, beta=0.5, gamma=2, **kwargs):
+class FocalDiceLoss:
+    def __init__(self, alpha=.3, beta=.7, focal_alpha=.25, focal_gamma=2, **kwargs):
         self.alpha = alpha
         self.beta = beta
-        self.ce_loss = FocalLoss(gamma=gamma)
+        self.focal_loss = FocalLoss(alpha=focal_alpha, gamma=focal_gamma, **kwargs)
         self.dice_loss = DiceLoss()
 
     def __call__(self, pred_softmax: Tensor, target: Tensor) -> Tensor:
-        ce = self.ce_loss(pred_softmax, target)
+        focal = self.focal_loss(pred_softmax, target)
         dice = self.dice_loss(pred_softmax, target)
-        return self.alpha * ce + self.beta * dice
+        return self.alpha * focal + self.beta * dice
     
 
 class TverskyLoss:
-    def __init__(self, alpha=0.5, beta=0.5, smooth=1e-5):
+    def __init__(self, alpha=.5, beta=.5, smooth=1e-5):
         self.alpha = alpha
         self.beta = beta
         self.smooth = smooth

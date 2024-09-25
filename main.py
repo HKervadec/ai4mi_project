@@ -48,7 +48,7 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import CrossEntropy, DiceLoss, FocalLoss, CombinedLoss, TverskyLoss
+from losses import CrossEntropy, DiceLoss, FocalLoss, CombinedLoss, FocalDiceLoss, TverskyLoss
 
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -129,9 +129,11 @@ def runTraining(args):
     elif args.mode == "dice":
         loss_fn = DiceLoss()
     elif args.mode == "FocalLoss":
-        loss_fn = FocalLoss(alpha=1, gamma=2)  # Use Focal Loss instead
+        loss_fn = FocalLoss(alpha=.25, gamma=2, idk=list(range(K)))  # Use Focal Loss instead
     elif args.mode == "CombinedLoss":
         loss_fn = CombinedLoss(alpha=.5, beta=.5, idk=list(range(K)))  # Pass idk parameter
+    elif args.mode == "FocalDiceLoss":
+        loss_fn = FocalDiceLoss(alpha=1, beta=1, focal_alpha=.25, focal_gamma=2, idk=list(range(K)))
     elif args.mode == "TverskyLoss":
         loss_fn = TverskyLoss(alpha=0.5, beta=0.5)  # Use Tversky Loss
     elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
@@ -240,7 +242,8 @@ def main():
 
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
-    parser.add_argument('--mode', default='full', choices=['partial', 'full', 'FocalLoss', 'CombinedLoss', 'TverskyLoss'])
+    parser.add_argument('--mode', default='full', choices=['partial', 'full', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
+    parser.add_argument('--args', default='')
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
 
