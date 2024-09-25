@@ -28,6 +28,7 @@ from typing import Callable, Union
 from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision.io import read_image, ImageReadMode
 
 
 def make_dataset(root, subset: str) -> list[tuple[Path, Path]]:
@@ -73,9 +74,10 @@ class SliceDataset(Dataset):
     def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
         img_path, gt_path = self.files[index]
 
-        img: Tensor = self.img_transform(Image.open(img_path))
-        gt: Tensor = self.gt_transform(Image.open(gt_path))
+        img: Tensor = self.img_transform(read_image(str(img_path), mode=ImageReadMode.GRAY))
+        gt: Tensor = self.gt_transform(read_image(str(gt_path)))
 
+        # print(img.shape, gt.shape)
         _, W, H = img.shape
         K, _, _ = gt.shape
         #/ assert gt.shape == (K, W, H)

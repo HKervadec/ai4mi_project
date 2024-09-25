@@ -44,13 +44,14 @@ from PIL import Image
 from skimage.transform import resize
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
-from torchvision import transforms
+from torchvision.transforms import v2
 
 import wandb
 from dataset import SliceDataset
 from models import get_model
 from utils.losses import get_loss
 from utils.metrics import dice_batch, dice_coef
+import pytorch_lightning as pl
 from utils.tensor_utils import (
     Dcm,
     class2one_hot,
@@ -81,45 +82,186 @@ def setup_wandb(args):
     )
 
 
-def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
-    seed_everything(args.seed)
-    fabric = Fabric(precision=args.precision, accelerator="cpu" if args.cpu else "auto")
+class MyModel(pl.LightningModule):
+    def __init__(self, args, batch_size, K, train_loader, val_loader):
+        super().__init__()
+        self.args = args
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.batch_size = batch_size
+        self.K = K
 
-    # Networks and scheduler
-    # device = get_device(not args.cpu)
-    device = fabric.device
-    print(f">>> Running on {device}")
-    K: int = args.datasets_params[args.dataset]["K"]
-    net = args.model(1, K)
-    net.init_weights()
+        self.log_loss_tra = torch.zeros((args.epochs, len(self.train_loader)))
+        self.log_dice_tra = torch.zeros(
+            (args.epochs, len(self.train_loader.dataset), self.K)
+        )
+        self.log_loss_val = torch.zeros((args.epochs, len(self.val_loader)))
+        self.log_dice_val = torch.zeros(
+            (args.epochs, len(self.val_loader.dataset), self.K)
+        )
+        self.best_dice = 0
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
-    net, optimizer = fabric.setup(net, optimizer)
+        self.K: int = args.datasets_params[args.dataset]["K"]
+        self.net = args.model(1, self.K)
+        self.net.init_weights()
+        self.loss_fn = get_loss(
+            args.loss, self.K, include_background=args.include_background
+        )
 
-    # Dataset part
-    B: int = args.datasets_params[args.dataset]["B"]  # Batch size
-    root_dir: Path = Path(args.data_dir) / str(args.dataset)
+        # Dataset part
+        self.batch_size: int = args.datasets_params[args.dataset]["B"]  # Batch size
+        self.root_dir: Path = Path(args.data_dir) / str(args.dataset)
+        self.gt_shape = self.get_gt_shape()
 
+        self.log_dice_3d_tra = torch.zeros(
+            (args.epochs, len(self.gt_shape["train"].keys()), self.K)
+        )
+        self.log_dice_3d_val = torch.zeros(
+            (args.epochs, len(self.gt_shape["val"].keys()), self.K)
+        )
+        args.dest.mkdir(parents=True, exist_ok=True)
+
+    def configure_optimizers(self):
+        return torch.optim.AdamW(
+            filter(lambda x: x.requires_grad, self.net.parameters()), lr=self.args.lr
+        )
+
+    def get_gt_shape(self):
+        # For each patient in dataset, get the ground truth volume shape
+        self.gt_shape = {"train": {}, "val": {}}
+        for split in self.gt_shape:
+            directory = self.root_dir / split / "gt"
+            split_patient_ids = set(x.stem.split("_")[1] for x in directory.iterdir())
+
+            for patient_number in split_patient_ids:
+                patient_id = f"Patient_{patient_number}"
+                patients = list(directory.glob(patient_id + "*"))
+
+                H, W = Image.open(patients[0]).size
+                D = len(patients)
+                self.gt_shape[split][patient_id] = (H, W, D)
+        return self.gt_shape
+
+    def forward(self, x):
+        return self.net(x)
+
+    def training_step(self, batch, batch_idx):
+        img = batch["images"]
+        gt = batch["gts"]
+        pred_logits = self(img)
+        pred_probs = F.softmax(1 * pred_logits, dim=1)
+        pred_seg = probs2one_hot(pred_probs)
+        loss = self.loss_fn(pred_probs, gt)
+        self.log_loss_tra[self.current_epoch, batch_idx] = loss.detach()
+        self.log_dice_tra[
+            self.current_epoch, batch_idx : batch_idx + img.size(0), :
+        ] = dice_coef(pred_seg, gt)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        img = batch["images"]
+        gt = batch["gts"]
+        pred_logits = self(img)
+        pred_probs = F.softmax(1 * pred_logits, dim=1)
+        pred_seg = probs2one_hot(pred_probs)
+        loss = self.loss_fn(pred_probs, gt)
+        self.log_loss_val[self.current_epoch, batch_idx] = loss.detach()
+        self.log_dice_val[
+            self.current_epoch, batch_idx : batch_idx + img.size(0), :
+        ] = dice_coef(pred_seg, gt)
+
+    def on_validation_epoch_end(self):
+        log_dict = {
+            "val/loss": self.log_loss_val[self.current_epoch].mean().detach(),
+            "val/dice": self.log_dice_val[self.current_epoch, :, 1:].mean().detach(),
+            # "val/dice_class": self.get_dice_per_class(self.log_dice_val, self.K, self.current_epoch)
+        }
+        for k, v in self.get_dice_per_class(
+            self.log_dice_val, self.K, self.current_epoch
+        ).items():
+            log_dict[f"val/dice_class/{k}"] = v
+        if self.args.dataset == "SEGTHOR":
+            log_dict["val/dice_3d"] = (
+                self.log_dice_3d_val[self.current_epoch, :, 1:].mean().detach()
+            )
+            # log_dict["val/dice_3d_class"] = self.get_dice_per_class(self.log_dice_3d_val, self.K, self.current_epoch)
+            for k, v in self.get_dice_per_class(
+                self.log_dice_3d_val, self.K, self.current_epoch
+            ).items():
+                log_dict[f"val/dice_3d_class/{k}"] = v
+        self.log_dict(log_dict)
+
+        current_dice = self.log_dice_val[self.current_epoch, :, 1:].mean().detach()
+        if current_dice > self.best_dice:
+            self.best_dice = current_dice
+            self.save_model()
+
+    def train_dataloader(self):
+        return self.train_loader
+
+    def val_dataloader(self):
+        return self.val_loader
+
+    def get_dice_per_class(self, log, K, e):
+        if self.args.dataset == "SEGTHOR":
+            class_names = [
+                (1, "background"),
+                (2, "esophagus"),
+                (3, "heart"),
+                (4, "trachea"),
+                (5, "aorta"),
+            ]
+            dice_per_class = {
+                f"dice_{k}_{n}": log[e, :, k - 1].mean().item() for k, n in class_names
+            }
+        else:
+            dice_per_class = {
+                f"dice_{k}": log[e, :, k].mean().item() for k in range(1, K)
+            }
+        return dice_per_class
+
+    def save_model(self):
+        torch.save(self.net, self.args.dest / "bestmodel.pkl")
+        torch.save(self.net.state_dict(), self.args.dest / "bestweights.pt")
+        if not self.args.wandb_project_name:
+            self.logger.save_checkpoint(str(self.args.dest / "bestweights.pt"))
+
+
+def runTraining(args):
+    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
+
+    K = args.datasets_params[args.dataset]["K"]
+    root_dir = Path(args.data_dir) / args.dataset
+    batch_size = args.datasets_params[args.dataset]["B"]
     # Transforms
-    img_transform = transforms.Compose(
+    from torchvision.transforms.v2 import Compose
+    from torchvision import transforms
+
+    img_transform = v2.Compose(
         [
-            lambda img: img.convert("L"),
-            transforms.PILToTensor(),
-            lambda img: img / 255,
+            v2.ToDtype(torch.float32, scale=True),
         ]
     )
-    gt_transform = transforms.Compose(
+    
+    # class 
+    
+    gt_transform = v2.Compose(
         [
-            lambda img: np.array(img),
-            # The idea is that the classes are mapped to {0, 255} for binary cases
-            # {0, 85, 170, 255} for 4 classes
-            # {0, 51, 102, 153, 204, 255} for 6 classes
-            # Very sketchy but that works here and that simplifies visualization
-            lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
-            lambda nd: torch.from_numpy(nd).to(dtype=torch.int64, device=fabric.device)[
-                None, ...
-            ],  # Add one dimension to simulate batch
-            lambda t: class2one_hot(t, K=K)[0],
+            v2.Lambda(lambda x: x/ (255 / (K - 1)) if K != 5 else x / 63),
+            v2.ToDtype(torch.int64),
+            # v2.Lambda(lambda x: x[None, ...]),
+            v2.Lambda(lambda x: class2one_hot(x, K=K)[0]),
+
+            # lambda img: np.array(img),
+            # # The idea is that the classes are mapped to {0, 255} for binary cases
+            # # {0, 85, 170, 255} for 4 classes
+            # # {0, 51, 102, 153, 204, 255} for 6 classes
+            # # Very sketchy but that works here and that simplifies visualization
+            # lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
+            # lambda nd: torch.from_numpy(nd).to(dtype=torch.int64)[
+            #     None, ...
+            # ],  # Add one dimension to simulate batch
+            # lambda t: class2one_hot(t, K=K)[0],
         ]
     )
 
@@ -132,7 +274,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
         debug=args.debug,
     )
     train_loader = DataLoader(
-        train_set, batch_size=B, num_workers=args.num_workers, shuffle=True
+        train_set, batch_size=batch_size, num_workers=args.num_workers, shuffle=True
     )
 
     val_set = SliceDataset(
@@ -143,245 +285,17 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
         debug=args.debug,
     )
     val_loader = DataLoader(
-        val_set, batch_size=B, num_workers=args.num_workers, shuffle=False
+        val_set, batch_size=batch_size, num_workers=args.num_workers, shuffle=False
     )
 
-    train_loader, val_loader = fabric.setup_dataloaders(train_loader, val_loader)
+    model = MyModel(args, batch_size, K, train_loader, val_loader)
 
-    args.dest.mkdir(parents=True, exist_ok=True)
-
-    # For each patient in dataset, get the ground truth volume shape
-    gt_shape = {"train": {}, "val": {}}
-    for split in gt_shape:
-        directory = root_dir / split / "gt"
-        split_patient_ids = set(x.stem.split("_")[1] for x in directory.iterdir())
-
-        for patient_number in split_patient_ids:
-            patient_id = f"Patient_{patient_number}"
-            patients = list(directory.glob(patient_id + "*"))
-
-            H, W = Image.open(patients[0]).size
-            D = len(patients)
-            gt_shape[split][patient_id] = (H, W, D)
-
-    return (net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric)
-
-
-def runTraining(args):
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric = setup(args)
-
-    loss_fn = get_loss(args.loss, K, include_background=args.include_background)
-
-    # Notice one has the length of the _loader_, and the other one of the _dataset_
-    log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
-    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
-    log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
-    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
-
-    # The 3d dice log works per patient
-    log_dice_3d_tra: Tensor = torch.zeros(
-        ((args.epochs, len(gt_shape["train"].keys()), K))
+    trainer = pl.Trainer(
+        accelerator="cpu" if args.cpu else "auto",
+        max_epochs=args.epochs,
+        precision=args.precision,
     )
-    log_dice_3d_val: Tensor = torch.zeros(
-        ((args.epochs, len(gt_shape["val"].keys()), K))
-    )
-
-    best_dice: float = 0
-
-    for e in range(args.epochs):
-        for m in ["train", "val"]:
-            match m:
-                case "train":
-                    net.train()
-                    opt = optimizer
-                    cm = Dcm
-                    desc = f">> Training   ({e: 4d})"
-                    loader = train_loader
-                    log_loss = log_loss_tra
-                    log_dice = log_dice_tra
-                    log_dice_3d = log_dice_3d_tra
-                case "val":
-                    net.eval()
-                    opt = None
-                    cm = torch.no_grad
-                    desc = f">> Validation ({e: 4d})"
-                    loader = val_loader
-                    log_loss = log_loss_val
-                    log_dice = log_dice_val
-                    log_dice_3d = log_dice_3d_val
-
-            # Prep for 3D dice computation
-            gt_volumes = {
-                p: np.zeros((Z, K, X, Y), dtype=np.int16)
-                for p, (X, Y, Z) in gt_shape[m].items()
-            }
-            pred_volumes = {
-                p: np.zeros((Z, K, X, Y), dtype=np.int16)
-                for p, (X, Y, Z) in gt_shape[m].items()
-            }
-
-            with cm():  # Either dummy context manager, or the torch.no_grad for validation
-                j = 0
-                tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
-                for i, data in tq_iter:
-                    img = data["images"]
-                    gt = data["gts"]
-
-                    # print(f"Shape of img at epoch {e}, batch {i}: {img.shape}")
-                    # Shape of img at epoch 0, batch 0: torch.Size([8, 1, 256, 256])
-
-                    if opt:  # So only for training
-                        opt.zero_grad()
-
-                    # Sanity tests to see we loaded and encoded the data correctly
-                    assert 0 <= img.min() and img.max() <= 1
-                    B, _, W, H = img.shape
-
-                    pred_logits = net(img)
-                    pred_probs = F.softmax(
-                        1 * pred_logits, dim=1
-                    )  # 1 is the temperature parameter
-
-                    # Metrics computation, not used for training
-                    pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j : j + B, :] = dice_coef(
-                        pred_seg, gt
-                    )  # One DSC value per sample and per class
-
-                    loss = loss_fn(pred_probs, gt)
-                    log_loss[e, i] = (
-                        loss.item()
-                    )  # One loss value per batch (averaged in the loss)
-
-                    if opt:  # Only for training
-                        fabric.backward(loss)
-                        opt.step()
-
-                    # Save predictions and gt slice for 3D Dice computation
-                    for i, seg_class in enumerate(pred_seg):
-                        stem = data["stems"][i]
-                        _, patient_n, z = stem.split("_")
-                        patient_id = f"Patient_{patient_n}"
-
-                        X, Y, _ = gt_shape[m][patient_id]
-
-                        resize_and_save_slice(
-                            seg_class, K, X, Y, z, pred_volumes[patient_id]
-                        )
-                        resize_and_save_slice(gt[i], K, X, Y, z, gt_volumes[patient_id])
-
-                    if m == "val":
-                        with warnings.catch_warnings():
-                            warnings.filterwarnings("ignore", category=UserWarning)
-                            predicted_class: Tensor = probs2class(pred_probs)
-                            mult: int = 63 if K == 5 else (255 / (K - 1))
-
-                            # Save predictions in logging
-                            save_images(
-                                predicted_class * mult,
-                                data["stems"],
-                                args.dest / f"iter{e:03d}" / m,
-                            )
-
-                    j += B  # Keep in mind that _in theory_, each batch might have a different size
-                    # For the DSC average: do not take the background class (0) into account:
-                    postfix_dict: dict[str, str] = {
-                        "Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
-                        "Loss": f"{log_loss[e, :i + 1].mean():5.2e}",
-                    }
-                    if K > 2:
-                        postfix_dict |= {
-                            f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
-                            for k in range(1, K)
-                        }
-                    tq_iter.set_postfix(postfix_dict)
-
-                log_dict = {
-                    m: {
-                        "loss": log_loss[e].mean().item(),
-                        "dice": log_dice[e, :, 1:].mean().item(),
-                        "dice_class": get_dice_per_class(args, log_dice, K, e),
-                    }
-                }
-
-                # Compute 3D Dice
-                if m == "val":
-                    print("Computing 3D dice...")
-                    for i, (patient_id, pred_vol) in tqdm_(
-                        enumerate(pred_volumes.items()), total=len(pred_volumes)
-                    ):
-                        gt_vol = torch.from_numpy(gt_volumes[patient_id]).to(device)
-                        pred_vol = torch.from_numpy(pred_vol).to(device)
-
-                        dice_3d = dice_batch(gt_vol, pred_vol)
-                        log_dice_3d[e, i, :] = dice_3d
-                    log_dict["dice_3d"] = (log_dice_3d[e, :, 1:].mean().item(),)
-                    log_dict["dice_3d_class"] = get_dice_per_class(
-                        args, log_dice_3d, K, e
-                    )
-
-                # Log the metrics after each 'e' epoch
-                if not args.wandb_project_name:
-                    wandb.log(log_dict)
-
-        # I save it at each epochs, in case the code crashes or I decide to stop it early
-        np.save(args.dest / "loss_tra.npy", log_loss_tra)
-        np.save(args.dest / "dice_tra.npy", log_dice_tra)
-        np.save(args.dest / "loss_val.npy", log_loss_val)
-        np.save(args.dest / "dice_val.npy", log_dice_val)
-
-        current_dice: float = log_dice_val[e, :, 1:].mean().item()
-        if current_dice > best_dice:
-            print(
-                f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
-            )
-            best_dice = current_dice
-            with open(args.dest / "best_epoch.txt", "w") as f:
-                f.write(str(e))
-
-            best_folder = args.dest / "best_epoch"
-            if best_folder.exists():
-                rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
-
-            torch.save(net, args.dest / "bestmodel.pkl")
-            torch.save(net.state_dict(), args.dest / "bestweights.pt")
-
-            # Log model checkpoint
-            if not args.wandb_project_name:
-                wandb.save(str(args.dest / "bestmodel.pkl"))
-                wandb.save(str(args.dest / "bestweights.pt"))
-
-
-def get_dice_per_class(args, log, K, e):
-    if args.dataset == "SEGTHOR":
-        class_names = [
-            (1, "background"),
-            (2, "esophagus"),
-            (3, "heart"),
-            (4, "trachea"),
-            (5, "aorta"),
-        ]
-        dice_per_class = {
-            f"dice_{k}_{n}": log[e, :, k - 1].mean().item() for k, n in class_names
-        }
-    else:
-        dice_per_class = {f"dice_{k}": log[e, :, k].mean().item() for k in range(1, K)}
-
-    return dice_per_class
-
-
-def resize_and_save_slice(arr, K, X, Y, z, target_arr):
-    resized_arr = resize(
-        arr.cpu().numpy(),
-        (K, X, Y),
-        mode="constant",
-        preserve_range=True,
-        anti_aliasing=False,
-        order=0,
-    )
-    target_arr[int(z), :, :, :] = resized_arr[...]
+    trainer.fit(model, train_loader, val_loader)
 
 
 def get_args():
