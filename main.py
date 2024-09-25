@@ -24,25 +24,21 @@
 
 import os
 
+from lightning import seed_everything
+
 # MPS issue: aten::max_unpool2d' not available for MPS devices
 # Solution: set fallback to 1 before importing torch
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import argparse
 import os
-import warnings
 from pathlib import Path
-from shutil import copytree, rmtree
-from typing import Any
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from lightning import seed_everything
-from lightning.fabric import Fabric
 from PIL import Image
 from skimage.transform import resize
-from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 
@@ -52,10 +48,8 @@ from models import get_model
 from utils.losses import get_loss
 from utils.metrics import dice_batch, dice_coef
 import pytorch_lightning as pl
+from lightning.pytorch.loggers import WandbLogger
 from utils.tensor_utils import (
-    Dcm,
-    class2one_hot,
-    get_device,
     probs2class,
     probs2one_hot,
     save_images,
@@ -70,6 +64,7 @@ class ReScale(v2.Transform):
     def __call__(self, img):
         return img * self.scale
 
+
 class Class2OneHot(v2.Transform):
     def __init__(self, K):
         self.K = K
@@ -78,10 +73,24 @@ class Class2OneHot(v2.Transform):
         b, *img_shape = seg.shape
 
         device = seg.device
-        res = torch.zeros((b, self.K, *img_shape), dtype=torch.int32, device=device).scatter_(
-            1, seg[:, None, ...], 1
-        )
+        res = torch.zeros(
+            (b, self.K, *img_shape), dtype=torch.int32, device=device
+        ).scatter_(1, seg[:, None, ...], 1)
         return res[0]
+
+
+def resize_and_save_slice(arr, K, X, Y, z, target_arr):
+    resized_arr = resize(
+        arr.cpu().numpy(),
+        (K, X, Y),
+        mode="constant",
+        preserve_range=True,
+        anti_aliasing=False,
+        order=0,
+    )
+    target_arr[int(z), :, :, :] = resized_arr[...]
+    return target_arr
+
 
 def setup_wandb(args):
     # Initialize a new W&B run
@@ -124,10 +133,10 @@ class MyModel(pl.LightningModule):
         self.K: int = args.datasets_params[args.dataset]["K"]
         self.net = args.model(1, self.K)
         self.net.init_weights()
-        
-        if True:
-            self.net = torch.compile(self.net)
-        
+
+        # if True: # meant to be a flag
+        #     self.net = torch.compile(self.net)
+
         self.loss_fn = get_loss(
             args.loss, self.K, include_background=args.include_background
         )
@@ -135,7 +144,7 @@ class MyModel(pl.LightningModule):
         # Dataset part
         self.batch_size: int = args.datasets_params[args.dataset]["B"]  # Batch size
         self.root_dir: Path = Path(args.data_dir) / str(args.dataset)
-        self.gt_shape = self.get_gt_shape()
+        self.gt_shape = self._get_gt_shape()
 
         self.log_dice_3d_tra = torch.zeros(
             (args.epochs, len(self.gt_shape["train"].keys()), self.K)
@@ -150,7 +159,7 @@ class MyModel(pl.LightningModule):
             filter(lambda x: x.requires_grad, self.net.parameters()), lr=self.args.lr
         )
 
-    def get_gt_shape(self):
+    def _get_gt_shape(self):
         # For each patient in dataset, get the ground truth volume shape
         self.gt_shape = {"train": {}, "val": {}}
         for split in self.gt_shape:
@@ -166,12 +175,40 @@ class MyModel(pl.LightningModule):
                 self.gt_shape[split][patient_id] = (H, W, D)
         return self.gt_shape
 
+    def on_validation_epoch_start(self) -> None:
+        super().on_validation_epoch_start()
+
+        self.gt_volumes = {
+            p: np.zeros((Z, self.K, X, Y), dtype=np.uint8)
+            for p, (X, Y, Z) in self.gt_shape["val"].items()
+        }
+
+        self.pred_volumes = {
+            p: np.zeros((Z, self.K, X, Y), dtype=np.uint8)
+            for p, (X, Y, Z) in self.gt_shape["val"].items()
+        }
+
+    def _prepare_3d_dice(self, batch_stems, gt, pred_seg):
+        for i, seg_class in enumerate(pred_seg):
+            stem = batch_stems[i]
+            _, patient_n, z = stem.split("_")
+            patient_id = f"Patient_{patient_n}"
+
+            X, Y, _ = self.gt_shape["val"][patient_id]
+
+            self.pred_volumes[patient_id] = resize_and_save_slice(
+                seg_class, self.K, X, Y, z, self.pred_volumes[patient_id]
+            )
+            self.gt_volumes[patient_id] = resize_and_save_slice(
+                gt[i], self.K, X, Y, z, self.gt_volumes[patient_id]
+            )
+
     def forward(self, x):
+        # Sanity tests to see we loaded and encoded the data correctly
         return self.net(x)
 
     def training_step(self, batch, batch_idx):
-        img = batch["images"]
-        gt = batch["gts"]
+        img, gt = batch["images"], batch["gts"]
         pred_logits = self(img)
         pred_probs = F.softmax(1 * pred_logits, dim=1)
         pred_seg = probs2one_hot(pred_probs)
@@ -180,13 +217,23 @@ class MyModel(pl.LightningModule):
         self.log_dice_tra[
             self.current_epoch, batch_idx : batch_idx + img.size(0), :
         ] = dice_coef(pred_seg, gt)
-        
+
         self.log("train/loss", loss, on_step=True, prog_bar=True, logger=True)
+        self.log_dict(
+            {
+                f"train/dice/{k}": v
+                for k, v in self.get_dice_per_class(
+                    self.log_dice_tra, self.K, self.current_epoch
+                ).items()
+            },
+            prog_bar=True,
+            logger=True,
+            on_step=True,
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
-        img = batch["images"]
-        gt = batch["gts"]
+        img, gt = batch["images"], batch["gts"]
         pred_logits = self(img)
         pred_probs = F.softmax(1 * pred_logits, dim=1)
         pred_seg = probs2one_hot(pred_probs)
@@ -196,31 +243,49 @@ class MyModel(pl.LightningModule):
             self.current_epoch, batch_idx : batch_idx + img.size(0), :
         ] = dice_coef(pred_seg, gt)
 
+        self._prepare_3d_dice(batch["stems"], gt, pred_seg)
+
     def on_validation_epoch_end(self):
         log_dict = {
             "val/loss": self.log_loss_val[self.current_epoch].mean().detach(),
-            "val/dice": self.log_dice_val[self.current_epoch, :, 1:].mean().detach(),
-            # "val/dice_class": self.get_dice_per_class(self.log_dice_val, self.K, self.current_epoch)
+            "val/dice/total": self.log_dice_val[self.current_epoch, :, 1:]
+            .mean()
+            .detach(),
         }
         for k, v in self.get_dice_per_class(
             self.log_dice_val, self.K, self.current_epoch
         ).items():
-            log_dict[f"val/dice_class/{k}"] = v
+            log_dict[f"val/dice/{k}"] = v
         if self.args.dataset == "SEGTHOR":
-            log_dict["val/dice_3d"] = (
+            for i, (patient_id, pred_vol) in tqdm_(
+                enumerate(self.pred_volumes.items()), total=len(self.pred_volumes)
+            ):
+                gt_vol = torch.from_numpy(self.gt_volumes[patient_id]).to(self.device)
+                pred_vol = torch.from_numpy(pred_vol).to(self.device)
+
+                print(
+                    gt_vol.unique(return_counts=True),
+                    pred_vol.unique(return_counts=True),
+                )
+                dice_3d = dice_batch(gt_vol, pred_vol)
+                self.log_dice_3d_val[self.current_epoch, i, :] = dice_3d
+
+            log_dict["val/dice_3d/total"] = (
                 self.log_dice_3d_val[self.current_epoch, :, 1:].mean().detach()
             )
             # log_dict["val/dice_3d_class"] = self.get_dice_per_class(self.log_dice_3d_val, self.K, self.current_epoch)
             for k, v in self.get_dice_per_class(
                 self.log_dice_3d_val, self.K, self.current_epoch
             ).items():
-                log_dict[f"val/dice_3d_class/{k}"] = v
+                log_dict[f"val/dice_3d/{k}"] = v
         self.log_dict(log_dict)
 
         current_dice = self.log_dice_val[self.current_epoch, :, 1:].mean().detach()
         if current_dice > self.best_dice:
             self.best_dice = current_dice
             self.save_model()
+
+        super().on_validation_epoch_end()
 
     def train_dataloader(self):
         return self.train_loader
@@ -260,35 +325,9 @@ def runTraining(args):
     root_dir = Path(args.data_dir) / args.dataset
     batch_size = args.datasets_params[args.dataset]["B"]
     # Transforms
-    from torchvision.transforms.v2 import Compose
-    from torchvision import transforms
 
-    img_transform = v2.Compose(
-        [
-            v2.ToDtype(torch.float32, scale=True),
-        ]
-    )
-    
-    
-    gt_transform = v2.Compose(
-        [
-            ReScale(K),
-            v2.ToDtype(torch.int64),
-            # v2.Lambda(lambda x: x[None, ...]),
-            Class2OneHot(K),
-
-            # lambda img: np.array(img),
-            # # The idea is that the classes are mapped to {0, 255} for binary cases
-            # # {0, 85, 170, 255} for 4 classes
-            # # {0, 51, 102, 153, 204, 255} for 6 classes
-            # # Very sketchy but that works here and that simplifies visualization
-            # lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
-            # lambda nd: torch.from_numpy(nd).to(dtype=torch.int64)[
-            #     None, ...
-            # ],  # Add one dimension to simulate batch
-            # lambda t: class2one_hot(t, K=K)[0],
-        ]
-    )
+    img_transform = v2.Compose([v2.ToDtype(torch.float32, scale=True)])
+    gt_transform = v2.Compose([ReScale(K), v2.ToDtype(torch.int64), Class2OneHot(K)])
 
     # Datasets and loaders
     train_set = SliceDataset(
@@ -315,10 +354,17 @@ def runTraining(args):
 
     model = MyModel(args, batch_size, K, train_loader, val_loader)
 
+    wandb_logger = (
+        WandbLogger(project=args.wandb_project_name)
+        if args.wandb_project_name
+        else None
+    )
     trainer = pl.Trainer(
         accelerator="cpu" if args.cpu else "auto",
         max_epochs=args.epochs,
         precision=args.precision,
+        num_sanity_val_steps=0,  # Sanity check fails due to the 3D dice computation
+        logger=wandb_logger,
     )
     trainer.fit(model, train_loader, val_loader)
 
@@ -448,6 +494,8 @@ def get_args():
 def main():
     args = get_args()
     print(args)
+    
+    seed_everything(args.seed)
     if not args.wandb_project_name:
         setup_wandb(args)
     runTraining(args)

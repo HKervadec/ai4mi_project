@@ -50,11 +50,11 @@ class SliceDataset(Dataset):
         self,
         subset,
         root_dir: Path,
-        img_transform: Callable =None,
-        gt_transform: Callable =None,
-        augment: bool =False,
-        equalize:bool =False,
-        debug: bool =False,
+        img_transform: Callable = None,
+        gt_transform: Callable = None,
+        augment: bool = False,
+        equalize: bool = False,
+        debug: bool = False,
     ):
         self.root_dir: Path = root_dir
         self.img_transform: Callable = img_transform
@@ -74,12 +74,19 @@ class SliceDataset(Dataset):
     def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
         img_path, gt_path = self.files[index]
 
-        img: Tensor = self.img_transform(read_image(str(img_path), mode=ImageReadMode.GRAY))
-        gt: Tensor = self.gt_transform(read_image(str(gt_path)))
+        img: Tensor = self.img_transform(
+            read_image(str(img_path), mode=ImageReadMode.GRAY)
+        )
+        gt: Tensor = self.gt_transform(
+            read_image(str(gt_path), mode=ImageReadMode.GRAY)
+        )
+
+        # img: Tensor = self.img_transform(Image.open(str(img_path)))
+        # gt: Tensor = self.gt_transform(Image.open(str(gt_path)))
 
         # print(img.shape, gt.shape)
         _, W, H = img.shape
         K, _, _ = gt.shape
-        #/ assert gt.shape == (K, W, H)
+        # / assert gt.shape == (K, W, H)
 
         return {"images": img, "gts": gt, "stems": img_path.stem, "shape": (K, W, H)}
