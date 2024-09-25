@@ -195,23 +195,23 @@ class ENet(nn.Module):
                                                    BottleNeck(K * 4, K * 4, F))
                 self.bottleneck2_0 = BottleNeckDownSampling(K * 4, K * 8, F)
                 self.bottleneck2_1 = nn.Sequential(BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=2),
+                                                   BottleNeck(K * 8, K * 8, F, dilation=2, dropoutRate=0.1),
                                                    BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=4),
+                                                   BottleNeck(K * 8, K * 8, F, dilation=4, dropoutRate=0.1),
                                                    BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=8),
+                                                   BottleNeck(K * 8, K * 8, F, dilation=8, dropoutRate=0.1),
                                                    BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=16))
+                                                   BottleNeck(K * 8, K * 8, F, dilation=16, dropoutRate=0.1))
 
                 # Middle operations
                 self.bottleneck3 = nn.Sequential(BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                 BottleNeck(K * 8, K * 8, F, dilation=2),
+                                                 BottleNeck(K * 8, K * 8, F, dilation=2, dropoutRate=0.1),
                                                  BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                 BottleNeck(K * 8, K * 8, F, dilation=4),
+                                                 BottleNeck(K * 8, K * 8, F, dilation=4, dropoutRate=0.1),
                                                  BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                 BottleNeck(K * 8, K * 8, F, dilation=8),
+                                                 BottleNeck(K * 8, K * 8, F, dilation=8, dropoutRate=0.1),
                                                  BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                 BottleNeck(K * 8, K * 4, F, dilation=16, dilate_last=True))
+                                                 BottleNeck(K * 8, K * 4, F, dilation=16, dilate_last=True, dropoutRate=0.1))
 
                 # Upsampling half
                 self.bottleneck4 = nn.Sequential(BottleNeckUpSampling(K * 8, K * 4, F),
