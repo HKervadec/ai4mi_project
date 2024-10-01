@@ -66,7 +66,8 @@ class SliceDataset(Dataset):
         if debug:
             self.files = self.files[:10]
 
-        print(f">> Created {subset} dataset with {len(self)} images...")
+        subset = f"'{subset.capitalize()}'"
+        print(f">> Created {subset:<7} dataset with {len(self)} images!")
 
     def __len__(self):
         return len(self.files)

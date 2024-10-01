@@ -42,7 +42,7 @@ class RefEncoder(nn.Module):
         self.bn5 = nn.BatchNorm2d(64)
         self.relu5 = nn.ReLU(inplace=True)
 
-        self.upscore2 = nn.Upsample(scale_factor=2, mode='bilinear')
+        self.upscore2 = nn.Upsample(scale_factor=2, mode="bilinear")
 
     def forward(self, x):
         hx = x
@@ -92,7 +92,7 @@ class RefDecoder(nn.Module):
 
         self.conv_d0 = nn.Conv2d(64, self.out_channel, 3, padding=1)
 
-        self.upscore2 = nn.Upsample(scale_factor=2, mode='bilinear')
+        self.upscore2 = nn.Upsample(scale_factor=2, mode="bilinear")
 
     def forward(self, x, skips):
         d4 = self.relu_d4(self.bn_d4(self.conv_d4(torch.cat((x, skips[-1]), 1))))
@@ -137,8 +137,8 @@ class RefUnet(nn.Module):
         return torch.add(x, dec)
 
 
-class Uncertainity():
-    def __init__(self, seg_class = 5):
+class Uncertainity:
+    def __init__(self, seg_class=5):
         self.seg_class = seg_class
 
     def get_attention(self, main, aux1, aux2):
@@ -152,7 +152,7 @@ class Uncertainity():
 
         weight = main_seg_sm + aux1_seg_sm + aux2_seg_sm
 
-        weight = weight/weight.max()
+        weight = weight / weight.max()
 
         sub = torch.zeros_like(main_seg_sm)
 
@@ -187,10 +187,14 @@ class Encoder(nn.Module):
         self.encoder2 = Unet_block._block(self.features, self.features * 2, name="enc2")
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.encoder3 = Unet_block._block(self.features * 2, self.features * 4, name="enc3")
+        self.encoder3 = Unet_block._block(
+            self.features * 2, self.features * 4, name="enc3"
+        )
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.encoder4 = Unet_block._block(self.features * 4, self.features * 8, name="enc4")
+        self.encoder4 = Unet_block._block(
+            self.features * 4, self.features * 8, name="enc4"
+        )
 
     def forward(self, x):
         enc1 = self.encoder1(x)
@@ -206,7 +210,9 @@ class Bottleneck(nn.Module):
     def __init__(self, init_features):
         super(Bottleneck, self).__init__()
         self.features = init_features
-        self.bottleneck = Unet_block._block(self.features * 8, self.features * 16, name="bottleneck")
+        self.bottleneck = Unet_block._block(
+            self.features * 8, self.features * 16, name="bottleneck"
+        )
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
 
     def forward(self, x):
@@ -217,16 +223,30 @@ class Decoder(nn.Module):
     def __init__(self, init_features):
         super(Decoder, self).__init__()
         self.features = init_features
-        self.upconv4 = nn.ConvTranspose2d(self.features * 16, self.features * 8, kernel_size=2, stride=2)
-        self.decoder4 = Unet_block._block((self.features * 8) * 2, self.features * 8, name="dec4")
+        self.upconv4 = nn.ConvTranspose2d(
+            self.features * 16, self.features * 8, kernel_size=2, stride=2
+        )
+        self.decoder4 = Unet_block._block(
+            (self.features * 8) * 2, self.features * 8, name="dec4"
+        )
 
-        self.upconv3 = nn.ConvTranspose2d(self.features * 8, self.features * 4, kernel_size=2, stride=2)
-        self.decoder3 = Unet_block._block((self.features * 4) * 2, self.features * 4, name="dec3")
+        self.upconv3 = nn.ConvTranspose2d(
+            self.features * 8, self.features * 4, kernel_size=2, stride=2
+        )
+        self.decoder3 = Unet_block._block(
+            (self.features * 4) * 2, self.features * 4, name="dec3"
+        )
 
-        self.upconv2 = nn.ConvTranspose2d(self.features * 4, self.features * 2, kernel_size=2, stride=2)
-        self.decoder2 = Unet_block._block((self.features * 2) * 2, self.features * 2, name="dec2")
+        self.upconv2 = nn.ConvTranspose2d(
+            self.features * 4, self.features * 2, kernel_size=2, stride=2
+        )
+        self.decoder2 = Unet_block._block(
+            (self.features * 2) * 2, self.features * 2, name="dec2"
+        )
 
-        self.upconv1 = nn.ConvTranspose2d(self.features * 2, self.features, kernel_size=2, stride=2)
+        self.upconv1 = nn.ConvTranspose2d(
+            self.features * 2, self.features, kernel_size=2, stride=2
+        )
         self.decoder1 = Unet_block._block(self.features * 2, self.features, name="dec1")
 
     def forward(self, x, skips):
@@ -263,7 +283,9 @@ class UDBRNet(nn.Module):
         self.addNoise = FeatureNoise()
         self.dropOut = FeatureDrop()
 
-        self.conv = nn.Conv2d(in_channels=self.features, out_channels=self.out_channel, kernel_size=1)
+        self.conv = nn.Conv2d(
+            in_channels=self.features, out_channels=self.out_channel, kernel_size=1
+        )
 
         self.ref_unet = RefUnet(self.out_channel, self.out_channel, 64)
 
@@ -284,13 +306,15 @@ class UDBRNet(nn.Module):
 
         # print(f"Shape of output1: {output1.shape}")
         # Shape of output1: torch.Size([8, 5, 256, 256])
-        
-        self.uncertainity_weight = self.uncertainity.get_attention(output1, output2, output3)
-        
+
+        self.uncertainity_weight = self.uncertainity.get_attention(
+            output1, output2, output3
+        )
+
         # Ensure that self.uncertainity_weight has the correct dimensions
         if self.uncertainity_weight.dim() == 5:
             self.uncertainity_weight = self.uncertainity_weight.squeeze(0)
-            
+
         # refined = self.ref_unet(output1, self.uncertainity_weight[None, :, :, :])
 
         # self.uncertainity_weight is of shape [8, 5, 256, 256]
@@ -301,7 +325,7 @@ class UDBRNet(nn.Module):
 
         # Return only first output for debugging
         return output1
-    
+
     def init_weights(self, *args, **kwargs):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
@@ -319,7 +343,9 @@ class FeatureNoise(nn.Module):
         self.Nor_dist = Normal(torch.tensor([0.0]), torch.tensor([1.0]))
 
     def feature_based_noise(self, x):
-        noise_vector = self.uni_dist.sample(x.shape[1:]).to(x.device).unsqueeze(0) #uniform noise
+        noise_vector = (
+            self.uni_dist.sample(x.shape[1:]).to(x.device).unsqueeze(0)
+        )  # uniform noise
         # noise_vector = self.Nor_dist.sample(x.shape[1:]).to(x.device).squeeze().unsqueeze(0) #gaussioan noise
         noise_vector = torch.div(noise_vector, noise_vector.max() - noise_vector.min())
         x_noise = x.mul(noise_vector) + x

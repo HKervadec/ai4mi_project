@@ -54,8 +54,11 @@ from utils.tensor_utils import (
     probs2one_hot,
     save_images,
     tqdm_,
+    print_args,
+    set_seed
 )
 
+torch.set_float32_matmul_precision("medium")
 
 class ReScale(v2.Transform):
     def __init__(self, K):
@@ -93,14 +96,13 @@ def resize_and_save_slice(arr, K, X, Y, z, target_arr):
 
 
 def setup_wandb(args):
-    # Initialize a new W&B run
     wandb.init(
         project=args.wandb_project_name,
         config={
             "epochs": args.epochs,
             "dataset": args.dataset,
             "learning_rate": args.lr,
-            "batch_size": args.datasets_params[args.dataset]["B"],
+            "batch_size": args.batch_size,
             "mode": args.mode,
             "seed": args.seed,
             "model": args.model_name,
@@ -360,40 +362,9 @@ def runTraining(args):
 
 
 def get_args():
-    # Dataset-specific parameters
-    datasets_params = {
-        # K = number of classes, B = batch size
-        "TOY2": {"K": 2, "B": 2},
-        "SEGTHOR": {"K": 5, "B": 8},
-    }
 
+    # Group 1: Dataset & Model configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", default=25, type=int)
-    parser.add_argument(
-        "--dataset",
-        default=next(iter(datasets_params)),
-        choices=list(datasets_params),
-        help="Which dataset to use for the training.",
-    )
-    parser.add_argument(
-        "--data_dir",
-        type=Path,
-        default="data",
-        help="The path to get the GT scan, in order to get the correct number of slices",
-    )
-    parser.add_argument(
-        "--loss",
-        choices=["ce", "dice", "dicece", "dicefocal", "ce_torch"],
-        default="dicefocal",
-        help="Loss function to use for training.",
-    )
-
-    parser.add_argument(
-        "--include_background",
-        action="store_true",
-        help="Whether to include the background class in the loss computation.",
-    )
-
     parser.add_argument(
         "--model_name",
         type=str,
@@ -402,24 +373,46 @@ def get_args():
         help="Model to use for training",
     )
     parser.add_argument(
-        "--seed", default=42, type=int, help="Seed to use for reproducibility."
-    )
-    parser.add_argument(
         "--mode",
         default="full",
         choices=["partial", "full"],
         help="Whether to supervise all the classes ('full') or, "
         "only a subset of them ('partial').",
     )
-
     parser.add_argument(
-        "--num_workers",
-        type=int,
-        default=0,
-        help="Number of subprocesses to use for data loading. "
-        "Default 0 to avoid pickle lambda error.",
+        "--dataset",
+        default="SEGTHOR",
+        choices=["SEGTHOR", "TOY2"],
+        help="Which dataset to use for the training.",
+    )
+    parser.add_argument(
+        "--data_dir",
+        type=Path,
+        default="data",
+        help="Path to get the GT scan, in order to get the correct number of slices",
     )
 
+    # Group 2: Training parameters
+    parser.add_argument("--epochs", default=25, type=int)
+    parser.add_argument("--batch_size", default=8, type=int)
+    parser.add_argument('--temperature', default=1, type=float)
+    parser.add_argument(
+        "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
+    )
+    parser.add_argument(
+        "--loss",
+        choices=["ce", "dice", "dicece", "dicefocal", "ce_torch"],
+        default="dicefocal",
+        help="Loss function to use for training.",
+    )
+    parser.add_argument(
+        "--include_background",
+        action="store_true",
+        help="Whether to include the background class in the loss computation.",
+    )
+    parser.add_argument(
+        "--seed", default=42, type=int, help="Seed to use for reproducibility."
+    )
     parser.add_argument(
         "--precision",
         default=32,
@@ -435,15 +428,17 @@ def get_args():
             "64",
         ],
     )
-
-    # TODO: Check delta between
-    parser.add_argument(
-        "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
-    )
     parser.add_argument(
         "--cpu",
         action="store_true",
         help="Force the code to run on CPU, even if a GPU is available.",
+    )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=0,
+        help="Number of subprocesses to use for data loading. "
+        "Default 0 to avoid pickle lambda error.",
     )
 
     # Group 3: Output directory
@@ -477,7 +472,13 @@ def get_args():
 
     # Model selection
     args.model = get_model(args.model_name)
-    args.datasets_params = datasets_params
+    print_args(args)
+
+    args.datasets_params = {
+        # K = number of classes, B = batch size
+        "TOY2": {"K": 2, "B": args.batch_size},
+        "SEGTHOR": {"K": 5, "B": args.batch_size},
+    }
     return args
 
 

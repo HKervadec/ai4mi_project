@@ -245,7 +245,7 @@ class ENet(nn.Module):
         )
 
         print(
-            f"> Initialized {self.__class__.__name__} ({in_dim=}->{out_dim=}) with {kwargs}"
+            f">> Initialized {self.__class__.__name__} ({in_dim=}->{out_dim=}) with {kwargs}"
         )
 
     def forward(self, input):

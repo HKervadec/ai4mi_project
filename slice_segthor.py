@@ -150,7 +150,9 @@ def slice_patient(
 def get_splits(
     src_path: Path, retains: int, fold: int
 ) -> tuple[list[str], list[str], list[str]]:
-    ids: list[str] = sorted(p.name for p in (src_path / "train").iterdir() if p.is_dir())
+    ids: list[str] = sorted(
+        p.name for p in (src_path / "train").iterdir() if p.is_dir()
+    )
     print(f"Founds {len(ids)} in the id list")
     print(ids[:10])
     assert len(ids) > retains
