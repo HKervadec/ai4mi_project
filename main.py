@@ -38,7 +38,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from skimage.transform import resize
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 
@@ -55,45 +54,12 @@ from utils.tensor_utils import (
     save_images,
     tqdm_,
     print_args,
-    set_seed
+    resize_and_save_slice,
+    Class2OneHot,
+    ReScale
 )
 
 torch.set_float32_matmul_precision("medium")
-
-class ReScale(v2.Transform):
-    def __init__(self, K):
-        self.scale = 1 / (255 / (K - 1)) if K != 5 else 1 / 63
-
-    def __call__(self, img):
-        return img * self.scale
-
-
-class Class2OneHot(v2.Transform):
-    def __init__(self, K):
-        self.K = K
-
-    def __call__(self, seg):
-        b, *img_shape = seg.shape
-
-        device = seg.device
-        res = torch.zeros(
-            (b, self.K, *img_shape), dtype=torch.int32, device=device
-        ).scatter_(1, seg[:, None, ...], 1)
-        return res[0]
-
-
-def resize_and_save_slice(arr, K, X, Y, z, target_arr):
-    resized_arr = resize(
-        arr.cpu().numpy(),
-        (K, X, Y),
-        mode="constant",
-        preserve_range=True,
-        anti_aliasing=False,
-        order=0,
-    )
-    target_arr[int(z), :, :, :] = resized_arr[...]
-    return target_arr
-
 
 def setup_wandb(args):
     wandb.init(
@@ -486,7 +452,7 @@ def main():
     args = get_args()
     print(args)
     
-    seed_everything(args.seed)
+    seed_everything(args.seed, verbose=False)
     if not args.wandb_project_name:
         setup_wandb(args)
     runTraining(args)

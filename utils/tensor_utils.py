@@ -23,19 +23,19 @@
 # SOFTWARE.
 
 import random
-from pathlib import Path
+from contextlib import AbstractContextManager
 from functools import partial
 from multiprocessing import Pool
-from contextlib import AbstractContextManager
+from pathlib import Path
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
-import torch
 import numpy as np
+import torch
 from PIL import Image
-from tqdm import tqdm
+from skimage.transform import resize
 from torch import Tensor
-import logging
-from lightning import seed_everything
+from torchvision.transforms import v2
+from tqdm import tqdm
 
 tqdm_ = partial(
     tqdm,
@@ -178,19 +178,20 @@ def get_device(use_gpu):
     return device
 
 
-
 # Print Args in columns
 def print_args(args, num_columns=2):
     print(">>> Arguments:")
     # Convert args (Namespace) to dictionary
     args_dict = vars(args)
-    
+
     # Find the maximum length of the keys and values to ensure proper alignment
     max_key_len = max(len(str(key)) for key in args_dict.keys())
-    max_val_len = max(len(str(value)) for value in map(str, args_dict.values()))  # Convert values to strings for formatting
-    
+    max_val_len = max(
+        len(str(value)) for value in map(str, args_dict.values())
+    )  # Convert values to strings for formatting
+
     # Prepare a format string for aligned output (key and value alignment)
-    format_string = '{:<'+str(max_key_len)+'} : {:<'+str(max_val_len)+'}'
+    format_string = "{:<" + str(max_key_len) + "} : {:<" + str(max_val_len) + "}"
 
     # Get all the items in the dictionary
     items = list(args_dict.items())
@@ -205,14 +206,42 @@ def print_args(args, num_columns=2):
             index = row + col * num_rows
             if index < len(items):
                 key, value = items[index]
-                row_str.append(format_string.format(key, str(value)))  # Ensure value is converted to string
-        print('; '.join(row_str))
+                row_str.append(
+                    format_string.format(key, str(value))
+                )  # Ensure value is converted to string
+        print("; ".join(row_str))
     print()
 
-# Avoid printing 'Seed set to 42' already in print_args
-def set_seed(seed, workers=False):
-    # Suppress PyTorch Lightning INFO logging (which includes the seed message)
-    logging.getLogger("lightning.fabric.utilities.seed").setLevel(logging.WARNING)
-    
-    # Set the seed
-    seed_everything(seed, workers=workers)
+class ReScale(v2.Transform):
+    def __init__(self, K):
+        self.scale = 1 / (255 // (K - 1))
+
+    def __call__(self, img):
+        return img * self.scale
+
+
+class Class2OneHot(v2.Transform):
+    def __init__(self, K):
+        self.K = K
+
+    def __call__(self, seg):
+        b, *img_shape = seg.shape
+
+        device = seg.device
+        res = torch.zeros(
+            (b, self.K, *img_shape), dtype=torch.int32, device=device
+        ).scatter_(1, seg[:, None, ...], 1)
+        return res[0]
+
+
+def resize_and_save_slice(arr, K, X, Y, z, target_arr):
+    resized_arr = resize(
+        arr.cpu().numpy(),
+        (K, X, Y),
+        mode="constant",
+        preserve_range=True,
+        anti_aliasing=False,
+        order=0,
+    )
+    target_arr[int(z), :, :, :] = resized_arr[...]
+    return target_arr
