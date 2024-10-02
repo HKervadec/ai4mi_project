@@ -40,6 +40,7 @@ from torch.utils.data import DataLoader
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
+from DeepLabV3 import DeepLabV3
 from utils import (Dcm,
                    class2one_hot,
                    probs2one_hot,
@@ -65,9 +66,14 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
-    net = datasets_params[args.dataset]['net'](1, K)
-    net.init_weights()
-    net.to(device)
+
+    if args.deeplabv3:
+        net = DeepLabV3(K)
+        net.to(device)
+    else:
+        net = datasets_params[args.dataset]['net'](1, K)
+        net.init_weights()
+        net.to(device)
 
     lr = 0.0005
     optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
@@ -80,7 +86,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         lambda img: img.convert('L'),
         lambda img: np.array(img)[np.newaxis, ...],
         lambda nd: nd / 255,  # max <= 1
-        lambda nd: torch.tensor(nd, dtype=torch.float32)
+        lambda nd: torch.tensor(nd, dtype=torch.float32),
+        lambda nd: nd.repeat(3, 1, 1) if args.deeplabv3 else nd,
     ])
 
     gt_transform = transforms.Compose([
@@ -241,6 +248,8 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
+    # add optional boolean argument to choose deeplabv3 or not
+    parser.add_argument('--deeplabv3', action='store_true', help="Use DeepLabV3 instead of the default model")
 
     args = parser.parse_args()
 

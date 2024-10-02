@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=train_deeplabv3
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=01:00:00
+#SBATCH --output=jobs/outputs/train_deeplabv3_output%A.out
+
+module purge
+module load 2023
+source ai4mi/bin/activate
+
+cd $HOME/SegTHOR_ai4mi
+python -O main.py \
+    --dataset SEGTHOR \
+    --mode full \
+    --epoch 25 \
+    --dest results/segthor/ce/deeplabv3 \
+    --gpu \
+    --deeplabv3
+
+python plot.py \
+    --metric_file results/segthor/ce/deeplabv3/dice_val.npy \
+    --dest results/segthor/ce/deeplabv3/dice_val.png
