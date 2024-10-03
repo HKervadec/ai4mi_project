@@ -22,13 +22,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
-
-from lightning import seed_everything
-
 # MPS issue: aten::max_unpool2d' not available for MPS devices
 # Solution: set fallback to 1 before importing torch
+import os
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
+from lightning import seed_everything
 
 import argparse
 import os
@@ -55,10 +54,11 @@ from utils.tensor_utils import (
     save_images,
     tqdm_,
     print_args,
-    set_seed
+    set_seed,
 )
 
 torch.set_float32_matmul_precision("medium")
+
 
 class ReScale(v2.Transform):
     def __init__(self, K):
@@ -116,12 +116,24 @@ def setup_wandb(args):
 class MyModel(pl.LightningModule):
     def __init__(self, args, batch_size, K, train_loader, val_loader):
         super().__init__()
+
+        # Model part
         self.args = args
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.batch_size = batch_size
         self.K = K
+        self.net = args.model(1, self.K)
+        self.net.init_weights()
+        self.loss_fn = get_loss(
+            args.loss, self.K, include_background=args.include_background
+        )
 
+        # Dataset part
+        self.root_dir: Path = Path(args.data_dir) / str(args.dataset)
+        self.gt_shape = self._get_gt_shape()
+
+        # Logging part
         self.log_loss_tra = torch.zeros((args.epochs, len(self.train_loader)))
         self.log_dice_tra = torch.zeros(
             (args.epochs, len(self.train_loader.dataset), self.K)
@@ -130,31 +142,14 @@ class MyModel(pl.LightningModule):
         self.log_dice_val = torch.zeros(
             (args.epochs, len(self.val_loader.dataset), self.K)
         )
-        self.best_dice = 0
-
-        self.K: int = args.datasets_params[args.dataset]["K"]
-        self.net = args.model(1, self.K)
-        self.net.init_weights()
-
-        # if True: # meant to be a flag
-        #     self.net = torch.compile(self.net)
-
-        self.loss_fn = get_loss(
-            args.loss, self.K, include_background=args.include_background
-        )
-
-        # Dataset part
-        self.batch_size: int = args.datasets_params[args.dataset]["B"]  # Batch size
-        self.root_dir: Path = Path(args.data_dir) / str(args.dataset)
-        self.gt_shape = self._get_gt_shape()
-
         self.log_dice_3d_tra = torch.zeros(
             (args.epochs, len(self.gt_shape["train"].keys()), self.K)
         )
         self.log_dice_3d_val = torch.zeros(
             (args.epochs, len(self.gt_shape["val"].keys()), self.K)
         )
-        args.dest.mkdir(parents=True, exist_ok=True)
+
+        self.best_dice = 0
 
     def configure_optimizers(self):
         return torch.optim.Adam(
@@ -223,9 +218,14 @@ class MyModel(pl.LightningModule):
         self.log("train/loss", loss, on_step=True, prog_bar=True, logger=True)
         self.log_dict(
             {
-                f"train/dice/{k}": self.log_dice_tra[self.current_epoch, :batch_idx + img.size(0), k].mean() for k in range(1,self.K)
+                f"train/dice/{k}": self.log_dice_tra[
+                    self.current_epoch, : batch_idx + img.size(0), k
+                ].mean()
+                for k in range(1, self.K)
             },
-            prog_bar=True, logger=False, on_step=True,
+            prog_bar=True,
+            logger=False,
+            on_step=True,
         )
         return loss
 
@@ -310,14 +310,16 @@ class MyModel(pl.LightningModule):
         if self.args.wandb_project_name:
             self.logger.save(str(self.args.dest / "bestweights.pt"))
 
+
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
 
     K = args.datasets_params[args.dataset]["K"]
     root_dir = Path(args.data_dir) / args.dataset
     batch_size = args.datasets_params[args.dataset]["B"]
-    # Transforms
+    args.dest.mkdir(parents=True, exist_ok=True)
 
+    # Transforms
     img_transform = v2.Compose([v2.ToDtype(torch.float32, scale=True)])
     gt_transform = v2.Compose([ReScale(K), v2.ToDtype(torch.int64), Class2OneHot(K)])
 
@@ -351,6 +353,7 @@ def runTraining(args):
         if args.wandb_project_name
         else None
     )
+
     trainer = pl.Trainer(
         accelerator="cpu" if args.cpu else "auto",
         max_epochs=args.epochs,
@@ -369,7 +372,7 @@ def get_args():
         "--model_name",
         type=str,
         default="shallowCNN",
-        choices=["shallowCNN", "ENet", "UDBRNet"],
+        choices=["shallowCNN", "ENet"],
         help="Model to use for training",
     )
     parser.add_argument(
@@ -395,7 +398,7 @@ def get_args():
     # Group 2: Training parameters
     parser.add_argument("--epochs", default=25, type=int)
     parser.add_argument("--batch_size", default=8, type=int)
-    parser.add_argument('--temperature', default=1, type=float)
+    parser.add_argument("--temperature", default=1, type=float)
     parser.add_argument(
         "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
     )
@@ -475,7 +478,6 @@ def get_args():
     print_args(args)
 
     args.datasets_params = {
-        # K = number of classes, B = batch size
         "TOY2": {"K": 2, "B": args.batch_size},
         "SEGTHOR": {"K": 5, "B": args.batch_size},
     }
@@ -484,8 +486,7 @@ def get_args():
 
 def main():
     args = get_args()
-    print(args)
-    
+
     seed_everything(args.seed)
     if not args.wandb_project_name:
         setup_wandb(args)
