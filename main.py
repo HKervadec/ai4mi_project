@@ -176,8 +176,8 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
     log_jacc_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
     log_jacc_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
-    log_ahd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K), dtype=torch.float64)
-    log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K), dtype=torch.float64)
+    log_ahd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
     log_assd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset)))
     log_assd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset)))
     best_dice: float = 0
