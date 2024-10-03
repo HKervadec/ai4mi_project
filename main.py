@@ -129,6 +129,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     return (net, optimizer, device, train_loader, val_loader, K)
 
+#TODO Decide necessity of this?
 def skip_empty_masks(gt: Tensor, pred_seg: Tensor) -> bool:
     """
     Returns True if both ground truth & predicted segmentation masks are empty,
@@ -175,8 +176,8 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
     log_jacc_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
     log_jacc_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
-    log_ahd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset)))
-    log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset))) 
+    log_ahd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
     log_assd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset)))
     log_assd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset)))
     best_dice: float = 0
@@ -243,13 +244,13 @@ def runTraining(args):
 
                         # if e == 0 and batch_idx < 5:  #Sanity check: visualizing for the first 5 batches in the first epoch 
                         #     visualize_gt_and_pred(img[batch_idx], gt[batch_idx], pred_seg[batch_idx], e, batch_idx)
-                            
-                        if skip_empty_masks(gt[batch_idx], pred_seg[batch_idx]):
-                            print(f"Skipping empty mask at batch {batch_idx}")
-                            continue #Skipping AHD calculation if both masks are empty
+                        #TODO is this neccesary?    
+                        #if skip_empty_masks(gt[batch_idx], pred_seg[batch_idx]):
+                        #    print(f"Skipping empty mask at batch {batch_idx}")
+                        #    continue #Skipping AHD calculation if both masks are empty
 
                         ahd_value = average_hausdorff_distance(gt[batch_idx], pred_seg[batch_idx])
-                        log_ahd[e, j + batch_idx] = ahd_value
+                        log_ahd[e, j + batch_idx, :] = ahd_value
 
                         assd_value = average_symmetric_surface_distance(gt[batch_idx], pred_seg[batch_idx])
                         log_assd[e, j + batch_idx] = assd_value
