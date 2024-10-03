@@ -176,8 +176,8 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
     log_jacc_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
     log_jacc_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
-    log_ahd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
-    log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_ahd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K), dtype=torch.float64)
+    log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K), dtype=torch.float64)
     log_assd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset)))
     log_assd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset)))
     best_dice: float = 0
@@ -275,7 +275,7 @@ def runTraining(args):
                     # For the DSC average: do not take the background class (0) into account:
                     postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
                                                     "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
-                    postfix_dict["AHD"] = f"{log_ahd[e, :j].mean():05.3f}"
+                    postfix_dict["AHD"] = f"{log_ahd[e, :j, 1:].mean():05.3f}"
                     postfix_dict["ASSD"] = f"{log_assd[e, :j].mean():05.3f}"
                     postfix_dict["Jaccard"] = f"{log_jacc[e, :j, 1:].mean():05.3f}"
 
@@ -284,9 +284,11 @@ def runTraining(args):
                                          for k in range(1, K)}
                         postfix_dict |= {f"Jaccard-{k}": f"{log_jacc[e, :j, k].mean():05.3f}"
                                          for k in range(1, K)}
+                        postfix_dict |= {f"AHD-{k}": f"{log_ahd[e, :j, k].mean():05.3f}"
+                                         for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
-                print(f"Epoch {e} - {m} AHD: {log_ahd[e, :j].mean().item():.5f}")
+                print(f"Epoch {e} - {m} AHD: {log_ahd[e, :j, 1:].mean().item():05.3f}")
                 print(f"Epoch {e} - {m} Jaccard: {log_jacc[e, :j, 1:].mean().item():.5f}")
                 print(f"Epoch {e} - {m} ASSD: {log_assd[e, :j].mean().item():.5f}")
 

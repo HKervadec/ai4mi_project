@@ -217,15 +217,23 @@ def average_hausdorff_distance(label: Tensor, pred: Tensor) -> float:
 
         ahd = (forward_hausdorff + backward_hausdorff) / 2
     else:
-         ahd = np.zeros(label_boundary.shape[0])
+         ahd = torch.zeros(label_boundary.shape[0], dtype=torch.float64)
          for i in range(label_boundary.shape[0]):
             # Compute directed Hausdorff distance in both directions and average them
             forward_hausdorff = directed_hausdorff(label_boundary[i], pred_boundary[i])[0]
             backward_hausdorff = directed_hausdorff(pred_boundary[i], label_boundary[i])[0]
             # print(f"Forward Hausdorff Distance: {forward_hausdorff}")
             # print(f"Backward Hausdorff Distance: {backward_hausdorff}")
-
-            ahd[i] = (forward_hausdorff + backward_hausdorff) / 2
+            if forward_hausdorff > 1000:
+                if backward_hausdorff > 1000:
+                      ahd[i] = 1000
+                else:
+                    ahd[i] = backward_hausdorff
+            else:
+                if backward_hausdorff > 1000:
+                    ahd[i] = forward_hausdorff
+                else:
+                    ahd[i] = (forward_hausdorff + backward_hausdorff) / 2
 
     return ahd
 
