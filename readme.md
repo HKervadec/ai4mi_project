@@ -163,7 +163,7 @@ Groups will have to submit:
     * (bonus) any solution fixing patient27 without recourse to `affine.py`;
     * (bonus) any (even partial) solution fixing the whole dataset without recourse to `affine.py`;
 * the best trained model;
-* predictions on the test set (will be shared later on);
+* predictions on the [test set](https://amsuni-my.sharepoint.com/:u:/g/personal/h_t_g_kervadec_uva_nl/EWZH7ylUUFFCg3lEzzLzJqMBG7OrPw1K4M78wq9t5iBj_w?e=Yejv5d) (`sha256sum -c data/test.zip.sha256` as optional checksum);
 * predictions on the group's internal validation set, the labels of their validation set, and the metrics they computed.
 
 The main criteria for scoring will include:
