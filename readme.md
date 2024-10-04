@@ -153,13 +153,18 @@ Plotting and visualization ressources:
 
 ## Submission and scoring
 Groups will have to submit:
-* archive of the git repo with the whole project (pre-processing/training/post-processing where applicable, inference and metrics);
+* archive of the git repo with the whole project, which includes:
+    * pre-processing;
+    * training;
+    * post-processing where applicable;
+    * inference;
+    * metrics computation;
+    * script fixing the data using the matrix `AFF` from `affine.py`;
+    * (bonus) any solution fixing patient27 without recourse to `affine.py`;
+    * (bonus) any (even partial) solution fixing the whole dataset without recourse to `affine.py`;
 * the best trained model;
 * predictions on the test set (will be shared later on);
-* predictions on the group's internal validation set, the labels of their validation set, and the metrics they computed;
-* script fixing the data using the matrix `AFF` from `affine.py`;
-* (bonus) any solution fixing patient27 without recourse to `affine.py`;
-* (bonus) any (even partial) solution fixing the whole dataset without recourse to `affine.py`.
+* predictions on the group's internal validation set, the labels of their validation set, and the metrics they computed.
 
 The main criteria for scoring will include:
 * improvement of performances over baseline;
@@ -175,7 +180,7 @@ The `(bonus)` lines give extra points, that can ultimately compensate other part
 
 
 ### Packing the code
-`$ git bundle group-XX.bundle master`
+`$ git bundle create group-XX.bundle master`
 
 ### Saving the best model
 `torch.save(net, args.dest / "bestmodel-group-XX.pkl")`
