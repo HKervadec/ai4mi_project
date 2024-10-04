@@ -159,7 +159,7 @@ Groups will have to submit:
     * post-processing where applicable;
     * inference;
     * metrics computation;
-    * script fixing the data using the matrix `AFF` from `affine.py`;
+    * script fixing the data using the matrix `AFF` from `affine.py` (or rather its inverse);
     * (bonus) any solution fixing patient27 without recourse to `affine.py`;
     * (bonus) any (even partial) solution fixing the whole dataset without recourse to `affine.py`;
 * the best trained model;
