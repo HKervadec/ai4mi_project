@@ -56,7 +56,7 @@ datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
 # Avoids the clases with C (often used for the number of Channel)
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
-datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHORCORRECT"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
@@ -68,7 +68,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     K: int = datasets_params[args.dataset]['K']
 
     if args.deeplabv3:
-        net = DeepLabV3(K)
+        net = DeepLabV3(K, pretrained=args.pretrained)
         net.to(device)
     else:
         net = datasets_params[args.dataset]['net'](1, K)
@@ -250,7 +250,7 @@ def main():
                              "to test the logic around epochs and logging easily.")
     # add optional boolean argument to choose deeplabv3 or not
     parser.add_argument('--deeplabv3', action='store_true', help="Use DeepLabV3 instead of the default model")
-
+    parser.add_argument('--pretrained', action='store_true', help="Use a pretrained deeplabv3 model")
     args = parser.parse_args()
 
     pprint(args)
