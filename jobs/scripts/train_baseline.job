@@ -14,9 +14,9 @@ source ai4mi/bin/activate
 
 cd $HOME/SegTHOR_ai4mi
 python -O main.py \
-    --dataset SEGTHOR \
+    --dataset SEGTHORCORRECT \
     --mode full \
-    --epoch 25 \
+    --epochs 30 \
     --dest results/segthor/ce/baseline \
     --gpu
 

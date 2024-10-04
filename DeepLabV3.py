@@ -9,9 +9,10 @@ class DeepLabV3(torch.nn.Module):
             weights='COCO_WITH_VOC_LABELS_V1' if pretrained else None,
             weights_backbone='IMAGENET1K_V1' if pretrained else None,
         )
-        if pretrained:
-            self.deeplabv3.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
-            
+        
+        self.deeplabv3.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
+        
+        if pretrained:    
             # freeze all layers except the classifier
             for param in self.deeplabv3.parameters():
                 param.requires_grad = False

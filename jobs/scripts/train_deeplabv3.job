@@ -16,7 +16,7 @@ cd $HOME/SegTHOR_ai4mi
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
-    --epoch 30 \
+    --epochs 30 \
     --dest results/segthor/ce/deeplabv3 \
     --gpu \
     --deeplabv3
