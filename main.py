@@ -36,8 +36,9 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from torchvision.transforms import InterpolationMode
 
-from dataset import SliceDataset
+from dataset import SliceDataset, SliceDatasetWithTransforms
 from ShallowNet import shallowCNN
 from ENet import ENet
 from DeepLabV3 import DeepLabV3
@@ -50,7 +51,25 @@ from utils import (Dcm,
                    save_images)
 
 from losses import (CrossEntropy)
+from torch.utils.data import WeightedRandomSampler
 
+def compute_class_weights(train_set, K):
+    """
+    Compute class weights for the training dataset.
+    This ensures that underrepresented classes (like classes 1 and 4) are sampled more frequently.
+    """
+    class_counts = np.zeros(K)
+    
+    # Loop through the dataset and count the number of pixels for each class
+    for _, data in enumerate(train_set):
+        gt = data['gts']  # Ground truth mask
+        for k in range(K):
+            class_counts[k] += (gt == k).sum().item()
+
+    # Compute class weights (inverse of class frequencies)
+    class_weights = 1.0 / np.maximum(class_counts, 1)  # Avoid division by zero
+    
+    return class_weights
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -85,35 +104,88 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     B: int = datasets_params[args.dataset]['B']
     root_dir = Path("data") / args.dataset
 
+    # Define the target size of the images (to fix after transformations)
+    target_size = (256, 256)
+
     img_transform = transforms.Compose([
-        lambda img: img.convert('L'),
-        lambda img: np.array(img)[np.newaxis, ...],
-        lambda nd: nd / 255,  # max <= 1
-        lambda nd: torch.tensor(nd, dtype=torch.float32),
-        lambda nd: nd.repeat(3, 1, 1) if args.deeplabv3 else nd,
+        transforms.Resize(target_size),  # Resize the image to the target size
+        lambda img: img.convert('L'), # Convert to grayscale
+        lambda img: np.array(img)[np.newaxis, ...], # Add one dimension to simulate batch
+        lambda nd: nd / 255,  # max <= 1 # Normalize the image
+        lambda nd: torch.tensor(nd, dtype=torch.float32) # Convert to tensor
     ])
 
     gt_transform = transforms.Compose([
-        lambda img: np.array(img)[...],
+        transforms.Resize(target_size, interpolation=InterpolationMode.NEAREST),  # Resize ground truth with NEAREST interpolation,
+        lambda img: np.array(img)[...], # Convert to numpy array
         # The idea is that the classes are mapped to {0, 255} for binary cases
         # {0, 85, 170, 255} for 4 classes
         # {0, 51, 102, 153, 204, 255} for 6 classes
         # Very sketchy but that works here and that simplifies visualization
-        lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
+        lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1 # Normalize the image
         lambda nd: torch.tensor(nd, dtype=torch.int64)[None, ...],  # Add one dimension to simulate batch
-        lambda t: class2one_hot(t, K=K),
+        lambda t: class2one_hot(t, K=K), # Convert to one-hot encoding
         itemgetter(0)
     ])
 
-    train_set = SliceDataset('train',
+    if args.transformation == 'none':
+        train_set = SliceDataset('train',
                              root_dir,
                              img_transform=img_transform,
                              gt_transform=gt_transform,
-                             debug=args.debug)
-    train_loader = DataLoader(train_set,
-                              batch_size=B,
-                              num_workers=args.num_workers,
-                              shuffle=True)
+                             debug=args.debug,
+                             remove_background=args.remove_background)
+    else:
+        # Define image and ground truth directories (original + augmented)
+        if args.transformation == 'preprocessed':
+            train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_preprocessed']
+            train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_preprocessed']
+        elif args.transformation == 'augmented':
+            train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_spatial_aug', root_dir / 'train' / 'img_intensity_aug']
+            train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_spatial_aug', root_dir / 'train' / 'gt_intensity_aug']
+        elif args.transformation == 'preprocess_augment':
+            train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_pre_spatial_aug', root_dir / 'train' / 'img_pre_intensity_aug']
+            train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_pre_spatial_aug', root_dir / 'train' / 'gt_pre_intensity_aug']
+    
+        # Create the SliceDataset for training
+        train_set = SliceDatasetWithTransforms(
+            subset='train',
+            img_dirs=train_img_dirs,
+            gt_dirs=train_gt_dirs,
+            img_transform=img_transform,
+            gt_transform=gt_transform,
+            debug=False,
+            remove_background=args.remove_background
+        )
+
+    if args.class_aware_sampling:
+        # Compute class weights for class-aware sampling
+        class_weights = compute_class_weights(train_set, K)
+        
+        # Create sample weights for each image in the dataset based on the presence of each class
+        sample_weights = []
+        for data in train_set:
+            gt = data['gts']
+            sample_weight = 0
+            for k in range(K):
+                if torch.any(gt == k):
+                    sample_weight += class_weights[k]
+            sample_weights.append(sample_weight)
+
+        sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(train_set), replacement=True)
+
+        # Create DataLoader with the class-aware sampler
+        train_loader = DataLoader(
+            dataset=train_set,
+            batch_size=B,
+            num_workers=args.num_workers,
+            sampler=sampler,
+        )
+    else:
+        train_loader = DataLoader(train_set,
+                                batch_size=B,
+                                num_workers=args.num_workers,
+                                shuffle=True)
 
     val_set = SliceDataset('val',
                            root_dir,
@@ -151,23 +223,22 @@ def runTraining(args):
 
     for e in range(args.epochs):
         for m in ['train', 'val']:
-            match m:
-                case 'train':
-                    net.train()
-                    opt = optimizer
-                    cm = Dcm
-                    desc = f">> Training   ({e: 4d})"
-                    loader = train_loader
-                    log_loss = log_loss_tra
-                    log_dice = log_dice_tra
-                case 'val':
-                    net.eval()
-                    opt = None
-                    cm = torch.no_grad
-                    desc = f">> Validation ({e: 4d})"
-                    loader = val_loader
-                    log_loss = log_loss_val
-                    log_dice = log_dice_val
+            if m == 'train':
+                net.train()
+                opt = optimizer
+                cm = Dcm
+                desc = f">> Training   ({e: 4d})"
+                loader = train_loader
+                log_loss = log_loss_tra
+                log_dice = log_dice_tra
+            else:
+                net.eval()
+                opt = None
+                cm = torch.no_grad
+                desc = f">> Validation ({e: 4d})"
+                loader = val_loader
+                log_loss = log_loss_val
+                log_dice = log_dice_val
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -188,7 +259,7 @@ def runTraining(args):
 
                     # Metrics computation, not used for training
                     pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j:j + B, :] = dice_coef(gt, pred_seg)  # One DSC value per sample and per class
+                    log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
@@ -245,17 +316,22 @@ def main():
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
-
     parser.add_argument('--num_workers', type=int, default=5)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    # add optional boolean argument to choose deeplabv3 or not
     parser.add_argument('--deeplabv3', action='store_true', help="Use DeepLabV3 instead of the default model")
     parser.add_argument('--pretrained', action='store_true', help="Use a pretrained deeplabv3 model")
     parser.add_argument('--lr', type=float, default=0.0005)
     parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd'])
+    parser.add_argument('--remove_background', action='store_true', default=False,
+                        help="If set, remove slices that contain only background.")
+    parser.add_argument('--transformation', default='none', choices=['none', 'preprocessed', 'augmented', 'preprocess_augment'])
+
+    parser.add_argument('--class_aware_sampling', action='store_true', default=False,
+                        help="If set, samples batches so that every batch has a balanced representation of all classes.")
+
     args = parser.parse_args()
 
     pprint(args)
