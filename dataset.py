@@ -91,3 +91,48 @@ class SliceDataset(Dataset):
         # / assert gt.shape == (K, W, H)
 
         return {"images": img, "gts": gt, "stems": img_path.stem, "shape": (K, W, H)}
+
+
+class SliceDatasetOriginal(Dataset):
+    def __init__(
+        self,
+        subset,
+        root_dir: Path,
+        img_transform: Callable = None,
+        gt_transform: Callable = None,
+        augment: bool = False,
+        equalize: bool = False,
+        debug: bool = False,
+    ):
+        self.root_dir: Path = root_dir
+        self.img_transform: Callable = img_transform
+        self.gt_transform: Callable = gt_transform
+        self.augmentation: bool = augment
+        self.equalize: bool = equalize
+
+        self.files = make_dataset(root_dir, subset)
+        if debug:
+            self.files = self.files[:10]
+
+        subset = f"'{subset.capitalize()}'"
+        print(f">> Created {subset:<7} dataset with {len(self)} images!")
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
+        img_path, gt_path = self.files[index]
+
+        img: Tensor = self.img_transform(Image.open(img_path))
+        gt: Tensor = self.gt_transform(Image.open(gt_path))
+        gt_original: Tensor = self.img_transform(Image.open(gt_path))
+
+        patient_id: str = img_path.stem.split("_")[1]
+        slice_id: int = int(img_path.stem.split("_")[2])
+
+        _, W, H = img.shape
+        # K, _, _ = gt.shape
+        # / assert gt.shape == (K, W, H)
+
+        # return {"images": img, "gts": gt, "stems": img_path.stem, "shape": (K, W, H), "patient_ids": patient_id, "slice_ids": slice_id}
+        return {"images": img, "gts": gt, "stems": img_path.stem, "patient_ids": patient_id, "slice_ids": slice_id, "gts_original": gt_original}

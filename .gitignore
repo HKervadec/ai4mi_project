@@ -184,3 +184,4 @@ cython_debug/
 
 # Ignore W&B local run logs
 wandb/
+lightning_debugging/
