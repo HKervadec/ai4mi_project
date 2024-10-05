@@ -146,24 +146,41 @@ $ python plot.py --metric_file results/segthor/ce/dice_val.npy --dest results/se
 ```
 ![Validation DSC](dice_val.png)
 
+Plotting and visualization ressources:
+* [Scientific visualization Python + Matplotlib](https://github.com/rougier/scientific-visualization-book)
+* [Seaborn](https://seaborn.pydata.org/examples/index.html)
+* [Plotly](https://github.com/plotly/plotly.py)
+
 ## Submission and scoring
 Groups will have to submit:
-* archive of the git repo with the whole project (pre-processing/training/post-processing where applicable, inference and metrics);
+* archive of the git repo with the whole project, which includes:
+    * pre-processing;
+    * training;
+    * post-processing where applicable;
+    * inference;
+    * metrics computation;
+    * script fixing the data using the matrix `AFF` from `affine.py` (or rather its inverse);
+    * (bonus) any solution fixing patient27 without recourse to `affine.py`;
+    * (bonus) any (even partial) solution fixing the whole dataset without recourse to `affine.py`;
 * the best trained model;
-* predictions on the test set (will be shared later on);
-* predictions on the group's internal validation set, validation set, and the metrics they computed.
+* predictions on the [test set](https://amsuni-my.sharepoint.com/:u:/g/personal/h_t_g_kervadec_uva_nl/EWZH7ylUUFFCg3lEzzLzJqMBG7OrPw1K4M78wq9t5iBj_w?e=Yejv5d) (`sha256sum -c data/test.zip.sha256` as optional checksum);
+* predictions on the group's internal validation set, the labels of their validation set, and the metrics they computed.
 
 The main criteria for scoring will include:
 * improvement of performances over baseline;
 * code quality/clear [git use](git.md);
-* the [choice of metrics](https://metrics-reloaded.dkfz.de/);
+* the [choice of metrics](https://metrics-reloaded.dkfz.de/) (they need to be in 3D);
 * correctness of the computed metrics (on the validation set);
 * (part of the report) clear description of the method;
-* report.
+* (part of the report) clever use of visualization to report and interpret your results;
+* report;
+* presentation.
+
+The `(bonus)` lines give extra points, that can ultimately compensate other parts of the project/quizz.
 
 
 ### Packing the code
-`$ git bundle group-XX.bundle master`
+`$ git bundle create group-XX.bundle master`
 
 ### Saving the best model
 `torch.save(net, args.dest / "bestmodel-group-XX.pkl")`
