@@ -75,8 +75,11 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         net.init_weights()
         net.to(device)
 
-    lr = 0.0005
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    lr = args.lr
+    if args.optimizer == 'sgd':
+        optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9)
+    else:
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -251,6 +254,8 @@ def main():
     # add optional boolean argument to choose deeplabv3 or not
     parser.add_argument('--deeplabv3', action='store_true', help="Use DeepLabV3 instead of the default model")
     parser.add_argument('--pretrained', action='store_true', help="Use a pretrained deeplabv3 model")
+    parser.add_argument('--lr', type=float, default=0.0005)
+    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd'])
     args = parser.parse_args()
 
     pprint(args)
