@@ -29,10 +29,13 @@ from contextlib import AbstractContextManager
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
 import torch
+import torch.nn.functional as F
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
+import numpy as np
+from scipy.spatial.distance import directed_hausdorff
 
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
@@ -176,3 +179,110 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+
+# Additional metrics
+# IoU (Jaccard Index)
+def meta_iou(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    inter_size: Tensor = einsum(sum_str, [intersection(label, pred)]).type(torch.float32)
+    union_size: Tensor = (einsum(sum_str, [label]) + einsum(sum_str, [pred]) - inter_size).type(torch.float32)
+
+    ious: Tensor = (inter_size + smooth) / (union_size + smooth)
+
+    return ious
+
+
+iou_coef = partial(meta_iou, "bk...->bk")
+
+# Hausdorff Distance Function
+def boundary_points(tensor: torch.Tensor) -> torch.Tensor:
+    """
+    Extracts boundary points using the Sobel operator. 
+    This works by detecting the edges in the segmentation mask.
+
+    Args:
+        tensor (torch.Tensor): A binary mask of shape (B, C, H, W), 
+                               where B is the batch size, C is the number of classes.
+    
+    Returns:
+        torch.Tensor: A tensor of the same shape as the input, with boundaries highlighted.
+    """
+    # Use Sobel filter for edge detection (3x3 kernels)
+    sobel_x = torch.Tensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]]).unsqueeze(0).unsqueeze(0).to(tensor.device)
+    sobel_y = torch.Tensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]]).unsqueeze(0).unsqueeze(0).to(tensor.device)
+
+    # Apply Sobel filter in both directions to get the gradients
+    grad_x = F.conv2d(tensor.float(), sobel_x, padding=1)
+    grad_y = F.conv2d(tensor.float(), sobel_y, padding=1)
+    
+    # Magnitude of gradients (edge strength)
+    grad_mag = torch.sqrt(grad_x ** 2 + grad_y ** 2)
+    
+    # Threshold the gradient magnitude to get binary edges
+    boundary = (grad_mag > 0).float()  # 1 for boundary, 0 for non-boundary
+    
+    return boundary
+
+def meta_hausdorff(sum_str: str, label: Tensor, pred: Tensor) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    hausdorff_distances = []
+    for class_idx in range(label.shape[1]):
+        # Extract boundary points for each class
+        label_boundary = boundary_points(label[:, class_idx])
+        pred_boundary = boundary_points(pred[:, class_idx])
+
+        # Compute Hausdorff Distance for each class
+        hd_label_to_pred = directed_hausdorff(label_boundary, pred_boundary)[0]
+        hd_pred_to_label = directed_hausdorff(pred_boundary, label_boundary)[0]
+
+        hausdorff_distances.append(max(hd_label_to_pred, hd_pred_to_label))
+
+    return torch.tensor(hausdorff_distances)
+
+
+hausdorff_coef = partial(meta_hausdorff, "bk...->bk")
+
+# ASSD
+def meta_assd(sum_str: str, label: Tensor, pred: Tensor) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    assd_distances = []
+    for class_idx in range(label.shape[1]):
+        # Extract boundary points for each class
+        label_boundary = boundary_points(label[:, class_idx])
+        pred_boundary = boundary_points(pred[:, class_idx])
+
+        # Compute ASSD for each class
+        hd_label_to_pred = np.mean([np.min(np.linalg.norm(label_boundary - point, axis=1)) for point in pred_boundary])
+        hd_pred_to_label = np.mean([np.min(np.linalg.norm(pred_boundary - point, axis=1)) for point in label_boundary])
+
+        assd_distances.append((hd_label_to_pred + hd_pred_to_label) / 2)
+
+    return torch.tensor(assd_distances)
+
+assd_coef = partial(meta_assd, "bk...->bk")
+
+# Volumetric Similarity
+def meta_vol_sim(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    label_vol = einsum(sum_str, [label]).type(torch.float32)
+    pred_vol = einsum(sum_str, [pred]).type(torch.float32)
+
+    vol_sim = 1 - (torch.abs(label_vol - pred_vol) / (label_vol + pred_vol + smooth))
+
+    return vol_sim
+
+
+vol_sim_coef = partial(meta_vol_sim, "bk...->bk")

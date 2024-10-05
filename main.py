@@ -48,7 +48,11 @@ from utils import (Dcm,
                    probs2class,
                    tqdm_,
                    dice_coef,
-                   save_images)
+                   save_images,
+                   iou_coef,
+                   assd_coef,
+                   vol_sim_coef,
+                   hausdorff_coef)
 
 from losses import (CrossEntropy)
 from torch.utils.data import WeightedRandomSampler
@@ -219,6 +223,16 @@ def runTraining(args):
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
+    # Additional metrics
+    log_iou_tra = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_hausdorff_tra = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_assd_tra = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_volsim_tra = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_iou_val = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_hausdorff_val = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_assd_val = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_volsim_val = torch.zeros((args.epochs, len(val_loader.dataset), K))
+
     best_dice: float = 0
 
     for e in range(args.epochs):
@@ -231,6 +245,10 @@ def runTraining(args):
                 loader = train_loader
                 log_loss = log_loss_tra
                 log_dice = log_dice_tra
+                log_iou = log_iou_tra
+                log_hausdorff = log_hausdorff_tra
+                log_assd = log_assd_tra
+                log_volsim = log_volsim_tra
             else:
                 net.eval()
                 opt = None
@@ -239,6 +257,10 @@ def runTraining(args):
                 loader = val_loader
                 log_loss = log_loss_val
                 log_dice = log_dice_val
+                log_iou = log_iou_val
+                log_hausdorff = log_hausdorff_val
+                log_assd = log_assd_val
+                log_volsim = log_volsim_val
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -261,6 +283,18 @@ def runTraining(args):
                     pred_seg = probs2one_hot(pred_probs)
                     log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
 
+                    # IoU (Jaccard Index)
+                    log_iou[e, j:j + B, :] = iou_coef(pred_seg, gt)
+
+                    # Hausdorff Distance
+                    log_hausdorff[e, j:j + B, :] = hausdorff_coef(pred_seg, gt)
+
+                    # ASSD (Average Symmetric Surface Distance)
+                    log_assd[e, j:j + B, :] = assd_coef(pred_seg, gt)
+
+                    # Volumetric Similarity
+                    log_volsim[e, j:j + B, :] = vol_sim_coef(pred_seg, gt)
+
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
 
@@ -280,6 +314,10 @@ def runTraining(args):
                     j += B  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
                     postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
+                                                    "IoU": f"{log_iou[e, :j, 1:].mean():05.3f}",
+                                                    "Hausdorff": f"{log_hausdorff[e, :j, 1:].mean():05.3f}",
+                                                    "ASSD": f"{log_assd[e, :j, 1:].mean():05.3f}",
+                                                    "VolSim": f"{log_volsim[e, :j, 1:].mean():05.3f}",
                                                     "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
                     if K > 2:
                         postfix_dict |= {f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
@@ -291,6 +329,15 @@ def runTraining(args):
         np.save(args.dest / "dice_tra.npy", log_dice_tra)
         np.save(args.dest / "loss_val.npy", log_loss_val)
         np.save(args.dest / "dice_val.npy", log_dice_val)
+
+        np.save(args.dest / "iou_tra.npy", log_iou_tra)
+        np.save(args.dest / "hausdorff_tra.npy", log_hausdorff_tra)
+        np.save(args.dest / "assd_tra.npy", log_assd_tra)
+        np.save(args.dest / "volsim_tra.npy", log_volsim_tra)
+        np.save(args.dest / "iou_val.npy", log_iou_val)
+        np.save(args.dest / "hausdorff_val.npy", log_hausdorff_val)
+        np.save(args.dest / "assd_val.npy", log_assd_val)
+        np.save(args.dest / "volsim_val.npy", log_volsim_val)
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
