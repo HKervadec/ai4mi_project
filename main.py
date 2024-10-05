@@ -41,6 +41,7 @@ from torchvision.transforms import InterpolationMode
 from dataset import SliceDataset, SliceDatasetWithTransforms
 from ShallowNet import shallowCNN
 from ENet import ENet
+from DeepLabV3 import DeepLabV3
 from utils import (Dcm,
                    class2one_hot,
                    probs2one_hot,
@@ -74,7 +75,7 @@ datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
 # Avoids the clases with C (often used for the number of Channel)
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
-datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHORCORRECT"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
@@ -84,12 +85,20 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
-    net = datasets_params[args.dataset]['net'](1, K)
-    net.init_weights()
-    net.to(device)
 
-    lr = 0.0005
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    if args.deeplabv3:
+        net = DeepLabV3(K, pretrained=args.pretrained)
+        net.to(device)
+    else:
+        net = datasets_params[args.dataset]['net'](1, K)
+        net.init_weights()
+        net.to(device)
+
+    lr = args.lr
+    if args.optimizer == 'sgd':
+        optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9)
+    else:
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -312,7 +321,10 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    
+    parser.add_argument('--deeplabv3', action='store_true', help="Use DeepLabV3 instead of the default model")
+    parser.add_argument('--pretrained', action='store_true', help="Use a pretrained deeplabv3 model")
+    parser.add_argument('--lr', type=float, default=0.0005)
+    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd'])
     parser.add_argument('--remove_background', action='store_true', default=False,
                         help="If set, remove slices that contain only background.")
     parser.add_argument('--transformation', default='none', choices=['none', 'preprocessed', 'augmented', 'preprocess_augment'])
