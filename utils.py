@@ -33,7 +33,7 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
-import os #TODO: remove on final submission
+import os  #TODO: remove on final submission
 
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
@@ -127,16 +127,16 @@ def probs2one_hot(probs: Tensor) -> Tensor:
 
 # Save the raw predictions
 def save_images(segs: Tensor, names: Iterable[str], root: Path) -> None:
-        for seg, name in zip(segs, names):
-                save_path = (root / name).with_suffix(".png")
-                save_path.parent.mkdir(parents=True, exist_ok=True)
+    for seg, name in zip(segs, names):
+        save_path = (root / name).with_suffix(".png")
+        save_path.parent.mkdir(parents=True, exist_ok=True)
 
-                if len(seg.shape) == 2:
-                        Image.fromarray(seg.detach().cpu().numpy().astype(np.uint8)).save(save_path)
-                elif len(seg.shape) == 3:
-                        np.save(str(save_path), seg.detach().cpu().numpy())
-                else:
-                        raise ValueError(seg.shape)
+        if len(seg.shape) == 2:
+            Image.fromarray(seg.detach().cpu().numpy().astype(np.uint8)).save(save_path)
+        elif len(seg.shape) == 3:
+            np.save(str(save_path), seg.detach().cpu().numpy())
+        else:
+            raise ValueError(seg.shape)
 
 
 # Metrics
@@ -187,3 +187,23 @@ def prepare_wandb_login():
     except FileNotFoundError:
         print("!! File wandb.password was not found in the project root. WandB will be disabled during this run !!")
 
+
+# K - num of classes, e - epoch num
+# Loss and every metric are an array of [train_result, valid_result]
+def save_loss_and_metrics(K: int, e: int, dest: Path, loss: [Tensor, Tensor], dice: [Tensor, Tensor]) -> dict:
+    # Save and log metrics and losses
+    # I save it at each epochs, in case the code crashes or I decide to stop it early
+    np.save(dest / "loss_tra.npy", loss[0])
+    np.save(dest / "dice_tra.npy", dice[0])
+    np.save(dest / "loss_val.npy", loss[1])
+    np.save(dest / "dice_val.npy", dice[1])
+    metrics = {
+        "train/loss": loss[0][e, :].mean().item(),
+        "train/dice_avg": dice[0][e, :, 1:].mean().item(),
+        "valid/loss": loss[1][e, :].mean().item(),
+        "valid/dice_avg": dice[1][e, :, 1:].mean().item(),
+    }
+    for k in range(1, K):
+        metrics[f"train/dice-{k}"] = dice[0][e, :, k].mean().item()
+        metrics[f"valid/dice-{k}"] = dice[1][e, :, k].mean().item()
+    return metrics

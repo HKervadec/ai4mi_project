@@ -41,6 +41,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from models import UNet
+import utils
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
@@ -148,6 +149,7 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
     best_dice: float = 0
+    best_metrics = {}
 
     for e in range(args.epochs):
         for m in ['train', 'val']:
@@ -215,12 +217,10 @@ def runTraining(args):
                                          for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
-
-        # I save it at each epochs, in case the code crashes or I decide to stop it early
-        # np.save(args.dest / "loss_tra.npy", log_loss_tra)
-        # np.save(args.dest / "dice_tra.npy", log_dice_tra)
-        # np.save(args.dest / "loss_val.npy", log_loss_val)
-        # np.save(args.dest / "dice_val.npy", log_dice_val)
+        metrics = utils.save_loss_and_metrics(K, e, args.dest,
+                                              loss=[log_loss_tra, log_loss_val],
+                                              dice=[log_dice_tra, log_dice_val])
+        wandb.log(metrics)
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
@@ -236,18 +236,10 @@ def runTraining(args):
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
+            best_metrics = metrics
 
-        metrics = {
-            "train/loss": log_loss_tra[e, :].mean().item(),
-            "train/dice_avg": log_dice_tra[e, :, 1:].mean().item(),
-            "valid/loss": log_loss_val[e, :].mean().item(),
-            "valid/dice_avg": log_dice_val[e, :, 1:].mean().item(),
-        }
-        for k in range(1, K):
-            metrics[f"train/dice-{k}"] = log_dice_tra[e, :, k].mean().item()
-            metrics[f"valid/dice-{k}"] = log_dice_val[e, :, k].mean().item()
-        wandb.log(metrics)
-
+    for key, value in best_metrics.items():
+        wandb.run.summary[key] = value
     end = time.time()
     print(f"[FINISHED] Duration: {(end - start):0.2f} s")
 
@@ -273,6 +265,7 @@ def main():
     parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
     parser.add_argument('--focal_gamma', type=float, default=2.0, help="Gamma parameter for Focal Loss")
     parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
+    parser.add_argument('--dropoutRate', type=float, default=0.1, help="Dropout rate for the ENet model")
 
     # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
@@ -282,10 +275,12 @@ def main():
     parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'Dice', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
     parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN', 'UNet'])
     parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
+    parser.add_argument('--run_group', type=str, default=None, help='Your name so that the run can be grouped by it')
 
     args = parser.parse_args()
     prefix = args.run_prefix + '_' if args.run_prefix else ''
     run_name = f'{prefix}{args.loss}_{args.model}_{args.dataset[:3]}'
+    run_name = 'DEBUG_' + run_name if args.debug else run_name
 
     # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork
     # see https://github.com/pytest-dev/pytest-flask/issues/104
@@ -293,14 +288,13 @@ def main():
 
     prepare_wandb_login()
     wandb.login()
-    if args.debug:
-        run_name = 'DEBUG_' + run_name
     wandb.init(
         entity="ai_4_mi",
         project="SegTHOR",
         name=run_name,
         config=vars(args),
-        mode="disabled" if args.debug else "online"
+        mode="disabled" if args.debug else "online",
+        group=args.run_group
     )
 
     print(f">> {run_name} <<")
