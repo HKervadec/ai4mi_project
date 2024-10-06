@@ -37,6 +37,8 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
+from lightning.pytorch import LightningModule, Trainer
+from lightning.pytorch.loggers import WandbLogger
 from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
@@ -46,20 +48,19 @@ from dataset import SliceDataset
 from models import get_model
 from utils.losses import get_loss
 from utils.metrics import dice_batch, dice_coef
-import pytorch_lightning as pl
-from lightning.pytorch.loggers import WandbLogger
 from utils.tensor_utils import (
+    Class2OneHot,
+    ReScale,
+    print_args,
     probs2class,
     probs2one_hot,
+    resize_and_save_slice,
     save_images,
     tqdm_,
-    print_args,
-    resize_and_save_slice,
-    Class2OneHot,
-    ReScale
 )
 
 torch.set_float32_matmul_precision("medium")
+
 
 def setup_wandb(args):
     wandb.init(
@@ -79,7 +80,7 @@ def setup_wandb(args):
     )
 
 
-class MyModel(pl.LightningModule):
+class MyModel(LightningModule):
     def __init__(self, args, batch_size, K, train_loader, val_loader):
         super().__init__()
         self.args = args
@@ -123,7 +124,7 @@ class MyModel(pl.LightningModule):
         args.dest.mkdir(parents=True, exist_ok=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(
+        return torch.optim.AdamW(
             filter(lambda x: x.requires_grad, self.net.parameters()), lr=self.args.lr
         )
 
@@ -189,9 +190,14 @@ class MyModel(pl.LightningModule):
         self.log("train/loss", loss, on_step=True, prog_bar=True, logger=True)
         self.log_dict(
             {
-                f"train/dice/{k}": self.log_dice_tra[self.current_epoch, :batch_idx + img.size(0), k].mean() for k in range(1,self.K)
+                f"train/dice/{k}": self.log_dice_tra[
+                    self.current_epoch, : batch_idx + img.size(0), k
+                ].mean()
+                for k in range(1, self.K)
             },
-            prog_bar=True, logger=False, on_step=True,
+            prog_bar=True,
+            logger=True,
+            on_step=True,
         )
         return loss
 
@@ -276,6 +282,7 @@ class MyModel(pl.LightningModule):
         if self.args.wandb_project_name:
             self.logger.save(str(self.args.dest / "bestweights.pt"))
 
+
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
 
@@ -317,7 +324,7 @@ def runTraining(args):
         if args.wandb_project_name
         else None
     )
-    trainer = pl.Trainer(
+    trainer = Trainer(
         accelerator="cpu" if args.cpu else "auto",
         max_epochs=args.epochs,
         precision=args.precision,
@@ -328,7 +335,6 @@ def runTraining(args):
 
 
 def get_args():
-
     # Group 1: Dataset & Model configuration
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -361,7 +367,7 @@ def get_args():
     # Group 2: Training parameters
     parser.add_argument("--epochs", default=25, type=int)
     parser.add_argument("--batch_size", default=8, type=int)
-    parser.add_argument('--temperature', default=1, type=float)
+    parser.add_argument("--temperature", default=1, type=float)
     parser.add_argument(
         "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
     )
@@ -451,7 +457,7 @@ def get_args():
 def main():
     args = get_args()
     print(args)
-    
+
     seed_everything(args.seed, verbose=False)
     if not args.wandb_project_name:
         setup_wandb(args)

@@ -231,6 +231,9 @@ class Class2OneHot(v2.Transform):
         res = torch.zeros(
             (b, self.K, *img_shape), dtype=torch.int32, device=device
         ).scatter_(1, seg[:, None, ...], 1)
+        # Functionally equivalent to:
+        # torch.nn.functional.one_hot(seg, K).permute(0, -1, *range(1, len(seg.shape)))
+        # Torch one_hot produces the classes in the last dimension rather than the second like here
         return res[0]
 
 
