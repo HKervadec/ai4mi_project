@@ -150,6 +150,7 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
     best_dice: float = 0
+    best_metrics = {}
 
     for e in range(args.epochs):
         for m in ['train', 'val']:
@@ -236,8 +237,10 @@ def runTraining(args):
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
-            wandb.run.summary = metrics
+            best_metrics = metrics
 
+    for key, value in best_metrics.items():
+        wandb.run.summary[key] = value
     end = time.time()
     print(f"[FINISHED] Duration: {(end - start):0.2f} s")
 
