@@ -248,7 +248,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--epochs', default=200, type=int)
-    parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
+    parser.add_argument('--dataset', default='SEGTHOR', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--args', default='')
     parser.add_argument('--dest', type=Path, required=True,
@@ -279,8 +279,9 @@ def main():
 
     args = parser.parse_args()
     prefix = args.run_prefix + '_' if args.run_prefix else ''
-    run_name = f'{prefix}{args.loss}_{args.model}_{args.dataset[:3]}'
+    run_name = f'{prefix}lr({"{:.0E}".format(args.lr)})_{args.loss}_{args.model}'
     run_name = 'DEBUG_' + run_name if args.debug else run_name
+    args.dest = args.dest / run_name
 
     # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork
     # see https://github.com/pytest-dev/pytest-flask/issues/104
