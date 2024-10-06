@@ -30,7 +30,6 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import argparse
 import os
-import sys
 import warnings
 from pathlib import Path
 from shutil import copytree, rmtree
@@ -59,10 +58,11 @@ from utils.tensor_utils import (
     save_images,
     tqdm_,
     print_args,
-    set_seed
+    set_seed,
 )
 
 torch.set_float32_matmul_precision("medium")
+
 
 # Initialize a new W&B run
 def setup_wandb(args):
@@ -82,8 +82,9 @@ def setup_wandb(args):
         },
     )
 
+
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabric]:
-    
+
     # Seed and Fabric initialization
     set_seed(args.seed)
     fabric = Fabric(precision=args.precision, accelerator="cpu" if args.cpu else "auto")
@@ -105,14 +106,14 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
     # Transforms for images and ground truth
     img_transform = transforms.Compose(
         [
-            lambda img: img.convert("L"), # Convert to grayscale
-            transforms.PILToTensor(),     # Convert to tensor 
-            lambda img: img / 255,        # Normalize to [0, 1]
+            lambda img: img.convert("L"),  # Convert to grayscale
+            transforms.PILToTensor(),  # Convert to tensor
+            lambda img: img / 255,  # Normalize to [0, 1]
         ]
-    ) # img_tensor.shape = [1, H, W]
+    )  # img_tensor.shape = [1, H, W]
     gt_transform = transforms.Compose(
         [
-            lambda img: np.array(img), # img values are in [0, 255]
+            lambda img: np.array(img),  # img values are in [0, 255]
             # For 2 classes, the classes are mapped to {0, 255}.
             # For 4 classes, the classes are mapped to {0, 85, 170, 255}.
             # For 6 classes, the classes are mapped to {0, 51, 102, 153, 204, 255}.
@@ -120,7 +121,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Fabri
             lambda nd: torch.from_numpy(nd).to(dtype=torch.int64, device=fabric.device)[
                 None, ...
             ],  # Add one dimension to simulate batch
-            lambda t: class2one_hot(t, K=K)[0], # Tensor: One-hot encoding [B, K, H, W]
+            lambda t: class2one_hot(t, K=K)[0],  # Tensor: One-hot encoding [B, K, H, W]
         ]
     )
 
@@ -172,18 +173,26 @@ def runTraining(args):
 
     print(f">>> Setting up to train on '{args.dataset}' with '{args.mode}'")
     net, optimizer, device, train_loader, val_loader, K, gt_shape, fabric = setup(args)
-    
+
     # Logging loss per batch for each epoch = [epochs, num_batches], num_batches = data_size/B
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
 
     # Logging 2D Dice loss per sample and class = [epochs, num_samples, num_classes]
-    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K)) #[e, 5453, K]
-    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))   #[e, 1967, K]
+    log_dice_tra: Tensor = torch.zeros(
+        (args.epochs, len(train_loader.dataset), K)
+    )  # [e, 5453, K]
+    log_dice_val: Tensor = torch.zeros(
+        (args.epochs, len(val_loader.dataset), K)
+    )  # [e, 1967, K]
 
     # Logging 3D Dice loss per patient and class = [epochs, num_patients, num_classes]
-    log_dice_3d_tra: Tensor = torch.zeros(((args.epochs, len(gt_shape["train"].keys()), K))) #[e, 30, K]
-    log_dice_3d_val: Tensor = torch.zeros(((args.epochs, len(gt_shape["val"].keys()), K)))   #[e, 10, K]
+    log_dice_3d_tra: Tensor = torch.zeros(
+        ((args.epochs, len(gt_shape["train"].keys()), K))
+    )  # [e, 30, K]
+    log_dice_3d_val: Tensor = torch.zeros(
+        ((args.epochs, len(gt_shape["val"].keys()), K))
+    )  # [e, 10, K]
 
     best_dice: float = 0
     loss_fn = get_loss(args.loss, K, include_background=args.include_background)
@@ -210,7 +219,7 @@ def runTraining(args):
                     log_dice = log_dice_val
                     log_dice_3d = log_dice_3d_val
 
-            # Initialize 3D volumes [Z, K, X, Y] for each patient 
+            # Initialize 3D volumes [Z, K, X, Y] for each patient
             # Z: Depth, K: Number of classes, (X, Y): Spatial dimensions
             gt_volumes = {
                 p: np.zeros((Z, K, X, Y), dtype=np.int16)
@@ -221,15 +230,12 @@ def runTraining(args):
                 for p, (X, Y, Z) in gt_shape[m].items()
             }
 
-            with cm():  # Train: dummy context manager, Val: torch.no_grad 
+            with cm():  # Train: dummy context manager, Val: torch.no_grad
                 j = 0
                 tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
                 for i, data in tq_iter:
                     img = data["images"]
                     gt = data["gts"]
-
-                    # print(f"Shape of img at epoch {e}, batch {i}: {img.shape}")
-                    # Shape of img at epoch 0, batch 0: torch.Size([8, 1, 256, 256])
 
                     if opt:  # So only for training
                         opt.zero_grad()
@@ -245,30 +251,18 @@ def runTraining(args):
                     pred_seg = probs2one_hot(pred_probs)
 
                     dice_scores = dice_coef(pred_seg, gt)
-                    print(f"Epoch {e}, {m} step {i}: Dice scores shape: {dice_scores.shape}, mean: {dice_scores.mean().item()}")
-                    print(f"Sample dice scores: {dice_scores[0]}")  # Print scores for first sample in batch
+                    # print(f"Epoch {e}, {m} step {i}:")
+                    # print(f"  Dice scores shape: {dice_scores.shape}, mean: {dice_scores.mean().item()}")
+                    # print(f"  Dice scores per class: {dice_scores.mean(dim=0)}")
+                    # print(f"  Batch size: {B}")
+
+                    # start_idx = i * B
+                    # end_idx = start_idx + B
+                    # print(f"Start index: {start_idx}, End index: {end_idx}")
+                    # print(f"j: {j}, j + B: {j + B}") # correct
+
+                    # log_dice[e, start_idx:end_idx, :] = dice_scores
                     log_dice[e, j : j + B, :] = dice_scores
-
-                    
-                    # print("Old code:")
-                    # print("e:", e)
-                    # print("j:", j)
-                    # print("B:", B)
-                    # print("log_dice shape:", log_dice.shape)
-                    # print("pred_seg shape:", pred_seg.shape)
-                    # print("gt shape:", gt.shape)
-                    # dice_values = dice_coef(pred_seg, gt)
-                    # print("dice_coef result shape:", dice_values.shape)
-                    # print("dice_coef result:", dice_values)
-
-
-                    # log_dice[e, j : j + B, :] = dice_coef(
-                    #     pred_seg, gt
-                    # )  # One DSC value per sample and per class
-
-                    # print("Updated log_dice slice:")
-                    # print(log_dice[e, j : j + B, :])
-                    # sys.exit()
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = (
@@ -326,7 +320,6 @@ def runTraining(args):
                     }
                 }
 
-
                 # Compute 3D Dice
                 if m == "val":
                     print("Computing 3D dice...")
@@ -341,19 +334,19 @@ def runTraining(args):
                     log_dict["dice_3d"] = (log_dice_3d[e, :, 1:].mean().item(),)
                     log_dict["dice_3d_class"] = get_dice_per_class(
                         args, log_dice_3d, K, e
-                    )   
-
-                # Add the debug print here
-                # print("Logging to wandb:", log_dict)  # Debug print
-                # sys.exit()
+                    )
 
                 # Log the metrics after each 'e' epoch
                 if args.wandb_project_name:
                     wandb.log(log_dict)
 
-        print(f"Final validation Dice (excluding background): {log_dice_val[e, :, 1:].mean().item()}")
-        for k, v in get_dice_per_class(args, log_dice_val, K, e).items():
-            print(f"Class {k} Dice: {v}")
+        val_dice_scores = log_dice_val[e, :, :]
+        val_dice_excl_bg = val_dice_scores[:, 1:].mean().item()
+        print(f"Epoch {e} validation Dice (excluding background): {val_dice_excl_bg}")
+
+        for k in range(1, K):
+            class_dice = val_dice_scores[:, k].mean().item()
+            print(f"Class {k} Dice: {class_dice}")
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -448,7 +441,7 @@ def get_args():
     # Group 2: Training parameters
     parser.add_argument("--epochs", default=25, type=int)
     parser.add_argument("--batch_size", default=8, type=int)
-    parser.add_argument('--temperature', default=1, type=float)
+    parser.add_argument("--temperature", default=1, type=float)
     parser.add_argument(
         "--lr", type=float, default=0.0005, help="Learning rate for the optimizer."
     )
@@ -537,7 +530,7 @@ def get_args():
 
 def main():
     args = get_args()
-    if args.wandb_project_name: 
+    if args.wandb_project_name:
         setup_wandb(args)
     runTraining(args)
 

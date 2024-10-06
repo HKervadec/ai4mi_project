@@ -44,6 +44,7 @@ def make_dataset(root, subset: str) -> list[tuple[Path, Path]]:
 
     return list(zip(images, full_labels))
 
+limit = 8
 
 class SliceDataset(Dataset):
     def __init__(
@@ -64,7 +65,7 @@ class SliceDataset(Dataset):
 
         self.files = make_dataset(root_dir, subset)
         if debug:
-            self.files = self.files[:10]
+            self.files = self.files[:(len(self.files)//limit)]
 
         subset = f"'{subset.capitalize()}'"
         print(f">> Created {subset:<7} dataset with {len(self)} images!")
@@ -112,7 +113,7 @@ class SliceDatasetOriginal(Dataset):
 
         self.files = make_dataset(root_dir, subset)
         if debug:
-            self.files = self.files[:10]
+            self.files = self.files[:(len(self.files)//limit)]
 
         subset = f"'{subset.capitalize()}'"
         print(f">> Created {subset:<7} dataset with {len(self)} images!")
