@@ -11,8 +11,19 @@ class UNet(smp.Unet):
             in_channels=in_channels,
             classes=out_channels
         )
-        for param in self.encoder.parameters():
-            param.requires_grad = False
+
+        # Freeze all the layers of the encoder except the last n
+        unfreeze_enc_last_n_layers = kwargs['unfreeze_enc_last_n_layers']
+        enc_num_layers = 0
+        for _ in self.encoder.children():
+            enc_num_layers += 1
+        freeze_first_n_layers = enc_num_layers - unfreeze_enc_last_n_layers
+        for layer_num, layer in enumerate(self.encoder.children()):
+            if layer_num < freeze_first_n_layers:
+                for param in layer.parameters():
+                    param.requires_grad = False
+        print(f"> Initialized encoder {encoder_name} with first {freeze_first_n_layers}/{enc_num_layers} layers frozen")
+
 
     def init_weights(self):
         pass

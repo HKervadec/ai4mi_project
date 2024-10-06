@@ -259,13 +259,13 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    
+
+    parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
+    parser.add_argument('--dropoutRate', type=float, default=0.1, help="Dropout rate for the ENet model")
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
     parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
     parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
     parser.add_argument('--focal_gamma', type=float, default=2.0, help="Gamma parameter for Focal Loss")
-    parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
-    parser.add_argument('--dropoutRate', type=float, default=0.1, help="Dropout rate for the ENet model")
 
     # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
@@ -277,9 +277,15 @@ def main():
     parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
     parser.add_argument('--run_group', type=str, default=None, help='Your name so that the run can be grouped by it')
 
+    # Arguments for running with different backbones
+    parser.add_argument('--encoder_name', type=str, default='resnet18', choices=['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'])
+    parser.add_argument('--unfreeze_enc_last_n_layers', type=int, default=0, help="Train the last n layers of the encoder")
+
     args = parser.parse_args()
     prefix = args.run_prefix + '_' if args.run_prefix else ''
-    run_name = f'{prefix}lr({"{:.0E}".format(args.lr)})_{args.loss}_{args.model}'
+    lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != 0.0005 else ''
+    unfreeze_num_layers = f'(unfreeze-{args.unfreeze_enc_last_n_layers})' if args.unfreeze_enc_last_n_layers != 0 else ''
+    run_name = f'{prefix}{lr}{args.loss}_{args.model}_{args.encoder_name}{unfreeze_num_layers}'
     run_name = 'DEBUG_' + run_name if args.debug else run_name
     args.dest = args.dest / run_name
 
