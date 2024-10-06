@@ -40,6 +40,7 @@ from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
+from models import UNet
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
@@ -70,14 +71,12 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
-    try:
-        net = eval(args.model)(1, K)
-    except NameError:
-        raise ValueError(f"Model {args.model} does not exist")
+    net = eval(args.model)(1, K, **vars(args))
     net.init_weights()
     net.to(device)
 
-    lr = 0.0005
+    # lr = 0.0005 # Initial LR for ENet
+    lr = args.lr
     optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
@@ -273,6 +272,7 @@ def main():
     parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
     parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
     parser.add_argument('--focal_gamma', type=float, default=2.0, help="Gamma parameter for Focal Loss")
+    parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
 
     # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
@@ -280,7 +280,7 @@ def main():
     # Arguments for more flexibility of the run
     parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
     parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'Dice', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
-    parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN'])
+    parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN', 'UNet'])
     parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
 
     args = parser.parse_args()
