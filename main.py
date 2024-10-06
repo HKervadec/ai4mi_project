@@ -72,7 +72,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     K: int = datasets_params[args.dataset]['K']
     try:
-        net = eval(args.model)(1, K, {'dropoutRate': args.dropoutRate})
+        net = eval(args.model)(1, K, dropoutRate=args.dropoutRate)
     except NameError:
         raise ValueError(f"Model {args.model} does not exist")
     net.init_weights()
