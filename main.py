@@ -287,10 +287,10 @@ def runTraining(args):
                     log_iou[e, j:j + B, :] = iou_coef(pred_seg, gt)
 
                     # Hausdorff Distance
-                    log_hausdorff[e, j:j + B, :] = hausdorff_coef(pred_seg, gt)
+                    log_hausdorff[e, j:j + B, :] = hausdorff_coef(pred_seg, gt).transpose(0, 1)
 
                     # ASSD (Average Symmetric Surface Distance)
-                    log_assd[e, j:j + B, :] = assd_coef(pred_seg, gt)
+                    log_assd[e, j:j + B, :] = assd_coef(pred_seg, gt).transpose(0, 1)
 
                     # Volumetric Similarity
                     log_volsim[e, j:j + B, :] = vol_sim_coef(pred_seg, gt)

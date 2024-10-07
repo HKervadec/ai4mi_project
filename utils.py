@@ -209,25 +209,44 @@ def boundary_points(tensor: torch.Tensor) -> torch.Tensor:
                                where B is the batch size, C is the number of classes.
     
     Returns:
-        torch.Tensor: A tensor of the same shape as the input, with boundaries highlighted.
+        List[torch.Tensor]: A list of tensors containing boundary points coordinates for each sample in the batch.
     """
     # Use Sobel filter for edge detection (3x3 kernels)
     sobel_x = torch.Tensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]]).unsqueeze(0).unsqueeze(0).to(tensor.device)
     sobel_y = torch.Tensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]]).unsqueeze(0).unsqueeze(0).to(tensor.device)
 
-    # Apply Sobel filter in both directions to get the gradients
-    grad_x = F.conv2d(tensor.float(), sobel_x, padding=1)
-    grad_y = F.conv2d(tensor.float(), sobel_y, padding=1)
-    
-    # Magnitude of gradients (edge strength)
-    grad_mag = torch.sqrt(grad_x ** 2 + grad_y ** 2)
-    
-    # Threshold the gradient magnitude to get binary edges
-    boundary = (grad_mag > 0).float()  # 1 for boundary, 0 for non-boundary
-    
-    return boundary
+    boundaries = []
+    # Apply Sobel filter for each channel separately
+    for i in range(tensor.shape[1]):
+        # Extract the i-th channel and add a singleton dimension to match conv2d input format
+        channel = tensor[:, i:i+1, :, :]
+        grad_x = F.conv2d(channel.float(), sobel_x, padding=1)
+        grad_y = F.conv2d(channel.float(), sobel_y, padding=1)
 
-def meta_hausdorff(sum_str: str, label: Tensor, pred: Tensor) -> Tensor:
+        # Magnitude of gradients (edge strength)
+        grad_mag = torch.sqrt(grad_x ** 2 + grad_y ** 2)
+        
+        # Threshold the gradient magnitude to get binary edges
+        boundary = (grad_mag > 0).float()  # 1 for boundary, 0 for non-boundary
+        boundaries.append(boundary)
+    
+    # Stack the boundaries back into a single tensor
+    stacked_boundaries = torch.cat(boundaries, dim=1)
+    
+    # Extract boundary point coordinates for each item in the batch
+    boundary_points_list = []
+    for b in range(stacked_boundaries.shape[0]):
+        boundary_points = []
+        for c in range(stacked_boundaries.shape[1]):
+            # Get non-zero coordinates (boundary points)
+            coords = torch.nonzero(stacked_boundaries[b, c], as_tuple=False)
+            if coords.size(0) > 0:
+                boundary_points.append(coords)
+        boundary_points_list.append(boundary_points)
+    
+    return boundary_points_list
+
+def meta_hausdorff(sum_str: str, label: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
     assert label.shape == pred.shape
     assert one_hot(label)
     assert one_hot(pred)
@@ -235,14 +254,26 @@ def meta_hausdorff(sum_str: str, label: Tensor, pred: Tensor) -> Tensor:
     hausdorff_distances = []
     for class_idx in range(label.shape[1]):
         # Extract boundary points for each class
-        label_boundary = boundary_points(label[:, class_idx])
-        pred_boundary = boundary_points(pred[:, class_idx])
+        label_boundaries = boundary_points(label[:, class_idx:class_idx+1])
+        pred_boundaries = boundary_points(pred[:, class_idx:class_idx+1])
 
-        # Compute Hausdorff Distance for each class
-        hd_label_to_pred = directed_hausdorff(label_boundary, pred_boundary)[0]
-        hd_pred_to_label = directed_hausdorff(pred_boundary, label_boundary)[0]
+        batch_hausdorff = []
+        for b in range(len(label_boundaries)):
+            if len(label_boundaries[b]) > 0 and len(pred_boundaries[b]) > 0:
+                # Convert the boundary points to numpy arrays
+                label_points = label_boundaries[b][0].cpu().numpy()
+                pred_points = pred_boundaries[b][0].cpu().numpy()
 
-        hausdorff_distances.append(max(hd_label_to_pred, hd_pred_to_label))
+                # Compute Hausdorff Distance for each class
+                hd_label_to_pred = directed_hausdorff(label_points, pred_points)[0]
+                hd_pred_to_label = directed_hausdorff(pred_points, label_points)[0]
+
+                batch_hausdorff.append(max(hd_label_to_pred, hd_pred_to_label))
+            else:
+                # If no boundary points exist for this class, set distance to zero
+                batch_hausdorff.append(0.0)
+
+        hausdorff_distances.append(batch_hausdorff)
 
     return torch.tensor(hausdorff_distances)
 
@@ -250,7 +281,7 @@ def meta_hausdorff(sum_str: str, label: Tensor, pred: Tensor) -> Tensor:
 hausdorff_coef = partial(meta_hausdorff, "bk...->bk")
 
 # ASSD
-def meta_assd(sum_str: str, label: Tensor, pred: Tensor) -> Tensor:
+def meta_assd(sum_str: str, label: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
     assert label.shape == pred.shape
     assert one_hot(label)
     assert one_hot(pred)
@@ -258,14 +289,26 @@ def meta_assd(sum_str: str, label: Tensor, pred: Tensor) -> Tensor:
     assd_distances = []
     for class_idx in range(label.shape[1]):
         # Extract boundary points for each class
-        label_boundary = boundary_points(label[:, class_idx])
-        pred_boundary = boundary_points(pred[:, class_idx])
+        label_boundaries = boundary_points(label[:, class_idx:class_idx+1])
+        pred_boundaries = boundary_points(pred[:, class_idx:class_idx+1])
 
-        # Compute ASSD for each class
-        hd_label_to_pred = np.mean([np.min(np.linalg.norm(label_boundary - point, axis=1)) for point in pred_boundary])
-        hd_pred_to_label = np.mean([np.min(np.linalg.norm(pred_boundary - point, axis=1)) for point in label_boundary])
+        batch_assd = []
+        for b in range(len(label_boundaries)):
+            if len(label_boundaries[b]) > 0 and len(pred_boundaries[b]) > 0:
+                # Convert the boundary points to numpy arrays
+                label_points = label_boundaries[b][0].cpu().numpy()
+                pred_points = pred_boundaries[b][0].cpu().numpy()
 
-        assd_distances.append((hd_label_to_pred + hd_pred_to_label) / 2)
+                # Compute ASSD for each class
+                hd_label_to_pred = np.mean([np.min(np.linalg.norm(label_points - point, axis=1)) for point in pred_points])
+                hd_pred_to_label = np.mean([np.min(np.linalg.norm(pred_points - point, axis=1)) for point in label_points])
+
+                batch_assd.append((hd_label_to_pred + hd_pred_to_label) / 2)
+            else:
+                # If no boundary points exist for this class, set distance to zero
+                batch_assd.append(0.0)
+
+        assd_distances.append(batch_assd)
 
     return torch.tensor(assd_distances)
 
