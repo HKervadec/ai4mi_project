@@ -45,7 +45,7 @@ from torchvision.transforms import v2
 
 import wandb
 from dataset import SliceDataset
-from models import get_model
+from models import get_model, SegVolLightning
 from utils.losses import get_loss
 from utils.metrics import dice_batch, dice_coef
 from utils.tensor_utils import (
@@ -81,25 +81,12 @@ def setup_wandb(args):
 
 
 class MyModel(LightningModule):
-    def __init__(self, args, batch_size, K, train_loader, val_loader):
+    def __init__(self, args, batch_size, K):
         super().__init__()
         self.args = args
-        self.train_loader = train_loader
-        self.val_loader = val_loader
         self.batch_size = batch_size
         self.K = K
 
-        self.log_loss_tra = torch.zeros((args.epochs, len(self.train_loader)))
-        self.log_dice_tra = torch.zeros(
-            (args.epochs, len(self.train_loader.dataset), self.K)
-        )
-        self.log_loss_val = torch.zeros((args.epochs, len(self.val_loader)))
-        self.log_dice_val = torch.zeros(
-            (args.epochs, len(self.val_loader.dataset), self.K)
-        )
-        self.best_dice = 0
-
-        self.K: int = args.datasets_params[args.dataset]["K"]
         self.net = args.model(1, self.K)
         self.net.init_weights()
 
@@ -113,19 +100,65 @@ class MyModel(LightningModule):
         # Dataset part
         self.batch_size: int = args.datasets_params[args.dataset]["B"]  # Batch size
         self.root_dir: Path = Path(args.data_dir) / str(args.dataset)
-        self.gt_shape = self._get_gt_shape()
 
-        self.log_dice_3d_tra = torch.zeros(
-            (args.epochs, len(self.gt_shape["train"].keys()), self.K)
-        )
-        self.log_dice_3d_val = torch.zeros(
-            (args.epochs, len(self.gt_shape["val"].keys()), self.K)
-        )
         args.dest.mkdir(parents=True, exist_ok=True)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(
             filter(lambda x: x.requires_grad, self.net.parameters()), lr=self.args.lr
+        )
+
+    def on_train_start(self) -> None:
+        super().on_train_start()
+
+        self.log_loss_tra = torch.zeros(
+            (self.args.epochs, len(self.train_dataloader()))
+        )
+        self.log_dice_tra = torch.zeros((self.args.epochs, len(self.train_set), self.K))
+        self.log_loss_val = torch.zeros((self.args.epochs, len(self.val_dataloader())))
+        self.log_dice_val = torch.zeros((self.args.epochs, len(self.val_set), self.K))
+
+        self.best_dice = 0
+        self.gt_shape = self._get_gt_shape()
+        self.log_dice_3d_tra = torch.zeros(
+            (self.args.epochs, len(self.gt_shape["train"].keys()), self.K)
+        )
+        self.log_dice_3d_val = torch.zeros(
+            (self.args.epochs, len(self.gt_shape["val"].keys()), self.K)
+        )
+
+    def train_dataloader(self):
+        self.train_set = SliceDataset(
+            "train",
+            self.root_dir,
+            img_transform=v2.Compose([v2.ToDtype(torch.float32, scale=True)]),
+            gt_transform=v2.Compose(
+                [ReScale(self.K), v2.ToDtype(torch.int64), Class2OneHot(self.K)]
+            ),
+            debug=self.args.debug,
+        )
+        return DataLoader(
+            self.train_set,
+            batch_size=self.batch_size,
+            num_workers=self.args.num_workers,
+            shuffle=True,
+        )
+
+    def val_dataloader(self):
+        self.val_set = SliceDataset(
+            "val",
+            self.root_dir,
+            img_transform=v2.Compose([v2.ToDtype(torch.float32, scale=True)]),
+            gt_transform=v2.Compose(
+                [ReScale(self.K), v2.ToDtype(torch.int64), Class2OneHot(self.K)]
+            ),
+            debug=self.args.debug,
+        )
+        return DataLoader(
+            self.val_set,
+            batch_size=self.batch_size,
+            num_workers=self.args.num_workers,
+            shuffle=False,
         )
 
     def _get_gt_shape(self):
@@ -252,12 +285,6 @@ class MyModel(LightningModule):
 
         super().on_validation_epoch_end()
 
-    def train_dataloader(self):
-        return self.train_loader
-
-    def val_dataloader(self):
-        return self.val_loader
-
     def get_dice_per_class(self, log, K, e):
         if self.args.dataset == "SEGTHOR":
             class_names = [
@@ -287,37 +314,14 @@ def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
 
     K = args.datasets_params[args.dataset]["K"]
-    root_dir = Path(args.data_dir) / args.dataset
     batch_size = args.datasets_params[args.dataset]["B"]
-    # Transforms
-
-    img_transform = v2.Compose([v2.ToDtype(torch.float32, scale=True)])
-    gt_transform = v2.Compose([ReScale(K), v2.ToDtype(torch.int64), Class2OneHot(K)])
 
     # Datasets and loaders
-    train_set = SliceDataset(
-        "train",
-        root_dir,
-        img_transform=img_transform,
-        gt_transform=gt_transform,
-        debug=args.debug,
-    )
-    train_loader = DataLoader(
-        train_set, batch_size=batch_size, num_workers=args.num_workers, shuffle=True
-    )
+    if args.dataset == "segthor_train":
+        model = SegVolLightning(args, batch_size, K)
 
-    val_set = SliceDataset(
-        "val",
-        root_dir,
-        img_transform=img_transform,
-        gt_transform=gt_transform,
-        debug=args.debug,
-    )
-    val_loader = DataLoader(
-        val_set, batch_size=batch_size, num_workers=args.num_workers, shuffle=False
-    )
-
-    model = MyModel(args, batch_size, K, train_loader, val_loader)
+    else:
+        model = MyModel(args, batch_size, K)
 
     wandb_logger = (
         WandbLogger(project=args.wandb_project_name)
@@ -331,7 +335,8 @@ def runTraining(args):
         num_sanity_val_steps=0,  # Sanity check fails due to the 3D dice computation
         logger=wandb_logger,
     )
-    trainer.fit(model, train_loader, val_loader)
+
+    trainer.fit(model)
 
 
 def get_args():
@@ -339,9 +344,9 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model_name",
-        type=str,
+        type=str.lower,
         default="shallowCNN",
-        choices=["shallowCNN", "ENet", "UDBRNet"],
+        choices=["shallowCNN", "ENet", "UDBRNet", "segvol"],
         help="Model to use for training",
     )
     parser.add_argument(
@@ -354,7 +359,7 @@ def get_args():
     parser.add_argument(
         "--dataset",
         default="SEGTHOR",
-        choices=["SEGTHOR", "TOY2"],
+        choices=["SEGTHOR", "TOY2", "segthor_train"],
         help="Which dataset to use for the training.",
     )
     parser.add_argument(
@@ -450,6 +455,7 @@ def get_args():
         # K = number of classes, B = batch size
         "TOY2": {"K": 2, "B": args.batch_size},
         "SEGTHOR": {"K": 5, "B": args.batch_size},
+        "segthor_train": {"K": 5, "B": 1},
     }
     return args
 

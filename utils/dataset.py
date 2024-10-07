@@ -127,4 +127,4 @@ class VolumetricDataset(Dataset):
             return item[1]
 
         else:
-            return self._load_item(idx)
+            return self._load_item(idx)[1]
