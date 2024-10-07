@@ -43,16 +43,14 @@ class SegVolLightning(LightningModule):
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, self.args.epochs
         )
-        return {"optimizer": optimizer, "scheduler": scheduler}
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
-    def on_train_start(self) -> None:
-        super().on_train_start()
-        self.log_loss_tra = torch.zeros(
-            (self.args.epochs, len(self.train_dataloader()))
-        )
-        self.log_dice_tra = torch.zeros((self.args.epochs, len(self.train_set), self.K))
-        self.log_loss_val = torch.zeros((self.args.epochs, len(self.val_dataloader())))
-        self.log_dice_val = torch.zeros((self.args.epochs, len(self.val_set), self.K))
+    def on_fit_start(self) -> None:
+        super().on_fit_start()
+        self.log_loss_tra = torch.zeros(self.args.epochs, len(self.train_dataloader()))
+        self.log_dice_tra = torch.zeros(self.args.epochs, len(self.train_set), self.K)
+        self.log_loss_val = torch.zeros(self.args.epochs, len(self.val_dataloader()))
+        self.log_dice_val = torch.zeros(self.args.epochs, len(self.val_set), self.K)
         # TODO: Implement 3D DICE
 
         # self.log_dice_3d_tra = torch.zeros(
@@ -87,7 +85,7 @@ class SegVolLightning(LightningModule):
             processor=self.model.processor,
             num_classes=self.K,
             train=False,
-            cache_size=0,
+            cache_size=40,
         )
         return DataLoader(
             self.val_set,
@@ -99,6 +97,7 @@ class SegVolLightning(LightningModule):
 
     def on_validation_epoch_start(self) -> None:
         super().on_validation_epoch_start()
+        self.eval()
 
         # self.gt_volumes = {
         #     p: np.zeros((Z, self.K, X, Y), dtype=np.uint8)
@@ -135,11 +134,15 @@ class SegVolLightning(LightningModule):
         #     mask_label = gt[:, k]
 
         # return self.net(x)
+    
+    def on_train_epoch_start(self):
+        super().on_train_epoch_start()
+        self.train()
 
     def training_step(self, batch, batch_idx):
         img, gt = batch["image"], batch["label"]
 
-        compound_loss = 0
+        compound_loss = 0.
         for k in range(1, self.K):
             text_label = self.categories[k]
             mask_label = gt[:, k]

@@ -1,5 +1,7 @@
+import zipfile
 from torch.utils.data import Dataset
 import os
+import logging
 
 from typing import Any
 from collections import deque
@@ -83,10 +85,22 @@ class VolumetricDataset(Dataset):
         npy_path = os.path.join(self.path, self.data[idx], f"{self.data[idx]}.npy")
         if os.path.exists(npy_path):
             ct = np.load(npy_path)
-            gt = sp.load_npz(npy_path.replace(".npy", "_gt.npz"))
-            gt = gt.toarray().reshape((self.num_classes, *ct.shape[1:]))
-            ct, gt = torch.from_numpy(ct), torch.from_numpy(gt)
+            try:
+                gt = sp.load_npz(npy_path.replace(".npy", "_gt.npz"))
+                gt = gt.toarray().reshape((self.num_classes, *ct.shape[1:]))
+                ct, gt = torch.from_numpy(ct), torch.from_numpy(gt)
+            except zipfile.BadZipFile:
+                # Don't ask.
+                logging.error("Error happened. File is not a zip file. Reloading GT.")
+                ct_path = os.path.join(self.path, self.data[idx], f"{self.data[idx]}.nii.gz")
+                gt_path = os.path.join(self.path, self.data[idx], "GT.nii.gz")
 
+                ct, gt = self.processor.preprocess_ct_gt(ct_path, gt_path, self.num_classes)
+                # Ground truth is extra compressed to save space
+                np.save(npy_path, ct)
+                sp.save_npz(npy_path.replace(".npy", "_gt.npz"), sp.csr_array(gt.flatten()))
+
+    
         else:
             ct_path = os.path.join(
                 self.path, self.data[idx], f"{self.data[idx]}.nii.gz"
@@ -122,6 +136,8 @@ class VolumetricDataset(Dataset):
             for i, item in self.queue:
                 if i == idx:
                     return item
+                
+            # Otherwise find and append it to the list
             item = self._load_item(idx)  # (idx, data)
             self.queue.append(item)
             return item[1]

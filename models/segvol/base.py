@@ -94,7 +94,7 @@ class SegVolModel(PreTrainedModel):
                 modality=modality,
             )
         logits_global_single = F.interpolate(
-            logits_global_single.cpu(), size=volume_shape, mode="nearest"
+            logits_global_single.float(), size=volume_shape, mode="nearest"
         )
         if not use_zoom:
             return logits_global_single

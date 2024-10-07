@@ -332,8 +332,10 @@ def runTraining(args):
         accelerator="cpu" if args.cpu else "auto",
         max_epochs=args.epochs,
         precision=args.precision,
-        num_sanity_val_steps=0,  # Sanity check fails due to the 3D dice computation
+        num_sanity_val_steps=1,  # Sanity check fails due to the 3D dice computation
         logger=wandb_logger,
+        log_every_n_steps=5,
+        # limit_train_batches=2
     )
 
     trainer.fit(model)
