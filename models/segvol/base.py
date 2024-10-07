@@ -246,43 +246,80 @@ class SegVolProcessor:
             ]
         )
 
-    # ct_path is path for a ct scan file with nii.gz format
-    # gt_path is path for a ground truth file with nii.gz format
-    def preprocess_ct_gt(self, ct_path, gt_path, category):
-        item = {}
-        # generate ct_voxel_ndarray
-        ct_voxel_ndarray, _ = self.img_loader(ct_path)
-        ct_voxel_ndarray = np.array(ct_voxel_ndarray).squeeze()
-        ct_shape = ct_voxel_ndarray.shape
-        ct_voxel_ndarray = np.expand_dims(ct_voxel_ndarray, axis=0)
-        ct_voxel_ndarray = self.ForegroundNorm(ct_voxel_ndarray)
-        item["image"] = ct_voxel_ndarray
 
-        # generate gt_voxel_ndarray
-        gt_voxel_ndarray, _ = self.img_loader(gt_path)
-        gt_voxel_ndarray = np.array(gt_voxel_ndarray)
-        present_categories = np.unique(gt_voxel_ndarray)
-        gt_masks = []
-        for cls_idx in range(len(category)):
-            # ignore background
-            cls = cls_idx + 1
-            if cls not in present_categories:
-                gt_voxel_ndarray_category = np.zeros(ct_shape)
-                gt_masks.append(gt_voxel_ndarray_category)
-            else:
-                gt_voxel_ndarray_category = gt_voxel_ndarray.copy()
-                gt_voxel_ndarray_category[gt_voxel_ndarray != cls] = 0
-                gt_voxel_ndarray_category[gt_voxel_ndarray == cls] = 1
-                gt_masks.append(gt_voxel_ndarray_category)
-        gt_voxel_ndarray = np.stack(gt_masks, axis=0)
-        assert (
-            gt_voxel_ndarray.shape[0] == len(category)
-            and gt_voxel_ndarray.shape[1:] == ct_voxel_ndarray.shape[1:]
-        )
-        item["label"] = gt_voxel_ndarray.astype(np.int32)
+    def preprocess_ct_gt(self, ct_path, gt_path, K):
+        """
+        Preprocesses the CT and ground truth (GT) images for segmentation tasks.
 
-        # transform
-        return item["image"], item["label"]
+        Args:
+            ct_path (str): Path to the CT image file.
+            gt_path (str): Path to the ground truth image file.
+            K (int): Number of classes for one-hot encoding the ground truth.
+
+        Returns:
+            tuple: A tuple containing:
+                - torch.Tensor: Preprocessed CT image tensor with shape (D, H, W).
+                - torch.Tensor: One-hot encoded ground truth tensor with shape (D, K, H, W).
+
+        Notes:
+            - The CT image is loaded, squeezed, and permuted to shape (D, H, W).
+            - Foreground normalization is applied to the CT image by clipping it to the 0.0005 and 0.9995 quantiles and then standardizing it.
+            - The ground truth image is loaded, converted to long type, permuted, and one-hot encoded.
+        """
+        # Load and add batch dimension (1, D, H, W) NOTE: Monai loads a MetaTensor
+        ct = self.img_loader(ct_path).squeeze().permute(-1, 0, 1).unsqueeze(0)
+
+        # Foreground Normalization
+        voxel_filtered = ct[ct > ct.mean()]
+        upper_bound = np.quantile(voxel_filtered, 0.9995)
+        lower_bound = np.quantile(voxel_filtered, 0.0005)
+        mean = torch.mean(voxel_filtered)
+        std = torch.std(voxel_filtered)
+        ct = torch.clip(ct, lower_bound, upper_bound)
+        ct = (ct - mean) / max(std, 1e-8)
+
+        # generate gt
+        gt = self.img_loader(gt_path).long().permute(-1, 0, 1)
+        gt = torch.nn.functional.one_hot(gt, K).permute(-1, *range(len(gt.shape)))
+        return ct.as_tensor(), gt.as_tensor()
+
+    # # ct_path is path for a ct scan file with nii.gz format
+    # # gt_path is path for a ground truth file with nii.gz format
+    # def preprocess_ct_gt(self, ct_path, gt_path, category):
+    #     item = {}
+    #     # generate ct_voxel_ndarray
+    #     ct_voxel_ndarray, _ = self.img_loader(ct_path)
+    #     ct_voxel_ndarray = np.array(ct_voxel_ndarray).squeeze()
+    #     ct_shape = ct_voxel_ndarray.shape
+    #     ct_voxel_ndarray = np.expand_dims(ct_voxel_ndarray, axis=0)
+    #     ct_voxel_ndarray = self.ForegroundNorm(ct_voxel_ndarray)
+    #     item["image"] = ct_voxel_ndarray
+
+    #     # generate gt_voxel_ndarray
+    #     gt_voxel_ndarray, _ = self.img_loader(gt_path)
+    #     gt_voxel_ndarray = np.array(gt_voxel_ndarray)
+    #     present_categories = np.unique(gt_voxel_ndarray)
+    #     gt_masks = []
+    #     for cls_idx in range(len(category)):
+    #         # ignore background
+    #         cls = cls_idx + 1
+    #         if cls not in present_categories:
+    #             gt_voxel_ndarray_category = np.zeros(ct_shape)
+    #             gt_masks.append(gt_voxel_ndarray_category)
+    #         else:
+    #             gt_voxel_ndarray_category = gt_voxel_ndarray.copy()
+    #             gt_voxel_ndarray_category[gt_voxel_ndarray != cls] = 0
+    #             gt_voxel_ndarray_category[gt_voxel_ndarray == cls] = 1
+    #             gt_masks.append(gt_voxel_ndarray_category)
+    #     gt_voxel_ndarray = np.stack(gt_masks, axis=0)
+    #     assert (
+    #         gt_voxel_ndarray.shape[0] == len(category)
+    #         and gt_voxel_ndarray.shape[1:] == ct_voxel_ndarray.shape[1:]
+    #     )
+    #     item["label"] = gt_voxel_ndarray.astype(np.int32)
+
+    #     # transform
+    #     return item["image"], item["label"]
 
     def load_uniseg_case(self, ct_npy_path, gt_npy_path):
         img_array = np.load(ct_npy_path)
