@@ -35,9 +35,15 @@ class SegVolLightning(LightningModule):
         args.dest.mkdir(parents=True, exist_ok=True)
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(
-            filter(lambda x: x.requires_grad, self.model.parameters()), lr=self.args.lr
+        optimizer = torch.optim.AdamW(
+            filter(lambda x: x.requires_grad, self.parameters()),
+            lr=self.args.lr,
+            weight_decay=0.005,
         )
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, self.args.epochs
+        )
+        return {"optimizer": optimizer, "scheduler": scheduler}
 
     def on_train_start(self) -> None:
         super().on_train_start()
