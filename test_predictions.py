@@ -97,7 +97,7 @@ def run_inference_on_test(args):
                         patient_id_with_number = '_'.join(stem.split('_')[:2])  # 'Patient_41'
                         slice_idx = stem.split('_')[-1]  # Slice index
 
-                        img_filename = f"{patient_id_with_number}_slice_{slice_idx}.png"
+                        img_filename = f"{patient_id_with_number}_{slice_idx}.png"
 
                         # Get prediction
                         slice_pred = pred_seg[j].cpu().numpy()
@@ -105,37 +105,6 @@ def run_inference_on_test(args):
                         # Convert the prediction to an image and save
                         img = Image.fromarray((slice_pred * 63).astype(np.uint8))  
                         img.save(predictions_2d_dir / img_filename)  
-
-
-def load_2d_slices(predictions_2d_dir, patient_id):
-    """
-    Load 2D slices for a given patient and sort them by slice index.
-    """
-    slice_files = sorted(predictions_2d_dir.glob(f"{patient_id}_slice_*.png"),
-                         key=lambda x: int(x.stem.split('_')[-1]))  # Sort by slice index
-
-    slices = [np.array(Image.open(slice_file)) // 63 for slice_file in slice_files]  # Normalize back to original labels
-    return slices
-
-def run_3d_reconstruction(args):
-    predictions_2d_dir = args.dest / "predictions_2d"
-    predictions_3d_dir = args.dest / "predictions_3d_test"
-    predictions_3d_dir.mkdir(parents=True, exist_ok=True)
-
-    # Identify unique patient IDs based on the 2D prediction filenames
-    patient_ids = {file.stem.split('_slice_')[0] for file in predictions_2d_dir.glob("*.png")}
-
-    for patient_id in tqdm(patient_ids, desc="Reconstructing 3D volumes"):
-        # Load all 2D slices for this patient and stack them into a 3D array
-        slices = load_2d_slices(predictions_2d_dir, patient_id)
-        patient_3d = np.stack(slices, axis=0)  # Stack slices along the Z-axis
-
-        # Save the 3D prediction as .nii.gz
-        save_3d_predictions_as_nii(patient_3d, predictions_3d_dir / f"{patient_id}_prediction.nii.gz")
-        print(f"Saved 3D prediction for {patient_id}")
-
-    print("3D reconstruction completed.")
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -152,9 +121,6 @@ def main():
 
     # Run inference and save 2D predictions
     run_inference_on_test(args)
-
-    # Reconstruct 3D volumes from 2D predictions
-    run_3d_reconstruction(args)
 
 
 if __name__ == '__main__':
