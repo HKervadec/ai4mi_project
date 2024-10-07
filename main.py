@@ -49,7 +49,16 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import (CrossEntropy, JaccardLoss)
+from losses import (CrossEntropy, JaccardLoss, DiceLoss, LovaszSoftmaxLoss,CustomLoss)
+
+from utils import (Dcm,
+                   class2one_hot,
+                   probs2one_hot,
+                   probs2class,
+                   tqdm_,
+                   dice_coef,
+                   save_images)
+
 
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -136,6 +145,12 @@ def runTraining(args):
         loss_fn = CrossEntropy(idk=idk)
     elif args.loss == "jaccard":
         loss_fn = JaccardLoss(idk=idk)
+    elif args.loss == "dice":
+        loss_fn = DiceLoss(idk=idk)
+    elif args.loss == "lovasz":
+        loss_fn = LovaszSoftmaxLoss(idk=idk)
+    elif args.loss == "custom":
+        loss_fn = CustomLoss(idk=idk)
     else:
         raise ValueError(args.loss)
 
@@ -249,7 +264,7 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    parser.add_argument("--loss", type=str, choices=["ce","jaccard"],default='ce',
+    parser.add_argument("--loss", type=str, choices=["ce","jaccard","dice","lovasz","custom"],default='ce',
                         help="Loss function to be used.")
 
     args = parser.parse_args()
