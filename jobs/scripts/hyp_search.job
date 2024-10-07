@@ -1,0 +1,40 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=hyp_search
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=06:00:00
+#SBATCH --output=jobs/outputs/hyp_search%A.out
+
+module purge
+module load 2023
+source ai4mi/bin/activate
+
+cd $HOME/SegTHOR_ai4mi
+
+# Define the hyperparameters
+learning_rates=(0.0001 0.0005 0.001 0.005 0.01)
+optimizers=("adam" "sgd")
+
+# Loop over each combination of learning rate and optimizer
+for lr in "${learning_rates[@]}"; do
+  for opt in "${optimizers[@]}"; do
+    dest_dir="results/segthor/ce/opt_${opt}/lr_${lr}"
+
+    python -O main.py \
+      --dataset SEGTHORCORRECT \
+      --mode full \
+      --epochs 30 \
+      --dest $dest_dir \
+      --gpu \
+      --lr $lr \
+      --optimizer $opt \
+      --transformation preprocessed
+
+    python plot.py \
+      --metric_file $dest_dir/dice_val.npy \
+      --dest $dest_dir/dice_val.png
+  done
+done
