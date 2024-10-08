@@ -582,6 +582,10 @@ class SegVol(nn.Module):
         self.test_mode = test_mode
         self.dice_loss = BinaryDiceLoss()
         self.bce_loss = BCELoss()
+        # self.bce_loss = BCELoss()
+        print(">>Changed BCELoss to FocalLoss inside SegVol")
+        from monai.losses.focal_loss import FocalLoss
+        self.bce_loss = FocalLoss(include_background=False)
         self.decoder_iter = 6
 
     def forward(self, image, text=None, boxes=None, points=None, **kwargs):
@@ -695,7 +699,9 @@ class SegVol(nn.Module):
             sl_loss_bce = self.bce_loss.forward(
                 logits.squeeze().float(), train_labels.squeeze().float()
             )
+            # sl_loss_bce = self.bce_loss(logits.float(), train_labels.float())
             sl_loss += sl_loss_dice + sl_loss_bce
+        exit()
         return sl_loss
 
     # def unsupervised_forward(self, image, image_embedding, pseudo_seg_cleaned, img_shape):

@@ -21,6 +21,9 @@ class SegVolLightning(LightningModule):
         self.model = SegVolLoRA(config)
         self.categories = ["background", "esophagus", "heart", "trachea", "aorta"]
 
+        print(">>Changed BCELoss to FocalLoss")
+        from monai.losses.focal_loss import FocalLoss
+        self.model.model.bce_loss = FocalLoss(include_background=False)
         # if True: # meant to be a flag
         #     self.net = torch.compile(self.net)
 

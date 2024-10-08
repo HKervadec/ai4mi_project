@@ -108,12 +108,10 @@ class MyModel(LightningModule):
             filter(lambda x: x.requires_grad, self.net.parameters()), lr=self.args.lr
         )
 
-    def on_train_start(self) -> None:
-        super().on_train_start()
+    def on_fit_start(self) -> None:
+        super().on_fit_start()
 
-        self.log_loss_tra = torch.zeros(
-            (self.args.epochs, len(self.train_dataloader()))
-        )
+        self.log_loss_tra = torch.zeros((self.args.epochs, len(self.train_dataloader())))
         self.log_dice_tra = torch.zeros((self.args.epochs, len(self.train_set), self.K))
         self.log_loss_val = torch.zeros((self.args.epochs, len(self.val_dataloader())))
         self.log_dice_val = torch.zeros((self.args.epochs, len(self.val_set), self.K))
@@ -211,20 +209,21 @@ class MyModel(LightningModule):
 
     def training_step(self, batch, batch_idx):
         img, gt = batch["images"], batch["gts"]
+        B = img.size(0)
         pred_logits = self(img)
-        pred_probs = F.softmax(1 * pred_logits, dim=1)
+        pred_probs = F.softmax(self.args.temperature * pred_logits, dim=1)
         pred_seg = probs2one_hot(pred_probs)
         loss = self.loss_fn(pred_probs, gt)
         self.log_loss_tra[self.current_epoch, batch_idx] = loss.detach()
         self.log_dice_tra[
-            self.current_epoch, batch_idx : batch_idx + img.size(0), :
+            self.current_epoch, batch_idx * self.batch_size : batch_idx * self.batch_size + B, :
         ] = dice_coef(pred_seg, gt)
 
         self.log("train/loss", loss, on_step=True, prog_bar=True, logger=True)
         self.log_dict(
             {
                 f"train/dice/{k}": self.log_dice_tra[
-                    self.current_epoch, : batch_idx + img.size(0), k
+                    self.current_epoch, : batch_idx * self.batch_size + B, k
                 ].mean()
                 for k in range(1, self.K)
             },
@@ -236,13 +235,14 @@ class MyModel(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         img, gt = batch["images"], batch["gts"]
+        B = img.size(0)
         pred_logits = self(img)
         pred_probs = F.softmax(1 * pred_logits, dim=1)
         pred_seg = probs2one_hot(pred_probs)
         loss = self.loss_fn(pred_probs, gt)
         self.log_loss_val[self.current_epoch, batch_idx] = loss.detach()
         self.log_dice_val[
-            self.current_epoch, batch_idx : batch_idx + img.size(0), :
+            self.current_epoch, batch_idx * self.batch_size : batch_idx * self.batch_size + B, :
         ] = dice_coef(pred_seg, gt)
 
         self._prepare_3d_dice(batch["stems"], gt, pred_seg)
@@ -258,7 +258,8 @@ class MyModel(LightningModule):
             self.log_dice_val, self.K, self.current_epoch
         ).items():
             log_dict[f"val/dice/{k}"] = v
-        if self.args.dataset == "SEGTHOR":
+        if self.args.dataset == "SEGTHOR" and self.current_epoch != 0:
+            print(len(self.pred_volumes), self.current_epoch)
             for i, (patient_id, pred_vol) in tqdm_(
                 enumerate(self.pred_volumes.items()), total=len(self.pred_volumes)
             ):
@@ -306,8 +307,8 @@ class MyModel(LightningModule):
     def save_model(self):
         torch.save(self.net, self.args.dest / "bestmodel.pkl")
         torch.save(self.net.state_dict(), self.args.dest / "bestweights.pt")
-        if self.args.wandb_project_name:
-            self.logger.save(str(self.args.dest / "bestweights.pt"))
+        # if self.args.wandb_project_name:
+        #     self.logger.save(str(self.args.dest / "bestweights.pt"))
 
 
 def runTraining(args):
@@ -347,8 +348,8 @@ def get_args():
     parser.add_argument(
         "--model_name",
         type=str.lower,
-        default="shallowCNN",
-        choices=["shallowCNN", "ENet", "UDBRNet", "segvol"],
+        default="shallowcnn",
+        choices=["shallowcnn", "enet", "udbrnet", "segvol"],
         help="Model to use for training",
     )
     parser.add_argument(
