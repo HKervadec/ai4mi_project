@@ -199,7 +199,7 @@ def runTraining(args):
                         loss.backward()
                         opt.step()
 
-                    if m == 'val':
+                    if m == 'val' and not args.dry_run:
                         with warnings.catch_warnings():
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
@@ -229,10 +229,11 @@ def runTraining(args):
             with open(args.dest / "best_epoch.txt", 'w') as f:
                     f.write(str(e))
 
-            best_folder = args.dest / "best_epoch"
-            if best_folder.exists():
-                    rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
+            if not args.dry_run:
+                best_folder = args.dest / "best_epoch"
+                if best_folder.exists():
+                        rmtree(best_folder)
+                copytree(args.dest / f"iter{e:03d}", Path(best_folder))
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
@@ -269,6 +270,7 @@ def main():
 
     # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
+    parser.add_argument('--dry_run', action='store_true', help="Disable saving the image validation results on every epoch")
 
     # Arguments for more flexibility of the run
     parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")

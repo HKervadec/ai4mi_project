@@ -190,7 +190,9 @@ def prepare_wandb_login():
 
 # K - num of classes, e - epoch num
 # Loss and every metric are an array of [train_result, valid_result]
-def save_loss_and_metrics(K: int, e: int, dest: Path, loss: [Tensor, Tensor], dice: [Tensor, Tensor]) -> dict:
+def save_loss_and_metrics(K: int, e: int, dest: Path,
+                          loss: [Tensor, Tensor],
+                          dice: [Tensor, Tensor]) -> dict:
     # Save and log metrics and losses
     # I save it at each epochs, in case the code crashes or I decide to stop it early
     np.save(dest / "loss_tra.npy", loss[0])
