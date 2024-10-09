@@ -583,9 +583,9 @@ class SegVol(nn.Module):
         self.dice_loss = BinaryDiceLoss()
         self.bce_loss = BCELoss()
         # self.bce_loss = BCELoss()
-        print(">>Changed BCELoss to FocalLoss inside SegVol")
-        from monai.losses.focal_loss import FocalLoss
-        self.bce_loss = FocalLoss(include_background=False)
+        # print(">>Changed BCELoss to FocalLoss inside SegVol")
+        # from monai.losses.focal_loss import FocalLoss
+        # self.bce_loss = FocalLoss(include_background=False)
         self.decoder_iter = 6
 
     def forward(self, image, text=None, boxes=None, points=None, **kwargs):

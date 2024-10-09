@@ -21,9 +21,10 @@ class SegVolLightning(LightningModule):
         self.model = SegVolLoRA(config)
         self.categories = ["background", "esophagus", "heart", "trachea", "aorta"]
 
-        print(">>Changed BCELoss to FocalLoss")
-        from monai.losses.focal_loss import FocalLoss
-        self.model.model.bce_loss = FocalLoss(include_background=False)
+        if args.loss == "dicefocal":
+            print(">>Changed BCELoss to FocalLoss")
+            from monai.losses.focal_loss import FocalLoss
+            self.model.model.bce_loss = FocalLoss(include_background=False)
         # if True: # meant to be a flag
         #     self.net = torch.compile(self.net)
 
@@ -161,7 +162,7 @@ class SegVolLightning(LightningModule):
         #     self.current_epoch, batch_idx : batch_idx + img.size(0), :
         # ] = dice_coef(pred_seg, gt)
 
-        self.log("train/loss", loss, on_step=True, prog_bar=True, logger=True)
+        self.log("train/loss", loss, prog_bar=True, logger=True)
         return compound_loss
 
     def validation_step(self, batch, batch_idx):
@@ -191,7 +192,7 @@ class SegVolLightning(LightningModule):
                 logits_mask[0][0], gt[0, k], self.device
             )
 
-        self.log_dict(dice, logger=True, prog_bar=True, on_step=True)
+        self.log_dict(dice, logger=True, prog_bar=True, on_epoch=True)
         # self._prepare_3d_dice(batch["stems"], gt, pred_seg)
 
     def on_validation_epoch_end(self):
@@ -253,5 +254,5 @@ class SegVolLightning(LightningModule):
     def save_model(self):
         torch.save(self.model, self.args.dest / "bestmodel.pkl")
         torch.save(self.model.state_dict(), self.args.dest / "bestweights.pt")
-        if self.args.wandb_project_name:
-            self.logger.save(str(self.args.dest / "bestweights.pt"))
+        # if self.args.wandb_project_name:
+        #     self.logger.save(str(self.args.dest / "bestweights.pt"))
