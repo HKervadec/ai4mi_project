@@ -49,7 +49,11 @@ from utils import (Dcm,
                    dice_coef,
                    jaccard_coef,
                    average_hausdorff_distance,
+                   average_hausdorff_distance_per_class,
                    average_symmetric_surface_distance,
+                   precision,
+                   recall,
+                   visualize_sample,
                    save_images)
 
 from losses import (CrossEntropy)
@@ -137,26 +141,6 @@ def skip_empty_masks(gt: Tensor, pred_seg: Tensor) -> bool:
     """
     return gt.sum().item() == 0 and pred_seg.sum().item() == 0
 
-def visualize_gt_and_pred(image, gt, pred, epoch, batch_idx):
-    """
-    Plotting for SEGTHOR dataset inspection 
-    """
-    plt.figure(figsize=(15, 5))
-    plt.subplot(1, 3, 1)
-    plt.imshow(image.cpu().numpy()[0], cmap='gray')
-    plt.title(f"Original Image (Epoch {epoch}, Batch {batch_idx})")
-    
-    plt.subplot(1, 3, 2)
-    plt.imshow(gt.cpu().numpy()[0], cmap='gray')
-    plt.title(f"Ground Truth (Epoch {epoch}, Batch {batch_idx})")
-    
-    plt.subplot(1, 3, 3)
-    plt.imshow(pred.cpu().numpy()[0], cmap='gray')
-    plt.title(f"Prediction (Epoch {epoch}, Batch {batch_idx})")
-    
-    plt.savefig(f"results/segthor/ce/visualization_epoch_{epoch}_batch_{batch_idx}.png")
-    plt.close()
-
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
@@ -180,6 +164,11 @@ def runTraining(args):
     log_ahd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
     log_assd_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset)))
     log_assd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset)))
+    log_precision_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_precision_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_recall_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_recall_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
+
     best_dice: float = 0
 
     for e in range(args.epochs):
@@ -196,6 +185,8 @@ def runTraining(args):
                     log_ahd = log_ahd_tra
                     log_jacc = log_jacc_tra
                     log_assd = log_assd_tra
+                    log_precision = log_precision_tra
+                    log_recall = log_recall_tra
 
                 case 'val':
                     net.eval()
@@ -208,6 +199,8 @@ def runTraining(args):
                     log_ahd = log_ahd_val
                     log_jacc = log_jacc_val
                     log_assd = log_assd_val
+                    log_precision = log_precision_val
+                    log_recall = log_recall_val
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -231,26 +224,34 @@ def runTraining(args):
                     log_dice[e, j:j + B, :] = dice_coef(gt, pred_seg)  # One DSC value per sample and per class
                     log_jacc[e, j:j + B, :] = jaccard_coef(gt, pred_seg)
 
+                    # log_precision[e, j:j + B, :] = precision(gt, pred_seg)  # Batch-wise precision
+                    # log_recall[e, j:j + B, :] = recall(gt, pred_seg)        # Batch-wise recall
 
                     pred_seg = pred_seg.to(device)
                     gt = gt.to(device)
 
                     for batch_idx in range(B):
-                        # print(f"Checking batch {batch_idx}...")
-                        # print(f"Ground Truth sum: {gt[batch_idx].sum().item()}")
-                        # print(f"Predicted Segmentation sum: {pred_seg[batch_idx].sum().item()}")
-                        # print(f"Ground Truth: {gt[batch_idx].unique()}") #Debugging
-                        # print(f"Predicted Seg: {pred_seg[batch_idx].unique()}")
+                        # SanityCheck: Debugging statements
+                        # if e == 0 and batch_idx < 3:  #Visualizing for the first 3 batches of  first epoch
+                        #     visualize_sample(gt[batch_idx], pred_seg[batch_idx], e, batch_idx)
+                        # print(f"Shape of gt[{batch_idx}]: {gt[batch_idx].shape}")
+                        # print(f"Shape of pred_seg[{batch_idx}]: {pred_seg[batch_idx].shape}")
 
-                        # if e == 0 and batch_idx < 5:  #Sanity check: visualizing for the first 5 batches in the first epoch 
-                        #     visualize_gt_and_pred(img[batch_idx], gt[batch_idx], pred_seg[batch_idx], e, batch_idx)
-                        #TODO is this neccesary?    
-                        #if skip_empty_masks(gt[batch_idx], pred_seg[batch_idx]):
-                        #    print(f"Skipping empty mask at batch {batch_idx}")
-                        #    continue #Skipping AHD calculation if both masks are empty
+                        assert gt[batch_idx].shape == pred_seg[batch_idx].shape, "Shape mismatch between GT and prediction" # Check that the shapes are identical
 
-                        ahd_value = average_hausdorff_distance(gt[batch_idx], pred_seg[batch_idx])
-                        log_ahd[e, j + batch_idx, :] = ahd_value
+                        #Per Batch for each class Prec & Recall Calculation
+                        log_precision[e, j + batch_idx, :] = precision(gt[batch_idx], pred_seg[batch_idx])
+                        log_recall[e, j + batch_idx, :] = recall(gt[batch_idx], pred_seg[batch_idx])
+
+                        # Computing AHD per class for each batch
+                        ahd_values_per_class = average_hausdorff_distance_per_class(gt[batch_idx], pred_seg[batch_idx], K)
+                        for k in range(K): 
+                            if ahd_values_per_class[k] != float('inf'):  # Skipping 'inf' values
+                                log_ahd[e, j + batch_idx, k] = ahd_values_per_class[k]
+
+
+                        # ahd_value = average_hausdorff_distance(gt[batch_idx], pred_seg[batch_idx]) #Old AHD metric
+                        # log_ahd[e, j + batch_idx, :] = ahd_value
 
                         assd_value = average_symmetric_surface_distance(gt[batch_idx], pred_seg[batch_idx])
                         log_assd[e, j + batch_idx] = assd_value
@@ -278,6 +279,8 @@ def runTraining(args):
                     postfix_dict["AHD"] = f"{log_ahd[e, :j, 1:].mean():05.3f}"
                     postfix_dict["ASSD"] = f"{log_assd[e, :j].mean():05.3f}"
                     postfix_dict["Jaccard"] = f"{log_jacc[e, :j, 1:].mean():05.3f}"
+                    postfix_dict["Precision"] = f"{log_precision[e, :j, 1:].mean():05.3f}"
+                    postfix_dict["Recall"] = f"{log_recall[e, :j, 1:].mean():05.3f}"
 
                     if K > 2:
                         postfix_dict |= {f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
@@ -286,11 +289,18 @@ def runTraining(args):
                                          for k in range(1, K)}
                         postfix_dict |= {f"AHD-{k}": f"{log_ahd[e, :j, k].mean():05.3f}"
                                          for k in range(1, K)}
+                        postfix_dict |= {f"Precision-{k}": f"{log_precision[e, :j, k].mean():05.3f}" 
+                                        for k in range(1, K)}
+                        postfix_dict |= {f"Recall-{k}": f"{log_recall[e, :j, k].mean():05.3f}" 
+                                        for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
+                #Adding these printed Metrics when Job is running as sanity check
                 print(f"Epoch {e} - {m} AHD: {log_ahd[e, :j, 1:].mean().item():05.3f}")
                 print(f"Epoch {e} - {m} Jaccard: {log_jacc[e, :j, 1:].mean().item():.5f}")
                 print(f"Epoch {e} - {m} ASSD: {log_assd[e, :j].mean().item():.5f}")
+                print(f"Epoch {e} - {m} Precision: {log_precision[e, :j, 1:].mean().item():.5f}")
+                print(f"Epoch {e} - {m} Recall: {log_recall[e, :j, 1:].mean().item():.5f}")
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -303,6 +313,10 @@ def runTraining(args):
         np.save(args.dest / "jaccards_val.npy",log_jacc_val)
         np.save(args.dest / "assd_tra.npy", log_assd_tra)
         np.save(args.dest / "assd_val.npy", log_assd_val)
+        np.save(args.dest / "precision_tra.npy", log_precision_tra)
+        np.save(args.dest / "precision_val.npy", log_precision_val)
+        np.save(args.dest / "recall_tra.npy", log_recall_tra)
+        np.save(args.dest / "recall_val.npy", log_recall_val)
 
 
 

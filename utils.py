@@ -30,11 +30,13 @@ from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
 from scipy.spatial.distance import directed_hausdorff 
 from skimage.segmentation import find_boundaries
+
 
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
@@ -95,6 +97,8 @@ def class2one_hot(seg: Tensor, K: int) -> Tensor:
     assert sset(seg, list(range(K))), (uniq(seg), K)
 
     b, *img_shape = seg.shape
+
+    seg = seg.to(torch.int64)  #casting the seg tensor to torch.int64 when encoding the gt for metrics
 
     device = seg.device
     res = torch.zeros((b, K, *img_shape), dtype=torch.int32, device=device).scatter_(1, seg[:, None, ...], 1)
@@ -201,6 +205,7 @@ def boundary_points(seg: Tensor) -> np.ndarray:
 def average_hausdorff_distance(label: Tensor, pred: Tensor) -> float:
     """
     Computes the Average Hausdorff Distance between the boundary points of label and pred.
+    Note: Averaged Version!
     """
     assert label.shape == pred.shape
     assert sset(label, [0, 1])
@@ -246,6 +251,41 @@ def average_hausdorff_distance(label: Tensor, pred: Tensor) -> float:
 
     return ahd
 
+def average_hausdorff_distance_per_class(label: Tensor, pred: Tensor, K: int) -> List[float]:
+    """
+    Computes the Average Hausdorff Distance (AHD) for each class separately.
+    The AHD for each class is calculated based on the one-hot encoded ground truth and predicted masks.
+    """
+    assert label.shape == pred.shape
+    assert label.shape[0] == K  
+    
+    ahd_per_class = []
+    
+    for k in range(K):
+        # Extract the boundary points for each class (k)
+        label_boundary = boundary_points(label[k])
+        pred_boundary = boundary_points(pred[k])
+        
+        if len(label_boundary) == 0 or len(pred_boundary) == 0:
+            # If either the ground truth or predicted boundary is empty, skip this class
+            ahd_per_class.append(float('inf'))
+            continue
+        
+        # Compute directed Hausdorff distance in both directions and average them
+        forward_hausdorff = directed_hausdorff(label_boundary, pred_boundary)[0]
+        backward_hausdorff = directed_hausdorff(pred_boundary, label_boundary)[0]
+        
+        if forward_hausdorff > 1000:
+            ahd = backward_hausdorff if backward_hausdorff <= 1000 else 1000
+        elif backward_hausdorff > 1000:
+            ahd = forward_hausdorff
+        else:
+            ahd = (forward_hausdorff + backward_hausdorff) / 2
+        
+        ahd_per_class.append(ahd)
+    
+    return ahd_per_class
+
 def average_symmetric_surface_distance(label: Tensor, pred: Tensor) -> float:
     assert label.shape == pred.shape
     assert sset(label, [0, 1])
@@ -268,6 +308,40 @@ def average_symmetric_surface_distance(label: Tensor, pred: Tensor) -> float:
     return assd
 
 
+def precision(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+    """
+    Precision as TP / (TP + FP).
+    """
+    assert label.shape == pred.shape
+    # assert one_hot(label)
+    # assert one_hot(pred)
+    
+    # True positives (TP)
+    intersect = torch.sum(pred * label).type(torch.float32)
+    
+    # Predicted positives (TP + FP)
+    total_pixel_pred = torch.sum(pred).type(torch.float32)
+    
+    precision = (intersect + smooth) / (total_pixel_pred + smooth)
+    return precision
+
+
+def recall(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+    """
+    Recall = TP / (TP + FN)
+    """
+    assert label.shape == pred.shape
+    # assert one_hot(label)
+    # assert one_hot(pred)
+    
+     # True positives (TP)
+    intersect = torch.sum(pred * label).type(torch.float32)
+    
+    # Actual positives (TP + FN)
+    total_pixel_truth = torch.sum(label).type(torch.float32)
+    
+    recall = (intersect + smooth) / (total_pixel_truth + smooth)
+    return recall
 
 
 def intersection(a: Tensor, b: Tensor) -> Tensor:
@@ -290,3 +364,30 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+def visualize_sample(gt: Tensor, pred: Tensor, epoch: int, batch_idx: int):
+    """
+    Visualize a sample of the ground truth and predicted masks.
+    """
+
+    # Summing along the channel axis to combine all classes into a single mask
+    gt_combined = torch.argmax(gt, dim=0).cpu().numpy()  # Combine classes in ground truth
+    pred_combined = torch.argmax(pred, dim=0).cpu().numpy()  # Combine classes in prediction
+
+    plt.figure(figsize=(12, 6))
+
+    # Plot Ground Truth
+    plt.subplot(1, 2, 1)
+    plt.imshow(gt_combined, cmap='gray')
+    plt.title(f"Ground Truth (Epoch {epoch}, Batch {batch_idx})")
+
+    # Plot Prediction
+    plt.subplot(1, 2, 2)
+    plt.imshow(pred_combined, cmap='gray')
+    plt.title(f"Predicted Mask (Epoch {epoch}, Batch {batch_idx})")
+
+
+    # Save the visualization to file
+    save_path = Path("results/segthor/ce")  / f"epoch_{epoch}_batch_{batch_idx}.png"
+    plt.savefig(save_path)
+    plt.close()  # Close the figure to avoid memory issues
