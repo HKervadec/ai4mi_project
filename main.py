@@ -79,7 +79,7 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
     # lr = 0.0005 # Initial LR for ENet
     lr = args.lr
     optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.lr_scheduler_T0, T_mult=args.lr_scheduler_Tmult, eta_min=1e-7)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.lr_scheduler_T0, T_mult=args.lr_scheduler_Tmult)
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -222,7 +222,7 @@ def runTraining(args):
         before_lr = optimizer.param_groups[0]['lr']
         scheduler.step()
         after_lr = optimizer.param_groups[0]['lr']
-        print("Epoch %d: AdamW lr %.4f -> %.4f" % (e, before_lr, after_lr))
+        print("Epoch %d: AdamW lr %.3E -> %.3E" % (e, before_lr, after_lr))
 
         metrics = utils.save_loss_and_metrics(K, e, args.dest,
                                               loss=[log_loss_tra, log_loss_val],
@@ -294,7 +294,7 @@ def main():
     parser.add_argument('--unfreeze_enc_last_n_layers', type=int, default=0, help="Train the last n layers of the encoder")
 
     args = parser.parse_args()
-    run_name = utils.get_run_name(args)
+    run_name = utils.get_run_name(args, parser)
     args.dest = args.dest / run_name
 
     # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork

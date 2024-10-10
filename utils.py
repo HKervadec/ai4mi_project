@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 from argparse import Namespace
 # MIT License
 
@@ -211,16 +212,18 @@ def save_loss_and_metrics(K: int, e: int, dest: Path,
     return metrics
 
 
-def get_run_name(args: Namespace) -> str:
+def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
     prefix = args.run_prefix + '_' if args.run_prefix else ''
-    lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != 0.0005 else ''
-    lr = lr + f'LR-T0({args.lr_scheduler_T0})Tmult({args.lr_scheduler_Tmult})'
-    dropout = f'dropout({args.dropoutRate})' if args.dropoutRate != 0.2 else ''
+    lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != parser.get_default('lr') else ''
+    if (args.lr_scheduler_T0 != parser.get_default('lr_scheduler_T0')
+            or args.lr_scheduler_Tmult != parser.get_default('lr_scheduler_Tmult')):
+        lr += f'LR-T0({args.lr_scheduler_T0})Tmult({args.lr_scheduler_Tmult})'
+    dropout = f'dropout({args.dropoutRate})' if args.dropoutRate != parser.get_default('dropoutRate') else ''
     encoder_name = ''
-    unfreeze_num_layers = ''
     if args.model != 'ENet':
         encoder_name = f'_{args.encoder_name}'
-        unfreeze_num_layers = f'(unfreeze-{args.unfreeze_enc_last_n_layers})' if args.unfreeze_enc_last_n_layers != 0 else ''
-    run_name = f'{prefix}{dropout}{lr}{args.loss}_{args.model}{encoder_name}{unfreeze_num_layers}'
+        if args.unfreeze_enc_last_n_layers != parser.get_default('unfreeze_enc_last_n_layers'):
+            encoder_name += f'(unfreeze-{args.unfreeze_enc_last_n_layers})'
+    run_name = f'{prefix}{dropout}{lr}{args.loss}_{args.model}{encoder_name}'
     run_name = 'DEBUG_' + run_name if args.debug else run_name
     return run_name
