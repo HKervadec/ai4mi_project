@@ -40,7 +40,7 @@ from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from models import UNet
+from models import *
 import utils
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
@@ -268,11 +268,11 @@ def main():
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
 
+    parser.add_argument('--dropoutRate', type=float, default=0.2, help="Dropout rate for the ENet model")
     parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
     parser.add_argument('--lr_scheduler_T0', type=int, default=10, help="T0 for the LR scheduler")
     parser.add_argument('--lr_scheduler_Tmult', type=int, default=2, help="Tmult for the LR scheduler")
 
-    parser.add_argument('--dropoutRate', type=float, default=0.2, help="Dropout rate for the ENet model")
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
     parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
     parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
@@ -285,13 +285,13 @@ def main():
     # Arguments for more flexibility of the run
     parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
     parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'Dice', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
-    parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN', 'UNet'])
+    parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN', 'UNet', 'UNetPlusPlus', 'DeepLabV3Plus'])
     parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
     parser.add_argument('--run_group', type=str, default=None, help='Your name so that the run can be grouped by it')
 
     # Arguments for running with different backbones
     parser.add_argument('--encoder_name', type=str, default='resnet18', choices=['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'])
-    parser.add_argument('--unfreeze_enc_last_n_layers', type=int, default=0, help="Train the last n layers of the encoder")
+    parser.add_argument('--unfreeze_enc_last_n_layers', type=int, default=1, help="Train the last n layers of the encoder")
 
     args = parser.parse_args()
     run_name = utils.get_run_name(args, parser)
