@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+from argparse import Namespace
 # MIT License
 
 # Copyright (c) 2024 Hoel Kervadec
@@ -209,3 +209,18 @@ def save_loss_and_metrics(K: int, e: int, dest: Path,
         metrics[f"train/dice-{k}"] = dice[0][e, :, k].mean().item()
         metrics[f"valid/dice-{k}"] = dice[1][e, :, k].mean().item()
     return metrics
+
+
+def get_run_name(args: Namespace) -> str:
+    prefix = args.run_prefix + '_' if args.run_prefix else ''
+    lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != 0.0005 else ''
+    lr = lr + f'LR-T0({args.lr_scheduler_T0})Tmult({args.lr_scheduler_Tmult})'
+    dropout = f'dropout({args.dropoutRate})' if args.dropoutRate != 0.2 else ''
+    encoder_name = ''
+    unfreeze_num_layers = ''
+    if args.model != 'ENet':
+        encoder_name = f'_{args.encoder_name}'
+        unfreeze_num_layers = f'(unfreeze-{args.unfreeze_enc_last_n_layers})' if args.unfreeze_enc_last_n_layers != 0 else ''
+    run_name = f'{prefix}{dropout}{lr}{args.loss}_{args.model}{encoder_name}{unfreeze_num_layers}'
+    run_name = 'DEBUG_' + run_name if args.debug else run_name
+    return run_name

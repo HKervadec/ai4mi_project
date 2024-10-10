@@ -294,11 +294,7 @@ def main():
     parser.add_argument('--unfreeze_enc_last_n_layers', type=int, default=0, help="Train the last n layers of the encoder")
 
     args = parser.parse_args()
-    prefix = args.run_prefix + '_' if args.run_prefix else ''
-    lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != 0.0005 else ''
-    unfreeze_num_layers = f'(unfreeze-{args.unfreeze_enc_last_n_layers})' if args.unfreeze_enc_last_n_layers != 0 else ''
-    run_name = f'{prefix}{lr}{args.loss}_{args.model}_{args.encoder_name}{unfreeze_num_layers}'
-    run_name = 'DEBUG_' + run_name if args.debug else run_name
+    run_name = utils.get_run_name(args)
     args.dest = args.dest / run_name
 
     # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork
