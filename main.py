@@ -65,7 +65,7 @@ datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
-def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
@@ -78,7 +78,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     # lr = 0.0005 # Initial LR for ENet
     lr = args.lr
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.lr_scheduler_T0, T_mult=args.lr_scheduler_Tmult, eta_min=1e-7)
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -131,14 +132,14 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    return net, optimizer, scheduler, device, train_loader, val_loader, K
 
 
 def runTraining(args):
 
     start = time.time()
     print(f">>> Setting up to train on {args.dataset} with {args.model}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    net, optimizer, scheduler, device, train_loader, val_loader, K = setup(args)
 
     loss_fn = create_loss_fn(args, K)
 
@@ -217,6 +218,12 @@ def runTraining(args):
                                          for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
+        # Apply LR scheduler
+        before_lr = optimizer.param_groups[0]['lr']
+        scheduler.step()
+        after_lr = optimizer.param_groups[0]['lr']
+        print("Epoch %d: AdamW lr %.4f -> %.4f" % (e, before_lr, after_lr))
+
         metrics = utils.save_loss_and_metrics(K, e, args.dest,
                                               loss=[log_loss_tra, log_loss_val],
                                               dice=[log_dice_tra, log_dice_val])
@@ -262,6 +269,10 @@ def main():
                              "to test the logic around epochs and logging easily.")
 
     parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
+    parser.add_argument('--lr_scheduler_T0', type=int, default=10, help="T0 for the LR scheduler")
+    parser.add_argument('--lr_scheduler_Tmult', type=int, default=2, help="Tmult for the LR scheduler")
+
+
     parser.add_argument('--dropoutRate', type=float, default=0.1, help="Dropout rate for the ENet model")
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
     parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
