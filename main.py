@@ -272,8 +272,7 @@ def main():
     parser.add_argument('--lr_scheduler_T0', type=int, default=10, help="T0 for the LR scheduler")
     parser.add_argument('--lr_scheduler_Tmult', type=int, default=2, help="Tmult for the LR scheduler")
 
-
-    parser.add_argument('--dropoutRate', type=float, default=0.1, help="Dropout rate for the ENet model")
+    parser.add_argument('--dropoutRate', type=float, default=0.2, help="Dropout rate for the ENet model")
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
     parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
     parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
