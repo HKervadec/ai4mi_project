@@ -232,6 +232,8 @@ def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
 
 
 def seed_everything(args) -> None:
+    import os
+
     seed = args.seed
     print(f"> Using seed: {seed}")
     # Seed python
@@ -245,6 +247,8 @@ def seed_everything(args) -> None:
     if args.gpu:
         torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
+    # For the cuBLAS API of the CUDA implementation
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 
 def seed_worker(worker_id):
