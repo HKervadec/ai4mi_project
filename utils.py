@@ -29,6 +29,7 @@ from multiprocessing import Pool
 from contextlib import AbstractContextManager
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
+import random
 import torch
 import numpy as np
 from PIL import Image
@@ -228,3 +229,25 @@ def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
     run_name = f'{prefix}{dropout}{lr}{args.loss}_{args.model}{encoder_name}'
     run_name = 'DEBUG_' + run_name if args.debug else run_name
     return run_name
+
+
+def seed_everything(args) -> None:
+    seed = args.seed
+    print(f"> Using seed: {seed}")
+    # Seed python
+    random.seed(seed)
+    # Seed numpy
+    np.random.seed(seed)
+    # Seed torch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # There are some operations which do not have deterministic equivalent on CPU (like max_unpool2d)
+    if args.gpu:
+        torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)

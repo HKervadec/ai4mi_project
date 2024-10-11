@@ -118,7 +118,8 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, Any, DataLoader, Data
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=args.num_workers,
-                              shuffle=True)
+                              shuffle=True,
+                              worker_init_fn=utils.seed_worker)
 
     val_set = SliceDataset('val',
                            root_dir,
@@ -139,6 +140,7 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, Any, DataLoader, Data
 
 def runTraining(args):
 
+    utils.seed_everything(args)
     start = time.time()
     print(f">>> Setting up to train on {args.dataset} with {args.model}")
     # net, optimizer, scheduler, device, train_loader, val_loader, K = setup(args)
@@ -261,9 +263,9 @@ def main():
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--dataset', default='SEGTHOR', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
-    parser.add_argument('--args', default='')
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
+    parser.add_argument('--seed', default=42, type=int, help='Random seed to use for reproducibility of the experiments')
 
     parser.add_argument('--num_workers', type=int, default=5)
     parser.add_argument('--gpu', action='store_true')
