@@ -230,8 +230,8 @@ def runTraining(args):
                     # IoU (Jaccard Index)
                     log_iou[e, j:j + B, :] = iou_coef(pred_seg, gt)
 
-                    # Hausdorff Distance
-                    log_hausdorff[e, j:j + B, :] = hausdorff_coef(pred_seg, gt).transpose(0, 1)
+                    # # Hausdorff Distance
+                    # log_hausdorff[e, j:j + B, :] = hausdorff_coef(pred_seg, gt).transpose(0, 1)
 
                     # ASSD (Average Symmetric Surface Distance)
                     log_assd[e, j:j + B, :] = assd_coef(pred_seg, gt).transpose(0, 1)
