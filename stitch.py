@@ -34,6 +34,7 @@ from skimage.io import imread
 from skimage.transform import resize
 
 from utils import map_, tqdm_
+from postprocessing import morphological_postprocessing, keep_largest_components, smooth_labels
 
 
 def get_z(image: Path) -> int:
@@ -41,7 +42,7 @@ def get_z(image: Path) -> int:
 
 
 def merge_patient(id_: str, dest_folder: str, images: list[Path],
-                  idxes: list[int], K: int, source_pattern: str) -> None:
+                  idxes: list[int], K: int, source_pattern: str, post_processing: bool) -> None:
     # print(source_pattern.format(id_=id_))
     orig_nib = nib.load(source_pattern.format(id_=id_))
     orig_shape = np.asarray(orig_nib.dataobj).shape
@@ -71,8 +72,17 @@ def merge_patient(id_: str, dest_folder: str, images: list[Path],
     assert set(np.unique(res_arr)) <= set(range(K))
     assert orig_shape == res_arr.shape, (orig_shape, res_arr.shape)
 
+    if post_processing:
+        res_arr = morphological_postprocessing(res_arr, operation="dilation", structure_size=5)
+        res_arr = keep_largest_components(res_arr)
+        res_arr = smooth_labels(res_arr, sigma=2)
+
     new_nib = nib.nifti1.Nifti1Image(res_arr, affine=orig_nib.affine, header=orig_nib.header)
+
+
     nib.save(new_nib, (Path(dest_folder) / id_).with_suffix(".nii.gz"))
+
+
 
 
 def main(args) -> None:
@@ -101,7 +111,7 @@ def main(args) -> None:
     args.dest_folder.mkdir(parents=True, exist_ok=True)
 
     for p in tqdm_(unique_patients):
-        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes, args.source_scan_pattern)
+        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes, args.source_scan_pattern, post_processing=True)
     # mmap_(lambda p: merge_patient(p, args.dest_folder, images, idx_map[p], K=args.num_classes), patients)
 
 
