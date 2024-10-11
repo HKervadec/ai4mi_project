@@ -24,34 +24,36 @@
 
 import argparse
 import warnings
-from typing import Any
-from pathlib import Path
-from pprint import pprint
+from datetime import datetime
 from operator import itemgetter
+from pathlib import Path
+from plot import run as plot
+from pprint import pprint
 from shutil import copytree, rmtree
+from typing import Any
 
-import torch
 import numpy as np
+import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision import transforms
-from torch.utils.data import DataLoader
 from torchvision.transforms import InterpolationMode
 
 from dataset import SliceDataset, SliceDatasetWithTransforms
-from ShallowNet import shallowCNN
-from ENet import ENet
 from DeepLabV3 import DeepLabV3
-from utils import (Dcm,
-                   class2one_hot,
-                   probs2one_hot,
-                   probs2class,
-                   tqdm_,
-                   dice_coef,
-                   save_images)
-
-from losses import (CrossEntropy)
-from torch.utils.data import WeightedRandomSampler
+from ENet import ENet
+from ShallowNet import shallowCNN
+from losses import CrossEntropy
+from utils import (
+    Dcm,
+    class2one_hot,
+    dice_coef,
+    probs2class,
+    probs2one_hot,
+    save_images,
+    tqdm_
+)
 
 def compute_class_weights(train_set, K):
     """
@@ -331,12 +333,19 @@ def main():
 
     parser.add_argument('--class_aware_sampling', action='store_true', default=False,
                         help="If set, samples batches so that every batch has a balanced representation of all classes.")
+    parser.add_argument('--plot_results', action='store_true', default=False)
 
     args = parser.parse_args()
+
+    args.dest = Path(args.dest) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     pprint(args)
 
     runTraining(args)
+    
+    if args.plot_results:
+        plot_args = argparse.Namespace(metric_file=args.dest / "dice_val.npy", dest=args.dest / "dice_val.png")
+        plot(plot_args)
 
 
 if __name__ == '__main__':

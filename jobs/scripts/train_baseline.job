@@ -16,11 +16,8 @@ cd $HOME/SegTHOR_ai4mi
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
-    --epochs 30 \
+    --epochs 50 \
     --dest results/segthor/ce/baseline \
     --gpu \
-    --transformation preprocessed
-
-python plot.py \
-    --metric_file results/segthor/ce/baseline/dice_val.npy \
-    --dest results/segthor/ce/baseline/dice_val.png
+    --transformation preprocess_augment \
+    --plot_results
