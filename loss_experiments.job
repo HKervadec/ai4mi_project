@@ -11,7 +11,7 @@
 module purge
 module load 2023
 module load Anaconda3/2023.07-2
-conda activate ai4ml
+source activate ai4ml
 
 cd $HOME/SegTHOR_ai4mi
 srun python main.py \
