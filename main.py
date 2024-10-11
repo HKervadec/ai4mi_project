@@ -50,8 +50,17 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import (CrossEntropy)
+from losses import (CrossEntropy, JaccardLoss, DiceLoss, LovaszSoftmaxLoss,CustomLoss)
 from torch.utils.data import WeightedRandomSampler
+
+from utils import (Dcm,
+                   class2one_hot,
+                   probs2one_hot,
+                   probs2class,
+                   tqdm_,
+                   dice_coef,
+                   save_images)
+
 
 def compute_class_weights(train_set, K):
     """
@@ -59,7 +68,7 @@ def compute_class_weights(train_set, K):
     This ensures that underrepresented classes (like classes 1 and 4) are sampled more frequently.
     """
     class_counts = np.zeros(K)
-    
+
     # Loop through the dataset and count the number of pixels for each class
     for _, data in enumerate(train_set):
         gt = data['gts']  # Ground truth mask
@@ -68,7 +77,7 @@ def compute_class_weights(train_set, K):
 
     # Compute class weights (inverse of class frequencies)
     class_weights = 1.0 / np.maximum(class_counts, 1)  # Avoid division by zero
-    
+
     return class_weights
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -146,7 +155,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         elif args.transformation == 'preprocess_augment':
             train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_pre_spatial_aug', root_dir / 'train' / 'img_pre_intensity_aug']
             train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_pre_spatial_aug', root_dir / 'train' / 'gt_pre_intensity_aug']
-    
+
         # Create the SliceDataset for training
         train_set = SliceDatasetWithTransforms(
             subset='train',
@@ -161,7 +170,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     if args.class_aware_sampling:
         # Compute class weights for class-aware sampling
         class_weights = compute_class_weights(train_set, K)
-        
+
         # Create sample weights for each image in the dataset based on the presence of each class
         sample_weights = []
         for data in train_set:
@@ -207,11 +216,24 @@ def runTraining(args):
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
-        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
+        idk = list(range(K))
     elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+        idk = [0, 1, 3, 4]
     else:
         raise ValueError(args.mode, args.dataset)
+
+    if args.loss == "ce":
+        loss_fn = CrossEntropy(idk=idk)
+    elif args.loss == "jaccard":
+        loss_fn = JaccardLoss(idk=idk)
+    elif args.loss == "dice":
+        loss_fn = DiceLoss(idk=idk)
+    elif args.loss == "lovasz":
+        loss_fn = LovaszSoftmaxLoss(idk=idk)
+    elif args.loss == "custom":
+        loss_fn = CustomLoss(idk=idk)
+    else:
+        raise ValueError(args.loss)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -316,6 +338,7 @@ def main():
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
+
     parser.add_argument('--num_workers', type=int, default=5)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--debug', action='store_true',
@@ -331,6 +354,8 @@ def main():
 
     parser.add_argument('--class_aware_sampling', action='store_true', default=False,
                         help="If set, samples batches so that every batch has a balanced representation of all classes.")
+    parser.add_argument("--loss", type=str, choices=["ce","jaccard","dice","lovasz","custom"],default='ce',
+                        help="Loss function to be used.")
 
     args = parser.parse_args()
 
