@@ -231,6 +231,7 @@ def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
     return run_name
 
 
+# Using the suggestions from https://pytorch.org/docs/stable/notes/randomness.html
 def seed_everything(args) -> None:
     import os
 
@@ -243,9 +244,8 @@ def seed_everything(args) -> None:
     # Seed torch
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    # There are some operations which do not have deterministic equivalent on CPU (like max_unpool2d)
-    if args.gpu:
-        torch.use_deterministic_algorithms(True)
+    # Cannot set this since there are some operations which do not have deterministic equivalent (like max_unpool2d)
+    # torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
     # For the cuBLAS API of the CUDA implementation
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
