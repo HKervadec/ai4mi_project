@@ -103,6 +103,10 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
         itemgetter(0)
     ])
 
+    # Used to seed dataloader workers, passed in `generator` param
+    g = torch.Generator()
+    g.manual_seed(args.seed)
+
     train_set = SliceDataset('train',
                              root_dir,
                              img_transform=img_transform,
@@ -113,7 +117,8 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
                               batch_size=B,
                               num_workers=args.num_workers,
                               shuffle=True,
-                              worker_init_fn=utils.seed_worker)
+                              worker_init_fn=utils.seed_worker,
+                              generator=g)
 
     val_set = SliceDataset('val',
                            root_dir,
@@ -124,15 +129,18 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=args.num_workers,
-                            shuffle=False)
+                            shuffle=False,
+                            worker_init_fn=utils.seed_worker,
+                            generator=g)
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
     # lr = 0.0005 # Initial LR for ENet
     lr = args.lr
     optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999), weight_decay=args.lr_weight_decay)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, epochs=args.epochs, steps_per_epoch=len(train_loader))
-
+    scheduler = None
+    if args.enable_lr_scheduler:
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, epochs=args.epochs, steps_per_epoch=len(train_loader))
     return net, optimizer, scheduler, device, train_loader, val_loader, K
 
 
@@ -201,6 +209,9 @@ def runTraining(args):
                     if opt:  # Only for training
                         loss.backward()
                         opt.step()
+                        # Apply LR scheduler
+                        if scheduler:
+                            scheduler.step()
 
                     if m == 'val' and not args.dry_run:
                         with warnings.catch_warnings():
@@ -220,11 +231,6 @@ def runTraining(args):
                                          for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
-        # Apply LR scheduler
-        before_lr = optimizer.param_groups[0]['lr']
-        scheduler.step()
-        after_lr = optimizer.param_groups[0]['lr']
-        print("Epoch %d: AdamW lr %.3E -> %.3E" % (e, before_lr, after_lr))
 
         metrics = utils.save_loss_and_metrics(K, e, args.dest,
                                               loss=[log_loss_tra, log_loss_val],
@@ -273,6 +279,7 @@ def main():
     parser.add_argument('--dropoutRate', type=float, default=0.2, help="Dropout rate for the ENet model")
     parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
     parser.add_argument('--lr_weight_decay', type=float, default=0.01, help="Weight decay factor for the AdamW optimizer")
+    parser.add_argument('--enable_lr_scheduler', action='store_true')
 
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
     parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
