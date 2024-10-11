@@ -14,7 +14,7 @@ module load Anaconda3/2023.07-2
 source activate ai4ml
 
 cd $HOME/SegTHOR_ai4mi
-srun python main.py \
+python main.py \
     --dataset SEGTHOR \
     --mode full \
     --epochs 100 \
@@ -22,22 +22,22 @@ srun python main.py \
     --gpu \
     --loss ce
 
-srun python plot.py \
+python plot.py \
     --metric_file results/segthor/ce/dice_val.npy \
     --dest results/segthor/ce/dice_val.png
 
-srun python plot.py \
+python plot.py \
     --metric_file results/segthor/ce/iou_val.npy \
     --dest results/segthor/ce/iou_val.png
 
-srun python plot.py \
+python plot.py \
     --metric_file results/segthor/ce/assd_val.npy \
     --dest results/segthor/ce/assd_val.png
 
-srun python plot.py \
+python plot.py \
     --metric_file results/segthor/ce/volsim_val.npy \
     --dest results/segthor/ce/volsim_val.png
 
-srun python plot.py \
+python plot.py \
     --metric_file results/segthor/ce/hausdorff_val.npy \
     --dest results/segthor/ce/hausdorff_val.png
