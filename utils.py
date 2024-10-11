@@ -216,9 +216,6 @@ def save_loss_and_metrics(K: int, e: int, dest: Path,
 def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
     prefix = args.run_prefix + '_' if args.run_prefix else ''
     lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != parser.get_default('lr') else ''
-    if (args.lr_scheduler_T0 != parser.get_default('lr_scheduler_T0')
-            or args.lr_scheduler_Tmult != parser.get_default('lr_scheduler_Tmult')):
-        lr += f'LR-T0({args.lr_scheduler_T0})Tmult({args.lr_scheduler_Tmult})_'
     lr += f'LR-WD({args.lr_weight_decay})_' if args.lr_weight_decay != parser.get_default('lr_weight_decay') else ''
     dropout = f'dropout({args.dropoutRate})' if args.dropoutRate != parser.get_default('dropoutRate') else ''
     encoder_name = ''
