@@ -10,33 +10,34 @@
 
 module purge
 module load 2023
-source ai4mi/bin/activate
+module load Anaconda3/2023.07-2
+conda activate ai4ml
 
 cd $HOME/SegTHOR_ai4mi
-python main.py \
+srun python main.py \
     --dataset SEGTHOR \
     --mode full \
-    --epochs 30 \
+    --epochs 100 \
     --dest results/segthor/ce/ \
     --gpu \
     --loss ce
 
-python plot.py \
+srun python plot.py \
     --metric_file results/segthor/ce/dice_val.npy \
     --dest results/segthor/ce/dice_val.png
 
-python plot.py \
+srun python plot.py \
     --metric_file results/segthor/ce/iou_val.npy \
     --dest results/segthor/ce/iou_val.png
 
-python plot.py \
+srun python plot.py \
     --metric_file results/segthor/ce/assd_val.npy \
     --dest results/segthor/ce/assd_val.png
 
-python plot.py \
+srun python plot.py \
     --metric_file results/segthor/ce/volsim_val.npy \
     --dest results/segthor/ce/volsim_val.png
 
-python plot.py \
+srun python plot.py \
     --metric_file results/segthor/ce/hausdorff_val.npy \
     --dest results/segthor/ce/hausdorff_val.png
