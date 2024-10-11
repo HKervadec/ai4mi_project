@@ -102,7 +102,7 @@ def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int
 
         gt = np.clip(gt,0,255)
         gt = gt.astype(np.uint8)
-        
+
         assert sanity_gt(gt, ct)
     else:
         gt = np.zeros_like(ct, dtype=np.uint8)

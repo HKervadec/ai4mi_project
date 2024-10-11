@@ -9,9 +9,9 @@
 #SBATCH --output=jobs/outputs/train_baseline_output%A.out
 
 module purge
-module load 2023
-module load Anaconda3/2023.07-2
-source activate ai4ml
+module load 2022
+module load Python/3.10.4-GCCcore-11.3.0
+source ai4mi/bin/activate
 
 cd $HOME/SegTHOR_ai4mi
 python main.py \
