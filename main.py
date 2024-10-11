@@ -44,7 +44,7 @@ from dataset import SliceDataset, SliceDatasetWithTransforms
 from DeepLabV3 import DeepLabV3
 from ENet import ENet
 from ShallowNet import shallowCNN
-from losses import CrossEntropy
+from losses import CrossEntropy, FocalLoss
 from utils import (
     Dcm,
     class2one_hot,
@@ -209,7 +209,10 @@ def runTraining(args):
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
-        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
+        if args.focal_loss:
+            loss_fn = FocalLoss(idk=list(range(K)), gamma=args.focal_loss_gamma, weighted=args.weighted_loss)
+        else:
+            loss_fn = CrossEntropy(idk=list(range(K)))
     elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
         loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
     else:
@@ -275,9 +278,10 @@ def runTraining(args):
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
                             mult: int = 63 if K == 5 else (255 / (K - 1))
-                            save_images(predicted_class * mult,
-                                        data['stems'],
-                                        args.dest / f"iter{e:03d}" / m)
+                            if args.save_predictions:
+                                save_images(predicted_class * mult,
+                                            data['stems'],
+                                            args.dest / f"iter{e:03d}" / m)
 
                     j += B  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
@@ -301,10 +305,11 @@ def runTraining(args):
             with open(args.dest / "best_epoch.txt", 'w') as f:
                     f.write(str(e))
 
-            best_folder = args.dest / "best_epoch"
-            if best_folder.exists():
-                    rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
+            if args.save_predictions:
+                best_folder = args.dest / "best_epoch"
+                if best_folder.exists():
+                        rmtree(best_folder)
+                copytree(args.dest / f"iter{e:03d}", Path(best_folder))
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
@@ -334,6 +339,10 @@ def main():
     parser.add_argument('--class_aware_sampling', action='store_true', default=False,
                         help="If set, samples batches so that every batch has a balanced representation of all classes.")
     parser.add_argument('--plot_results', action='store_true', default=False)
+    parser.add_argument('--save_predictions', action='store_true', default=False)
+    parser.add_argument('--focal_loss', action='store_true', default=False)
+    parser.add_argument('--focal_loss_gamma', type=float, default=2.0)
+    parser.add_argument('--weighted_loss', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -344,7 +353,7 @@ def main():
     runTraining(args)
     
     if args.plot_results:
-        plot_args = argparse.Namespace(metric_file=args.dest / "dice_val.npy", dest=args.dest / "dice_val.png")
+        plot_args = argparse.Namespace(metric_file=args.dest / "dice_val.npy", dest=args.dest / "dice_val.png", headless=True)
         plot(plot_args)
 
 

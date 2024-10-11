@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 
+import torch
 from torch import einsum
 
 from utils import simplex, sset
@@ -47,21 +48,36 @@ class CrossEntropy():
 
         return loss
 
-# class FocalLoss():
-#     def __init__(self, alpha, gamma=2):
-#         self.gamma = gamma
+class FocalLoss():
+    def __init__(self, **kwargs):
+        self.gamma = kwargs["gamma"]
+        self.idk = kwargs["idk"]
+        self.weighted = kwargs["weighted"]
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
     
-#     def __call__(self, pred_logits, weak_target):
-#         assert pred_logits.shape == weak_target.shape
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
 
-#         p = pred_logits
-#         log_p = (pred_logits + 1e-10).log()
-#         mask = weak_target.float()
+        b, _, h, w = pred_softmax.shape
 
-#         loss = - einsum("bkwh,bkwh->", mask, (1 - p) ** self.gamma * (log_p)
-#         loss /= mask.sum() + 1e-10
+        if self.weighted:
+            alpha = 1
+        else:
+            # # 1.0 for background and precomputed inverse class frequencies for non-background classes (total_pixels/class_pixels,
+            # # where total_pixels is the sum of all pixels that have class 1, 2, 3 or 4, but not 0)
+            # alpha = torch.tensor([1.0, 22.3814, 1.3688, 29.9430, 5.2261]).view(1, -1, 1, 1).repeat(b, 1, h, w)
 
-#         return loss
+            # empirically test if this helps k=1 (esophagus) perform better
+            alpha = torch.tensor([1.0, 5.0, 1.0, 1.0, 1.0]).view(1, -1, 1, 1).repeat(b, 1, h, w)
+        p = pred_softmax[:, self.idk, ...]
+
+        log_p = (p[:, self.idk, ...] + 1e-10).log()
+        mask = weak_target[:, self.idk, ...].float()
+
+        loss = - einsum("bkwh,bkwh->", mask, alpha * (1 - p) ** self.gamma * (log_p))
+        loss /= mask.sum() + 1e-10
+
+        return loss
 
 
 class PartialCrossEntropy(CrossEntropy):
