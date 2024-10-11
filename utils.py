@@ -218,7 +218,7 @@ def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
     if (args.lr_scheduler_T0 != parser.get_default('lr_scheduler_T0')
             or args.lr_scheduler_Tmult != parser.get_default('lr_scheduler_Tmult')):
         lr += f'LR-T0({args.lr_scheduler_T0})Tmult({args.lr_scheduler_Tmult})_'
-    lr += f'WD({args.weight_decay})_' if args.weight_decay != parser.get_default('weight_decay') else ''
+    lr += f'LR-WD({args.lr_weight_decay})_' if args.lr_weight_decay != parser.get_default('lr_weight_decay') else ''
     dropout = f'dropout({args.dropoutRate})' if args.dropoutRate != parser.get_default('dropoutRate') else ''
     encoder_name = ''
     if args.model != 'ENet':

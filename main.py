@@ -65,7 +65,8 @@ datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
-def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler, Any, DataLoader, DataLoader, int]:
+# def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler, Any, DataLoader, DataLoader, int]:
+def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
@@ -79,7 +80,7 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
     # lr = 0.0005 # Initial LR for ENet
     lr = args.lr
     optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999), weight_decay=args.lr_weight_decay)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.lr_scheduler_T0, T_mult=args.lr_scheduler_Tmult)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.lr_scheduler_T0, T_mult=args.lr_scheduler_Tmult)
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -132,14 +133,16 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return net, optimizer, scheduler, device, train_loader, val_loader, K
+    # return net, optimizer, scheduler, device, train_loader, val_loader, K
+    return net, optimizer, device, train_loader, val_loader, K
 
 
 def runTraining(args):
 
     start = time.time()
     print(f">>> Setting up to train on {args.dataset} with {args.model}")
-    net, optimizer, scheduler, device, train_loader, val_loader, K = setup(args)
+    # net, optimizer, scheduler, device, train_loader, val_loader, K = setup(args)
+    net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     loss_fn = create_loss_fn(args, K)
 
@@ -220,7 +223,7 @@ def runTraining(args):
 
         # Apply LR scheduler
         before_lr = optimizer.param_groups[0]['lr']
-        scheduler.step()
+        # scheduler.step()
         after_lr = optimizer.param_groups[0]['lr']
         print("Epoch %d: AdamW lr %.3E -> %.3E" % (e, before_lr, after_lr))
 
