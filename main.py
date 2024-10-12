@@ -44,7 +44,7 @@ from dataset import SliceDataset, SliceDatasetWithTransforms
 from DeepLabV3 import DeepLabV3
 from ENet import ENet
 from ShallowNet import shallowCNN
-from losses import CrossEntropy, FocalLoss
+from losses import (CrossEntropy, JaccardLoss, DiceLoss, LovaszSoftmaxLoss, CustomLoss, FocalLoss)
 from utils import (
     Dcm,
     class2one_hot,
@@ -54,6 +54,16 @@ from utils import (
     save_images,
     tqdm_
 )
+from torch.utils.data import WeightedRandomSampler
+
+from utils import (Dcm,
+                   class2one_hot,
+                   probs2one_hot,
+                   probs2class,
+                   tqdm_,
+                   dice_coef,
+                   save_images)
+
 
 def compute_class_weights(train_set, K):
     """
@@ -61,7 +71,7 @@ def compute_class_weights(train_set, K):
     This ensures that underrepresented classes (like classes 1 and 4) are sampled more frequently.
     """
     class_counts = np.zeros(K)
-    
+
     # Loop through the dataset and count the number of pixels for each class
     for _, data in enumerate(train_set):
         gt = data['gts']  # Ground truth mask
@@ -70,7 +80,7 @@ def compute_class_weights(train_set, K):
 
     # Compute class weights (inverse of class frequencies)
     class_weights = 1.0 / np.maximum(class_counts, 1)  # Avoid division by zero
-    
+
     return class_weights
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -148,7 +158,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         elif args.transformation == 'preprocess_augment':
             train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_pre_spatial_aug', root_dir / 'train' / 'img_pre_intensity_aug']
             train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_pre_spatial_aug', root_dir / 'train' / 'gt_pre_intensity_aug']
-    
+
         # Create the SliceDataset for training
         train_set = SliceDatasetWithTransforms(
             subset='train',
@@ -163,7 +173,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     if args.class_aware_sampling:
         # Compute class weights for class-aware sampling
         class_weights = compute_class_weights(train_set, K)
-        
+
         # Create sample weights for each image in the dataset based on the presence of each class
         sample_weights = []
         for data in train_set:
@@ -209,14 +219,26 @@ def runTraining(args):
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
-        if args.focal_loss:
-            loss_fn = FocalLoss(idk=list(range(K)), gamma=args.focal_loss_gamma, weighted=args.weighted_loss)
-        else:
-            loss_fn = CrossEntropy(idk=list(range(K)))
+        idk = list(range(K))
     elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+        idk = [0, 1, 3, 4]
     else:
         raise ValueError(args.mode, args.dataset)
+
+    if args.loss == "ce":
+        loss_fn = CrossEntropy(idk=idk)
+    elif args.loss == "jaccard":
+        loss_fn = JaccardLoss(idk=idk)
+    elif args.loss == "dice":
+        loss_fn = DiceLoss(idk=idk)
+    elif args.loss == "lovasz":
+        loss_fn = LovaszSoftmaxLoss(idk=idk)
+    elif args.loss == "custom":
+        loss_fn = CustomLoss(idk=idk)
+    elif args.loss == "focal":
+        oss_fn = FocalLoss(idk=idk, gamma=args.focal_loss_gamma, weighted=args.weighted_loss)
+    else:
+        raise ValueError(args.loss)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -278,7 +300,7 @@ def runTraining(args):
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
                             mult: int = 63 if K == 5 else (255 / (K - 1))
-                            if args.save_predictions:
+                            if not args.dont_save_predictions:
                                 save_images(predicted_class * mult,
                                             data['stems'],
                                             args.dest / f"iter{e:03d}" / m)
@@ -323,6 +345,7 @@ def main():
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
+
     parser.add_argument('--num_workers', type=int, default=5)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--debug', action='store_true',
@@ -338,11 +361,15 @@ def main():
 
     parser.add_argument('--class_aware_sampling', action='store_true', default=False,
                         help="If set, samples batches so that every batch has a balanced representation of all classes.")
+<<<<<<< HEAD
     parser.add_argument('--plot_results', action='store_true', default=False)
-    parser.add_argument('--save_predictions', action='store_true', default=False)
-    parser.add_argument('--focal_loss', action='store_true', default=False)
+    parser.add_argument('--dont_save_predictions', action='store_true', default=False)
     parser.add_argument('--focal_loss_gamma', type=float, default=2.0)
     parser.add_argument('--weighted_loss', action='store_true', default=False)
+=======
+    parser.add_argument("--loss", type=str, choices=["ce", "jaccard", "dice", "lovasz", "custom", "focal"],default='ce',
+                        help="Loss function to be used.")
+>>>>>>> f747979f46657f98cd9b0ab794be7e27347f639e
 
     args = parser.parse_args()
 

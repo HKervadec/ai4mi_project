@@ -21,6 +21,7 @@ python -O main.py \
     --dest results/segthor/focal/baseline/weighted \
     --gpu \
     --transformation preprocess_augment \
-    --focal_loss \
+    --loss focal \
     --weighted_loss \
+    --dont_save_predictions \
     --plot_results

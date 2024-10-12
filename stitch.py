@@ -42,13 +42,15 @@ def get_z(image: Path) -> int:
 
 def merge_patient(id_: str, dest_folder: str, images: list[Path],
                   idxes: list[int], K: int, source_pattern: str) -> None:
-    # print(source_pattern.format(id_=id_))
-    orig_nib = nib.load(source_pattern.format(id_=id_))
-    orig_shape = np.asarray(orig_nib.dataobj).shape
-    # print(orig_nib.affine)
-
-    X, Y, Z = orig_shape
-    assert Z == len(idxes)
+    
+    if source_pattern:
+        orig_nib = nib.load(source_pattern.format(id_=id_))
+        orig_shape = np.asarray(orig_nib.dataobj).shape
+    else:
+        orig_nib = nib.load("data/segthor_train/train/Patient_27/GT2.nii.gz")
+        X = Y = 512
+        Z = len(idxes)
+        orig_shape = X, Y, Z
 
     res_arr: np.ndarray = np.zeros((X, Y, Z), dtype=np.int16)
 
@@ -109,7 +111,7 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Merging slices parameters')
     parser.add_argument('--data_folder', type=Path, required=True,
                         help="The folder containing the images to predict")
-    parser.add_argument('--source_scan_pattern', type=str, required=True,
+    parser.add_argument('--source_scan_pattern', type=str,
                         help="The pattern to get the original scan. This is used to get the correct metadata")
     parser.add_argument('--dest_folder', type=Path, required=True)
     parser.add_argument('--grp_regex', type=str, required=True)
