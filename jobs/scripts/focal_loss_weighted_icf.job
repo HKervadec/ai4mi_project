@@ -22,4 +22,4 @@ python -O main.py \
     --gpu \
     --loss focal \
     --plot_results \
-    --weights 1.0 22.3814 1.3688 29.9430 5.2261 # weights obtained by computing inverse class frequencies
+    --focal_loss_weights 1.0 22.3814 1.3688 29.9430 5.2261 # weights obtained by computing inverse class frequencies
