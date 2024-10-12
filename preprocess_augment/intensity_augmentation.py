@@ -120,8 +120,8 @@ def main():
         aug_train_img_dir = data_dir / "train" / "img_pre_intensity_aug"
         aug_train_gt_dir = data_dir / "train" / "gt_pre_intensity_aug"
     else:
-        aug_train_img_dir = data_dir / "train" / "img_intensity_aug_test"
-        aug_train_gt_dir = data_dir / "train" / "gt_intensity_aug_test"
+        aug_train_img_dir = data_dir / "train" / "img_intensity_aug"
+        aug_train_gt_dir = data_dir / "train" / "gt_intensity_aug"
 
     # Augment and save the training set
     print("Augmenting training set...")
