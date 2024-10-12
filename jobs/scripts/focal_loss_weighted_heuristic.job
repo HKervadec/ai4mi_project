@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=02:00:00
-#SBATCH --output=jobs/outputs/focal_loss_gamma_1_%A.out
+#SBATCH --output=jobs/outputs/focal_loss_weighted_heuristic_%A.out
 
 module purge
 module load 2023
@@ -14,15 +14,15 @@ source ai4mi/bin/activate
 
 cd $HOME/SegTHOR_ai4mi
 
-gamma=1
+gamma=2
 
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
     --epochs 100 \
-    --dest results/segthor/focal/baseline/gamma_${gamma} \
+    --dest results/segthor/focal/weighted/${weight_set} \
     --gpu \
-    --transformation preprocess_augment \
     --loss focal \
-    --focal_loss_gamma ${gamma} \
-    --plot_results
+    --focal_loss_gamma 2 \
+    --plot_results \
+    --weights 1.0 5.0 1.0 1.0 1.0 # weights is 5.0 for esophagus, because it performs poorly on the validation dataset

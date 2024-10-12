@@ -52,7 +52,7 @@ class FocalLoss():
     def __init__(self, **kwargs):
         self.gamma = kwargs["gamma"]
         self.idk = kwargs["idk"]
-        self.weighted = kwargs["weighted"]
+        self.weights = kwargs["focal_loss_weights"] # [1.0, 22.3814, 1.3688, 29.9430, 5.2261] (for inv class frequency experiment)
         print(f"Initialized {self.__class__.__name__} with {kwargs}")
     
     def __call__(self, pred_softmax, weak_target):
@@ -60,15 +60,7 @@ class FocalLoss():
 
         b, _, h, w = pred_softmax.shape
 
-        if self.weighted:
-            alpha = 1
-        else:
-            # # 1.0 for background and precomputed inverse class frequencies for non-background classes (total_pixels/class_pixels,
-            # # where total_pixels is the sum of all pixels that have class 1, 2, 3 or 4, but not 0)
-            # alpha = torch.tensor([1.0, 22.3814, 1.3688, 29.9430, 5.2261]).view(1, -1, 1, 1).repeat(b, 1, h, w)
-
-            # empirically test if this helps k=1 (esophagus) perform better
-            alpha = torch.tensor([1.0, 5.0, 1.0, 1.0, 1.0]).view(1, -1, 1, 1).repeat(b, 1, h, w)
+        alpha = torch.tensor(self.weights).view(1, -1, 1, 1).repeat(b, 1, h, w)
         p = pred_softmax[:, self.idk, ...]
 
         log_p = (p[:, self.idk, ...] + 1e-10).log()

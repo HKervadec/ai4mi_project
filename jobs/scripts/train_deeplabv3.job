@@ -5,7 +5,7 @@
 #SBATCH --job-name=train_deeplabv3
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=01:00:00
+#SBATCH --time=02:00:00
 #SBATCH --output=jobs/outputs/train_deeplabv3_output%A.out
 
 module purge

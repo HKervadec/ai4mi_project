@@ -5,7 +5,7 @@
 #SBATCH --job-name=train_baseline
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=01:00:00
+#SBATCH --time=02:00:00
 #SBATCH --output=jobs/outputs/focal_loss_gamma_2_%A.out
 
 module purge

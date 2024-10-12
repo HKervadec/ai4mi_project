@@ -236,7 +236,7 @@ def runTraining(args):
     elif args.loss == "custom":
         loss_fn = CustomLoss(idk=idk)
     elif args.loss == "focal":
-        oss_fn = FocalLoss(idk=idk, gamma=args.focal_loss_gamma, weighted=args.weighted_loss)
+        loss_fn = FocalLoss(idk=idk, gamma=args.focal_loss_gamma, weighted=args.focal_loss_weights)
     else:
         raise ValueError(args.loss)
 
@@ -364,7 +364,8 @@ def main():
     parser.add_argument('--plot_results', action='store_true', default=False)
     parser.add_argument('--dont_save_predictions', action='store_true', default=False)
     parser.add_argument('--focal_loss_gamma', type=float, default=2.0)
-    parser.add_argument('--weighted_loss', action='store_true', default=False)
+    parser.add_argument('--focal_loss_weights', type=float, nargs=5, default=[1.0, 1.0, 1.0, 1.0, 1.0],
+                        help="Weights for the classes in the following order background, esophagus, heart, trachea, aorta")
     parser.add_argument("--loss", type=str, choices=["ce", "jaccard", "dice", "lovasz", "custom", "focal"],default='ce',
                         help="Loss function to be used.")
 
