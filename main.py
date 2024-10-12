@@ -147,14 +147,14 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     else:
         # Define image and ground truth directories (original + augmented)
         if args.transformation == 'preprocessed':
-            train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_preprocessed']
-            train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_preprocessed']
+            train_img_dirs = [root_dir / 'train' / 'img_preprocessed']
+            train_gt_dirs = [root_dir / 'train' / 'gt_preprocessed']
         elif args.transformation == 'augmented':
-            train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_spatial_aug', root_dir / 'train' / 'img_intensity_aug']
-            train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_spatial_aug', root_dir / 'train' / 'gt_intensity_aug']
+            train_img_dirs = [root_dir / 'train' / 'img_spatial_aug', root_dir / 'train' / 'img_intensity_aug']
+            train_gt_dirs = [root_dir / 'train' / 'gt_spatial_aug', root_dir / 'train' / 'gt_intensity_aug']
         elif args.transformation == 'preprocess_augment':
-            train_img_dirs = [root_dir / 'train' / 'img', root_dir / 'train' / 'img_pre_spatial_aug', root_dir / 'train' / 'img_pre_intensity_aug']
-            train_gt_dirs = [root_dir / 'train' / 'gt', root_dir / 'train' / 'gt_pre_spatial_aug', root_dir / 'train' / 'gt_pre_intensity_aug']
+            train_img_dirs = [root_dir / 'train' / 'img_pre_spatial_aug', root_dir / 'train' / 'img_pre_intensity_aug']
+            train_gt_dirs = [root_dir / 'train' / 'gt_pre_spatial_aug', root_dir / 'train' / 'gt_pre_intensity_aug']
 
         # Create the SliceDataset for training
         train_set = SliceDatasetWithTransforms(
