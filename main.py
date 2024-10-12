@@ -361,15 +361,12 @@ def main():
 
     parser.add_argument('--class_aware_sampling', action='store_true', default=False,
                         help="If set, samples batches so that every batch has a balanced representation of all classes.")
-<<<<<<< HEAD
     parser.add_argument('--plot_results', action='store_true', default=False)
     parser.add_argument('--dont_save_predictions', action='store_true', default=False)
     parser.add_argument('--focal_loss_gamma', type=float, default=2.0)
     parser.add_argument('--weighted_loss', action='store_true', default=False)
-=======
     parser.add_argument("--loss", type=str, choices=["ce", "jaccard", "dice", "lovasz", "custom", "focal"],default='ce',
                         help="Loss function to be used.")
->>>>>>> f747979f46657f98cd9b0ab794be7e27347f639e
 
     args = parser.parse_args()
 
