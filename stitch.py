@@ -111,7 +111,7 @@ def main(args) -> None:
     args.dest_folder.mkdir(parents=True, exist_ok=True)
 
     for p in tqdm_(unique_patients):
-        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes, args.source_scan_pattern, post_processing=True)
+        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes, args.source_scan_pattern, post_processing=args.post_processing)
     # mmap_(lambda p: merge_patient(p, args.dest_folder, images, idx_map[p], K=args.num_classes), patients)
 
 
@@ -125,6 +125,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--grp_regex', type=str, required=True)
 
     parser.add_argument('--num_classes', type=int, default=4)
+    parser.add_argument('--post_processing', type=bool, default=False)
 
     args = parser.parse_args()
 
