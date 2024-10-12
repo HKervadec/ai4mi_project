@@ -102,17 +102,26 @@ def main():
     parser = argparse.ArgumentParser(description='Augment dataset with realistic transformations.')
     parser.add_argument('--data_dir', type=str, required=True, help='Base directory containing the SEGTHOR dataset')
     parser.add_argument('--num_augmentations', type=int, default=3, help='Number of augmentations per image')
+    parser.add_argument('--run_on_preprocessed', action='store_true', help='Run the augmentations on the preprocessed data.')
 
     args = parser.parse_args()
 
     # Define the data directories
     data_dir = Path(args.data_dir)
-    train_img_dir = data_dir / "train" / "img_preprocessed"
-    train_gt_dir = data_dir / "train" / "gt_preprocessed"
+    if args.run_on_preprocessed:
+        train_img_dir = data_dir / "train" / "img_preprocessed"
+        train_gt_dir = data_dir / "train" / "gt_preprocessed"
+    else:
+        train_img_dir = data_dir / "train" / "img"
+        train_gt_dir = data_dir / "train" / "gt"
 
     # Define the augmented directories
-    aug_train_img_dir = data_dir / "train" / "img_pre_intensity_aug"
-    aug_train_gt_dir = data_dir / "train" / "gt_pre_intensity_aug"
+    if args.run_on_preprocessed:
+        aug_train_img_dir = data_dir / "train" / "img_pre_intensity_aug"
+        aug_train_gt_dir = data_dir / "train" / "gt_pre_intensity_aug"
+    else:
+        aug_train_img_dir = data_dir / "train" / "img_intensity_aug"
+        aug_train_gt_dir = data_dir / "train" / "gt_intensity_aug"
 
     # Augment and save the training set
     print("Augmenting training set...")
