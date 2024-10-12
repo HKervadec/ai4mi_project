@@ -46,11 +46,11 @@ def augment_noise_contrast(image):
     """
     Apply Gaussian noise and contrast adjustment.
     """
-    # Gaussian Noise
-    image = add_gaussian_noise(image, mean=0, std=0.05)
+    # Gaussian Noise with variable standard deviation
+    image = add_gaussian_noise(image, mean=0, std=random.uniform(0.03, 0.08))
 
-    # Contrast Adjustment
-    image = adjust_contrast(image, low=2, high=98)
+    # Contrast Adjustment with variable percentiles
+    image = adjust_contrast(image, low=random.randint(1, 5), high=random.randint(95, 99))
 
     return image
 
@@ -120,8 +120,8 @@ def main():
         aug_train_img_dir = data_dir / "train" / "img_pre_intensity_aug"
         aug_train_gt_dir = data_dir / "train" / "gt_pre_intensity_aug"
     else:
-        aug_train_img_dir = data_dir / "train" / "img_intensity_aug"
-        aug_train_gt_dir = data_dir / "train" / "gt_intensity_aug"
+        aug_train_img_dir = data_dir / "train" / "img_intensity_aug_test"
+        aug_train_gt_dir = data_dir / "train" / "gt_intensity_aug_test"
 
     # Augment and save the training set
     print("Augmenting training set...")
