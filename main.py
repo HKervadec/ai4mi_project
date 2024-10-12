@@ -227,17 +227,17 @@ def runTraining(args):
                     pred_seg = probs2one_hot(pred_probs)
                     log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
 
-                    # IoU (Jaccard Index)
-                    log_iou[e, j:j + B, :] = iou_coef(pred_seg, gt)
-
-                    # Hausdorff Distance
-                    log_hausdorff[e, j:j + B, :] = hausdorff_coef(pred_seg, gt).transpose(0, 1)
+                    # # IoU (Jaccard Index)
+                    # log_iou[e, j:j + B, :] = iou_coef(pred_seg, gt)
+                    #
+                    # # Hausdorff Distance
+                    # log_hausdorff[e, j:j + B, :] = hausdorff_coef(pred_seg, gt).transpose(0, 1)
 
                     # ASSD (Average Symmetric Surface Distance)
                     # log_assd[e, j:j + B, :] = assd_coef(pred_seg, gt).transpose(0, 1)
 
-                    # Volumetric Similarity
-                    log_volsim[e, j:j + B, :] = vol_sim_coef(pred_seg, gt)
+                    # # Volumetric Similarity
+                    # log_volsim[e, j:j + B, :] = vol_sim_coef(pred_seg, gt)
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
