@@ -327,7 +327,7 @@ def runTraining(args):
             with open(args.dest / "best_epoch.txt", 'w') as f:
                     f.write(str(e))
 
-            if args.save_predictions:
+            if not args.dont_save_predictions:
                 best_folder = args.dest / "best_epoch"
                 if best_folder.exists():
                         rmtree(best_folder)
