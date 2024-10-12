@@ -16,7 +16,7 @@ cd $HOME/SegTHOR_ai4mi
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
-    --epochs 50 \
+    --epochs 100 \
     --dest results/segthor/ce/baseline \
     --gpu \
     --transformation preprocess_augment \

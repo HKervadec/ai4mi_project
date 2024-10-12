@@ -17,11 +17,10 @@ cd $HOME/SegTHOR_ai4mi
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
-    --epochs 50 \
+    --epochs 100 \
     --dest results/segthor/focal/baseline/weighted \
     --gpu \
     --transformation preprocess_augment \
     --loss focal \
     --weighted_loss \
-    --dont_save_predictions \
     --plot_results

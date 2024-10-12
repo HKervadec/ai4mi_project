@@ -16,11 +16,8 @@ cd $HOME/SegTHOR_ai4mi
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
-    --epochs 30 \
+    --epochs 100 \
     --dest results/segthor/ce/deeplabv3 \
     --gpu \
-    --deeplabv3
-
-python plot.py \
-    --metric_file results/segthor/ce/deeplabv3/dice_val.npy \
-    --dest results/segthor/ce/deeplabv3/dice_val.png
+    --deeplabv3 \
+    --transformation preprocess_augment

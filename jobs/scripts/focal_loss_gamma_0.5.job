@@ -19,11 +19,10 @@ gamma=0.5
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
-    --epochs 50 \
+    --epochs 100 \
     --dest results/segthor/focal/baseline/gamma_${gamma} \
     --gpu \
     --transformation preprocess_augment \
     --loss focal \
-    --focal_loss_gamma ${gamma} \
-    --dont_save_predictions \
+    --focal_loss_gamma ${gamma} \    
     --plot_results

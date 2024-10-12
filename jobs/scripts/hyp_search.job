@@ -26,15 +26,11 @@ for lr in "${learning_rates[@]}"; do
     python -O main.py \
       --dataset SEGTHORCORRECT \
       --mode full \
-      --epochs 30 \
+      --epochs 100 \
       --dest $dest_dir \
       --gpu \
       --lr $lr \
       --optimizer $opt \
-      --transformation preprocessed
-
-    python plot.py \
-      --metric_file $dest_dir/dice_val.npy \
-      --dest $dest_dir/dice_val.png
+      --transformation preprocess_augment
   done
 done
