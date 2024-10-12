@@ -14,15 +14,12 @@ source ai4mi/bin/activate
 
 cd $HOME/SegTHOR_ai4mi
 
-gamma=2
-
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
     --epochs 100 \
-    --dest results/segthor/focal/weighted/${weight_set} \
+    --dest results/segthor/focal/weighted/icf \
     --gpu \
     --loss focal \
-    --focal_loss_gamma 2 \
     --plot_results \
     --weights 1.0 22.3814 1.3688 29.9430 5.2261 # weights obtained by computing inverse class frequencies
