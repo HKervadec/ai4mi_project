@@ -7,7 +7,13 @@ ai4mi/
 bin/
 __pycache__/
 grad_figs/*.png
+
+# Pycharm locally generated files and profiles
+.idea
+.DS_Store
+
 output/*
-jobs/*
-environment.yaml
-*.job
+
+# WandB files
+wandb
+wandb.password

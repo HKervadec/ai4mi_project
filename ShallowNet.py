@@ -34,7 +34,8 @@ def convBatch(nin, nout, kernel_size=3, stride=1, padding=1, bias=False, layer=n
 
 
 class shallowCNN(nn.Module):
-    def __init__(self, nin, nout, nG=4):
+    def __init__(self, nin, nout, **kwargs):
+        nG: int = 4
         super(shallowCNN, self).__init__()
         self.conv0 = convBatch(nin, nG * 4)
         self.conv1 = convBatch(nG * 4, nG * 4)

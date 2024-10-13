@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-
+import argparse
+from argparse import Namespace
 # MIT License
 
 # Copyright (c) 2024 Hoel Kervadec
@@ -28,15 +29,18 @@ from multiprocessing import Pool
 from contextlib import AbstractContextManager
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
+import wandb
+import random
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
-from scipy.spatial.distance import directed_hausdorff 
+from scipy.spatial.distance import directed_hausdorff
 from skimage.segmentation import find_boundaries
 
+import os  #TODO: remove on final submission
 
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
@@ -98,6 +102,7 @@ def class2one_hot(seg: Tensor, K: int) -> Tensor:
 
     b, *img_shape = seg.shape
 
+    # TODO check why
     seg = seg.to(torch.int64)  #casting the seg tensor to torch.int64 when encoding the gt for metrics
 
     device = seg.device
@@ -132,16 +137,16 @@ def probs2one_hot(probs: Tensor) -> Tensor:
 
 # Save the raw predictions
 def save_images(segs: Tensor, names: Iterable[str], root: Path) -> None:
-        for seg, name in zip(segs, names):
-                save_path = (root / name).with_suffix(".png")
-                save_path.parent.mkdir(parents=True, exist_ok=True)
+    for seg, name in zip(segs, names):
+        save_path = (root / name).with_suffix(".png")
+        save_path.parent.mkdir(parents=True, exist_ok=True)
 
-                if len(seg.shape) == 2:
-                        Image.fromarray(seg.detach().cpu().numpy().astype(np.uint8)).save(save_path)
-                elif len(seg.shape) == 3:
-                        np.save(str(save_path), seg.detach().cpu().numpy())
-                else:
-                        raise ValueError(seg.shape)
+        if len(seg.shape) == 2:
+            Image.fromarray(seg.detach().cpu().numpy().astype(np.uint8)).save(save_path)
+        elif len(seg.shape) == 3:
+            np.save(str(save_path), seg.detach().cpu().numpy())
+        else:
+            raise ValueError(seg.shape)
 
 
 # Metrics
@@ -165,12 +170,12 @@ def meta_jaccard(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8
     assert label.shape == pred.shape
     assert one_hot(label)
     assert one_hot(pred)
-    
+
     inter_size: Tensor = einsum(sum_str, [intersection(label, pred)]).type(torch.float32)
     union_size: Tensor = einsum(sum_str, [union(label,pred)]).type(torch.float32)
 
     jaccards: Tensor = (inter_size + smooth) / (union_size + smooth)
-    
+
     return jaccards
 
 #Jaccard metrics for batch and for entire dataset
@@ -185,7 +190,7 @@ def boundary_points(seg: Tensor) -> np.ndarray:
     """
     seg = seg.cpu().numpy()
     boundary = np.zeros_like(seg) # Initialize boundary array
-    
+
 
     # Checking if the tensor is 2D or 3D
     if len(seg.shape) == 2:  # 2D case
@@ -197,7 +202,7 @@ def boundary_points(seg: Tensor) -> np.ndarray:
             boundary[i] = find_boundaries(seg[i], mode='inner')
     else:
         raise ValueError(f"Unsupported tensor shape for boundary extraction: {seg.shape}")
-    
+
     boundary_points = np.argwhere(boundary)
     # print(f"Boundary points (non-zero): {np.count_nonzero(boundary)}")  # Debugging output
     return boundary_points
@@ -257,33 +262,33 @@ def average_hausdorff_distance_per_class(label: Tensor, pred: Tensor, K: int) ->
     The AHD for each class is calculated based on the one-hot encoded ground truth and predicted masks.
     """
     assert label.shape == pred.shape
-    assert label.shape[0] == K  
-    
+    assert label.shape[0] == K
+
     ahd_per_class = []
-    
+
     for k in range(K):
         # Extract the boundary points for each class (k)
         label_boundary = boundary_points(label[k])
         pred_boundary = boundary_points(pred[k])
-        
+
         if len(label_boundary) == 0 or len(pred_boundary) == 0:
             # If either the ground truth or predicted boundary is empty, skip this class
             ahd_per_class.append(float('inf'))
             continue
-        
+
         # Compute directed Hausdorff distance in both directions and average them
         forward_hausdorff = directed_hausdorff(label_boundary, pred_boundary)[0]
         backward_hausdorff = directed_hausdorff(pred_boundary, label_boundary)[0]
-        
+
         if forward_hausdorff > 1000:
             ahd = backward_hausdorff if backward_hausdorff <= 1000 else 1000
         elif backward_hausdorff > 1000:
             ahd = forward_hausdorff
         else:
             ahd = (forward_hausdorff + backward_hausdorff) / 2
-        
+
         ahd_per_class.append(ahd)
-    
+
     return ahd_per_class
 
 def average_symmetric_surface_distance(label: Tensor, pred: Tensor) -> float:
@@ -315,13 +320,13 @@ def precision(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
     assert label.shape == pred.shape
     # assert one_hot(label)
     # assert one_hot(pred)
-    
+
     # True positives (TP)
     intersect = torch.sum(pred * label).type(torch.float32)
-    
+
     # Predicted positives (TP + FP)
     total_pixel_pred = torch.sum(pred).type(torch.float32)
-    
+
     precision = (intersect + smooth) / (total_pixel_pred + smooth)
     return precision
 
@@ -333,13 +338,13 @@ def recall(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
     assert label.shape == pred.shape
     # assert one_hot(label)
     # assert one_hot(pred)
-    
+
      # True positives (TP)
     intersect = torch.sum(pred * label).type(torch.float32)
-    
+
     # Actual positives (TP + FN)
     total_pixel_truth = torch.sum(label).type(torch.float32)
-    
+
     recall = (intersect + smooth) / (total_pixel_truth + smooth)
     return recall
 
@@ -391,3 +396,80 @@ def visualize_sample(gt: Tensor, pred: Tensor, epoch: int, batch_idx: int):
     save_path = Path("results/segthor/ce")  / f"epoch_{epoch}_batch_{batch_idx}.png"
     plt.savefig(save_path)
     plt.close()  # Close the figure to avoid memory issues
+
+def wandb_login(disable_wandb: bool):
+    if disable_wandb:
+        print("!! WandB disabled !!")
+        return
+    else:
+        try:
+            with open("wandb.password", "rt") as f:
+                pw = f.readline().strip()
+                os.environ["WANDB_API_KEY"] = pw
+                wandb.login()
+        except FileNotFoundError:
+            raise FileNotFoundError("File wandb.password was not found in the project root. Either add it or disable wandb by running --disable_wandb")
+
+
+# K - num of classes, e - epoch num
+# Loss and every metric are an array of [train_result, valid_result]
+def save_loss_and_metrics(K: int, e: int, dest: Path,
+                          loss: [Tensor, Tensor],
+                          dice: [Tensor, Tensor]) -> dict:
+    # Save and log metrics and losses
+    # I save it at each epochs, in case the code crashes or I decide to stop it early
+    np.save(dest / "loss_tra.npy", loss[0])
+    np.save(dest / "dice_tra.npy", dice[0])
+    np.save(dest / "loss_val.npy", loss[1])
+    np.save(dest / "dice_val.npy", dice[1])
+    metrics = {
+        "train/loss": loss[0][e, :].mean().item(),
+        "train/dice_avg": dice[0][e, :, 1:].mean().item(),
+        "valid/loss": loss[1][e, :].mean().item(),
+        "valid/dice_avg": dice[1][e, :, 1:].mean().item(),
+    }
+    for k in range(1, K):
+        metrics[f"train/dice-{k}"] = dice[0][e, :, k].mean().item()
+        metrics[f"valid/dice-{k}"] = dice[1][e, :, k].mean().item()
+    return metrics
+
+
+def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
+    prefix = args.run_prefix + '_' if args.run_prefix else ''
+    lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != parser.get_default('lr') else ''
+    lr += f'LR-WD({args.lr_weight_decay})_' if args.lr_weight_decay != parser.get_default('lr_weight_decay') else ''
+    dropout = f'dropout({args.dropoutRate})' if args.dropoutRate != parser.get_default('dropoutRate') else ''
+    encoder_name = ''
+    if args.model != 'ENet':
+        encoder_name = f'_{args.encoder_name}'
+        if args.unfreeze_enc_last_n_layers != parser.get_default('unfreeze_enc_last_n_layers'):
+            encoder_name += f'(unfreeze-{args.unfreeze_enc_last_n_layers})'
+    run_name = f'{prefix}{dropout}{lr}{args.loss}_{args.model}{encoder_name}'
+    run_name = 'DEBUG_' + run_name if args.debug else run_name
+    return run_name
+
+
+# Using the suggestions from https://pytorch.org/docs/stable/notes/randomness.html
+def seed_everything(args) -> None:
+    import os
+
+    seed = args.seed
+    print(f"> Using seed: {seed}")
+    # Seed python
+    random.seed(seed)
+    # Seed numpy
+    np.random.seed(seed)
+    # Seed torch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # Cannot set this since there are some operations which do not have deterministic equivalent (like max_unpool2d)
+    # torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+    # For the cuBLAS API of the CUDA implementation
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
