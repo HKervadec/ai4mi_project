@@ -29,6 +29,7 @@ from multiprocessing import Pool
 from contextlib import AbstractContextManager
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
+import wandb
 import random
 import torch
 import numpy as np
@@ -181,13 +182,18 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     return res
 
 
-def prepare_wandb_login():
-    try:
-        with open("wandb.password", "rt") as f:
-            pw = f.readline().strip()
-            os.environ["WANDB_API_KEY"] = pw
-    except FileNotFoundError:
-        print("!! File wandb.password was not found in the project root. WandB will be disabled during this run !!")
+def wandb_login(disable_wandb: bool):
+    if disable_wandb:
+        print("!! WandB disabled !!")
+        return
+    else:
+        try:
+            with open("wandb.password", "rt") as f:
+                pw = f.readline().strip()
+                os.environ["WANDB_API_KEY"] = pw
+                wandb.login()
+        except FileNotFoundError:
+            raise FileNotFoundError("File wandb.password was not found in the project root. Either add it or disable wandb by running --disable_wandb")
 
 
 # K - num of classes, e - epoch num
