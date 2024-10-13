@@ -40,6 +40,7 @@ from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
+from models import *
 import utils
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
@@ -64,22 +65,16 @@ datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
-def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
-    try:
-        net = eval(args.model)(1, K, dropoutRate=args.dropoutRate)
-    except NameError:
-        raise ValueError(f"Model {args.model} does not exist")
+    net = eval(args.model)(1, K, **vars(args))
     net.init_weights()
     net.to(device)
-
-    lr = 0.0005
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -108,6 +103,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         itemgetter(0)
     ])
 
+    # Used to seed dataloader workers, passed in `generator` param
+    g = torch.Generator()
+    g.manual_seed(args.seed)
+
     train_set = SliceDataset('train',
                              root_dir,
                              img_transform=img_transform,
@@ -117,7 +116,9 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=args.num_workers,
-                              shuffle=True)
+                              shuffle=True,
+                              worker_init_fn=utils.seed_worker,
+                              generator=g)
 
     val_set = SliceDataset('val',
                            root_dir,
@@ -128,18 +129,27 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=args.num_workers,
-                            shuffle=False)
+                            shuffle=False,
+                            worker_init_fn=utils.seed_worker,
+                            generator=g)
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    # lr = 0.0005 # Initial LR for ENet
+    lr = args.lr
+    optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999), weight_decay=args.lr_weight_decay)
+    scheduler = None
+    if args.enable_lr_scheduler:
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, epochs=args.epochs, steps_per_epoch=len(train_loader))
+    return net, optimizer, scheduler, device, train_loader, val_loader, K
 
 
 def runTraining(args):
 
+    utils.seed_everything(args)
     start = time.time()
     print(f">>> Setting up to train on {args.dataset} with {args.model}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    net, optimizer, scheduler, device, train_loader, val_loader, K = setup(args)
 
     loss_fn = create_loss_fn(args, K)
 
@@ -199,8 +209,11 @@ def runTraining(args):
                     if opt:  # Only for training
                         loss.backward()
                         opt.step()
+                        # Apply LR scheduler
+                        if scheduler:
+                            scheduler.step()
 
-                    if m == 'val':
+                    if m == 'val' and not args.dry_run:
                         with warnings.catch_warnings():
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
@@ -218,6 +231,7 @@ def runTraining(args):
                                          for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
+
         metrics = utils.save_loss_and_metrics(K, e, args.dest,
                                               loss=[log_loss_tra, log_loss_val],
                                               dice=[log_dice_tra, log_dice_val])
@@ -230,10 +244,11 @@ def runTraining(args):
             with open(args.dest / "best_epoch.txt", 'w') as f:
                     f.write(str(e))
 
-            best_folder = args.dest / "best_epoch"
-            if best_folder.exists():
-                    rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
+            if not args.dry_run:
+                best_folder = args.dest / "best_epoch"
+                if best_folder.exists():
+                        rmtree(best_folder)
+                copytree(args.dest / f"iter{e:03d}", Path(best_folder))
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
@@ -251,36 +266,43 @@ def main():
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--dataset', default='SEGTHOR', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
-    parser.add_argument('--args', default='')
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
+    parser.add_argument('--seed', default=42, type=int, help='Random seed to use for reproducibility of the experiments')
 
     parser.add_argument('--num_workers', type=int, default=5)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    
+
+    parser.add_argument('--dropoutRate', type=float, default=0.2, help="Dropout rate for the ENet model")
+    parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
+    parser.add_argument('--lr_weight_decay', type=float, default=0.01, help="Weight decay factor for the AdamW optimizer")
+    parser.add_argument('--enable_lr_scheduler', action='store_true')
+
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
     parser.add_argument('--beta', type=float, default=0.5, help="Beta parameter for loss functions")
     parser.add_argument('--focal_alpha', type=float, default=0.25, help="Alpha parameter for Focal Loss")
     parser.add_argument('--focal_gamma', type=float, default=2.0, help="Gamma parameter for Focal Loss")
-    parser.add_argument('--dropoutRate', type=float, default=0.1, help="Dropout rate for the ENet model")
 
     # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
+    parser.add_argument('--dry_run', action='store_true', help="Disable saving the image validation results on every epoch")
 
     # Arguments for more flexibility of the run
     parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
     parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'Dice', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
-    parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN'])
+    parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN', 'UNet', 'UNetPlusPlus', 'DeepLabV3Plus'])
     parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
     parser.add_argument('--run_group', type=str, default=None, help='Your name so that the run can be grouped by it')
 
+    # Arguments for running with different backbones
+    parser.add_argument('--encoder_name', type=str, default='resnet18', choices=['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'])
+    parser.add_argument('--unfreeze_enc_last_n_layers', type=int, default=1, help="Train the last n layers of the encoder")
+
     args = parser.parse_args()
-    prefix = args.run_prefix + '_' if args.run_prefix else ''
-    run_name = f'{prefix}{args.loss}_{args.model}_{args.dataset[:3]}'
-    run_name = 'DEBUG_' + run_name if args.debug else run_name
+    run_name = utils.get_run_name(args, parser)
     args.dest = args.dest / run_name
 
     # Added since for python 3.8+, OS X multiprocessing starts processes with spawn instead of fork
