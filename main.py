@@ -51,8 +51,7 @@ from utils import (Dcm,
                    probs2class,
                    tqdm_,
                    dice_coef,
-                   save_images,
-                   prepare_wandb_login)
+                   save_images)
 
 from losses import create_loss_fn
 
@@ -278,7 +277,7 @@ def main():
 
     parser.add_argument('--dropoutRate', type=float, default=0.2, help="Dropout rate for the ENet model")
     parser.add_argument('--lr', type=float, default=0.0005, help="Learning rate")
-    parser.add_argument('--lr_weight_decay', type=float, default=0.01, help="Weight decay factor for the AdamW optimizer")
+    parser.add_argument('--lr_weight_decay', type=float, default=0.1, help="Weight decay factor for the AdamW optimizer")
     parser.add_argument('--enable_lr_scheduler', action='store_true')
 
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter for loss functions")
@@ -289,6 +288,7 @@ def main():
     # Optimize snellius batch job
     parser.add_argument('--scratch', action='store_true', help="Use the scratch folder of snellius")
     parser.add_argument('--dry_run', action='store_true', help="Disable saving the image validation results on every epoch")
+    parser.add_argument('--disable_wandb', action='store_true', help="Disable the WandB logging")
 
     # Arguments for more flexibility of the run
     parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
@@ -309,14 +309,13 @@ def main():
     # see https://github.com/pytest-dev/pytest-flask/issues/104
     multiprocessing.set_start_method("fork")
 
-    prepare_wandb_login()
-    wandb.login()
+    utils.wandb_login(args.disable_wandb)
     wandb.init(
         entity="ai_4_mi",
         project="SegTHOR",
         name=run_name,
         config=vars(args),
-        mode="disabled" if args.debug else "online",
+        mode="disabled" if args.disable_wandb else "online",
         group=args.run_group
     )
 
