@@ -1,0 +1,164 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+
+     active environment : ai4mi
+    active env location : /home/scur2492/.conda/envs/ai4mi
+            shell level : 1
+       user config file : /home/scur2492/.condarc
+ populated config files : 
+          conda version : 23.5.2
+    conda-build version : not installed
+         python version : 3.11.4.final.0
+       virtual packages : __archspec=1=x86_64
+                          __cuda=12.5=0
+                          __glibc=2.34=0
+                          __linux=5.14.0=0
+                          __unix=0=0
+       base environment : /sw/arch/RHEL8/EB_production/2023/software/Miniconda3/23.5.2-0  (read only)
+      conda av data dir : /sw/arch/RHEL8/EB_production/2023/software/Miniconda3/23.5.2-0/etc/conda
+  conda av metadata url : None
+           channel URLs : https://repo.anaconda.com/pkgs/main/linux-64
+                          https://repo.anaconda.com/pkgs/main/noarch
+                          https://repo.anaconda.com/pkgs/r/linux-64
+                          https://repo.anaconda.com/pkgs/r/noarch
+          package cache : /sw/arch/RHEL8/EB_production/2023/software/Miniconda3/23.5.2-0/pkgs
+                          /home/scur2492/.conda/pkgs
+       envs directories : /home/scur2492/.conda/envs
+                          /sw/arch/RHEL8/EB_production/2023/software/Miniconda3/23.5.2-0/envs
+               platform : linux-64
+             user-agent : conda/23.5.2 requests/2.29.0 CPython/3.11.4 Linux/5.14.0-427.31.1.el9_4.x86_64 rhel/9.4 glibc/2.34
+                UID:GID : 67305:66781
+             netrc file : None
+           offline mode : False
+
+
+Python 3.11.10
+Package                  Version
+------------------------ -----------
+cfgv                     3.4.0
+contourpy                1.3.0
+cycler                   0.12.1
+distlib                  0.3.8
+filelock                 3.16.1
+fonttools                4.54.1
+fsspec                   2024.9.0
+identify                 2.6.1
+imageio                  2.35.1
+importlib_resources      6.4.5
+isort                    5.13.2
+Jinja2                   3.1.4
+kiwisolver               1.4.7
+lazy_loader              0.4
+MarkupSafe               3.0.1
+matplotlib               3.9.2
+mpmath                   1.3.0
+networkx                 3.3
+nibabel                  5.3.0
+nodeenv                  1.9.1
+numpy                    2.1.2
+nvidia-cublas-cu12       12.1.3.1
+nvidia-cuda-cupti-cu12   12.1.105
+nvidia-cuda-nvrtc-cu12   12.1.105
+nvidia-cuda-runtime-cu12 12.1.105
+nvidia-cudnn-cu12        9.1.0.70
+nvidia-cufft-cu12        11.0.2.54
+nvidia-curand-cu12       10.3.2.106
+nvidia-cusolver-cu12     11.4.5.107
+nvidia-cusparse-cu12     12.1.0.106
+nvidia-nccl-cu12         2.20.5
+nvidia-nvjitlink-cu12    12.6.77
+nvidia-nvtx-cu12         12.1.105
+packaging                24.1
+pillow                   10.4.0
+pip                      24.2
+platformdirs             4.3.6
+pre_commit               4.0.1
+pyparsing                3.1.4
+python-dateutil          2.9.0.post0
+PyYAML                   6.0.2
+ruff                     0.6.9
+scikit-image             0.24.0
+scipy                    1.14.1
+setuptools               75.1.0
+six                      1.16.0
+sympy                    1.13.3
+tifffile                 2024.9.20
+torch                    2.4.1
+torchvision              0.19.1
+tqdm                     4.66.5
+triton                   3.0.0
+typing_extensions        4.12.2
+virtualenv               20.26.6
+wheel                    0.44.0
+Namespace(epochs=3, dataset='SEGTHOR', mode='full', dest=PosixPath('results/SEGTHOR/ce'), num_workers=5, gpu=True, debug=False)
+>>> Setting up to train on SEGTHOR with full
+>> Picked cuda to run experiments
+> Initialized ENet (in_dim=1->out_dim=5) with {}
+>> Created train dataset with 5453 images...
+>> Created val dataset with 1967 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+>> Training   (   0):   0%|          | 0/682 [?it/s]>> Training   (   0):   0%|          | 0/682 [?it/s]
+Traceback (most recent call last):
+  File "/gpfs/home3/scur2492/MedicalImaging/ai4mi_project/main.py", line 362, in <module>
+    main()
+  File "/gpfs/home3/scur2492/MedicalImaging/ai4mi_project/main.py", line 358, in main
+    runTraining(args)
+  File "/gpfs/home3/scur2492/MedicalImaging/ai4mi_project/main.py", line 182, in runTraining
+    for i, data in tq_iter:
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 630, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1344, in _next_data
+    return self._process_data(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1370, in _process_data
+    data.reraise()
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/torch/_utils.py", line 706, in reraise
+    raise exception
+PIL.UnidentifiedImageError: Caught UnidentifiedImageError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/torch/utils/data/_utils/worker.py", line 309, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ~~~~~~~~~~~~^^^^^
+  File "/gpfs/home3/scur2492/MedicalImaging/ai4mi_project/dataset.py", line 87, in __getitem__
+    img: Tensor = self.img_transform(Image.open(img_path))
+                                     ^^^^^^^^^^^^^^^^^^^^
+  File "/home/scur2492/.conda/envs/ai4mi/lib/python3.11/site-packages/PIL/Image.py", line 3498, in open
+    raise UnidentifiedImageError(msg)
+PIL.UnidentifiedImageError: cannot identify image file '/gpfs/home3/scur2492/MedicalImaging/ai4mi_project/data/SEGTHOR/train/img/Patient_07_0060.png'
+
+
+JOB STATISTICS
+==============
+Job ID: 8133310
+Cluster: snellius
+User/Group: scur2492/scur2492
+State: FAILED (exit code 1)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:13
+CPU Efficiency: 4.25% of 00:05:06 core-walltime
+Job Wall-clock time: 00:00:17
+Memory Utilized: 1.71 MB
+Memory Efficiency: 0.00% of 120.00 GB
