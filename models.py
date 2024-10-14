@@ -1,8 +1,10 @@
 import segmentation_models_pytorch as smp
 from torch import nn
+from pathlib import Path
+import torch
 
 
-class SegmentationModelBase:
+class SegmentationModelBase(nn.Module):
 
     def initialize_base(self, kwargs):
         self.encoder_name = kwargs['encoder_name']
@@ -21,8 +23,15 @@ class SegmentationModelBase:
                     param.requires_grad = False
         print(f"> Initialized encoder {self.encoder_name} with first {freeze_first_n_layers}/{enc_num_layers} layers frozen")
 
-    def init_weights(self):
-        pass
+    def init_weights(self, args):
+        # If in evaluation mode, load the model from the file
+        if args.evaluation:
+            print(f"Loading model weights from  {args.dest} ...")
+            trained_weights_path = args.dest / "bestweights.pt"
+            device = 'cpu' if not args.gpu else None
+            self.load_state_dict(torch.load(trained_weights_path, map_location=device))
+        else:
+            pass
 
 
 class UNet(smp.Unet, SegmentationModelBase):

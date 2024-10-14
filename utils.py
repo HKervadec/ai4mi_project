@@ -166,6 +166,7 @@ def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -
 dice_coef = partial(meta_dice, "bk...->bk")
 dice_batch = partial(meta_dice, "bk...->k")  # used for 3d dice
 
+
 def meta_jaccard(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
     assert label.shape == pred.shape
     assert one_hot(label)
@@ -178,10 +179,45 @@ def meta_jaccard(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8
 
     return jaccards
 
+
 #Jaccard metrics for batch and for entire dataset
 #using partial like Dice metric to pre-define summation pattern
 jaccard_coef = partial(meta_jaccard, "bk...->bk")
 jaccard_batch = partial(meta_jaccard, "bk...->k")  # for 3d IoU
+
+
+def compute_precision(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+    """
+    Precision as TP / (TP + FP).
+    """
+    # assert label.shape == pred.shape
+    # assert one_hot(label)
+    # assert one_hot(pred)
+
+    # True positives (TP)
+    inter_size: Tensor = einsum("bk...->bk", [intersection(label, pred)]).type(torch.float32)
+    # Predicted positives (TP + FP)
+    total_pixel_pred = einsum("bk...->bk", [pred]).type(torch.float32)
+
+    precision = (inter_size + smooth) / (total_pixel_pred + smooth)
+    return precision
+
+
+def compute_recall(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+    """
+    Recall = TP / (TP + FN)
+    """
+    # assert label.shape == pred.shape
+    # assert one_hot(label)
+    # assert one_hot(pred)
+
+     # True positives (TP)
+    inter_size: Tensor = einsum("bk...->bk", [intersection(label, pred)]).type(torch.float32)
+    # Actual positives (TP + FN)
+    total_pixel_truth = einsum("bk...->bk", [label]).type(torch.float32)
+
+    recall = (inter_size + smooth) / (total_pixel_truth + smooth)
+    return recall
 
 
 def boundary_points(seg: Tensor) -> np.ndarray:
@@ -313,42 +349,6 @@ def average_symmetric_surface_distance(label: Tensor, pred: Tensor) -> float:
     return assd
 
 
-def precision(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
-    """
-    Precision as TP / (TP + FP).
-    """
-    assert label.shape == pred.shape
-    # assert one_hot(label)
-    # assert one_hot(pred)
-
-    # True positives (TP)
-    intersect = torch.sum(pred * label).type(torch.float32)
-
-    # Predicted positives (TP + FP)
-    total_pixel_pred = torch.sum(pred).type(torch.float32)
-
-    precision = (intersect + smooth) / (total_pixel_pred + smooth)
-    return precision
-
-
-def recall(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
-    """
-    Recall = TP / (TP + FN)
-    """
-    assert label.shape == pred.shape
-    # assert one_hot(label)
-    # assert one_hot(pred)
-
-     # True positives (TP)
-    intersect = torch.sum(pred * label).type(torch.float32)
-
-    # Actual positives (TP + FN)
-    total_pixel_truth = torch.sum(label).type(torch.float32)
-
-    recall = (intersect + smooth) / (total_pixel_truth + smooth)
-    return recall
-
-
 def intersection(a: Tensor, b: Tensor) -> Tensor:
     assert a.shape == b.shape
     assert sset(a, [0, 1])
@@ -397,6 +397,7 @@ def visualize_sample(gt: Tensor, pred: Tensor, epoch: int, batch_idx: int):
     plt.savefig(save_path)
     plt.close()  # Close the figure to avoid memory issues
 
+
 def wandb_login(disable_wandb: bool):
     if disable_wandb:
         print("!! WandB disabled !!")
@@ -411,26 +412,64 @@ def wandb_login(disable_wandb: bool):
             raise FileNotFoundError("File wandb.password was not found in the project root. Either add it or disable wandb by running --disable_wandb")
 
 
+def wandb_save_model(disabled: bool, model_path, metadata: dict):
+    if disabled:
+        print(f"WandB disabled, will not save the model weights to its artifacts!")
+        pass
+    else:
+        artifact = wandb.Artifact("bestmodel.pt", type='model', metadata=metadata)
+        artifact.add_file(model_path)
+        wandb.run.log_artifact(artifact)
+        print("Saved model weights to WandB artifacts")
+
+
 # K - num of classes, e - epoch num
 # Loss and every metric are an array of [train_result, valid_result]
 def save_loss_and_metrics(K: int, e: int, dest: Path,
                           loss: [Tensor, Tensor],
-                          dice: [Tensor, Tensor]) -> dict:
+                          dice: [Tensor, Tensor],
+                          jaccard: [Tensor, Tensor],
+                          precision: [Tensor, Tensor],
+                          recall: [Tensor, Tensor],
+                          ahd_validation: Tensor,
+                          assd_validation: Tensor) -> dict:
+
     # Save and log metrics and losses
-    # I save it at each epochs, in case the code crashes or I decide to stop it early
-    np.save(dest / "loss_tra.npy", loss[0])
-    np.save(dest / "dice_tra.npy", dice[0])
+
+    # Save the validation results, for visualization purposes
     np.save(dest / "loss_val.npy", loss[1])
     np.save(dest / "dice_val.npy", dice[1])
+    np.save(dest / "jaccard_val.npy", jaccard[1])
+    np.save(dest / "precision_val.npy", precision[1])
+    np.save(dest / "recall_val.npy", recall[1])
+    np.save(dest / "ahd_val.npy", ahd_validation)
+    np.save(dest / "assd_val.npy", assd_validation)
+
     metrics = {
         "train/loss": loss[0][e, :].mean().item(),
         "train/dice_avg": dice[0][e, :, 1:].mean().item(),
+        "train/jaccard": jaccard[0][e, :, 1:].mean().item(),
+        "train/precision": precision[0][e, :, 1:].mean().item(),
+        "train/recall": recall[0][e, :, 1:].mean().item(),
+
         "valid/loss": loss[1][e, :].mean().item(),
         "valid/dice_avg": dice[1][e, :, 1:].mean().item(),
+        "valid/jaccard": jaccard[1][e, :, 1:].mean().item(),
+        "valid/precision": precision[1][e, :, 1:].mean().item(),
+        "valid/recall": recall[1][e, :, 1:].mean().item(),
+        "valid/ahd": ahd_validation[e, :, 1:].mean().item(),
+        "valid/assd": assd_validation[e, :].mean().item(),
     }
     for k in range(1, K):
         metrics[f"train/dice-{k}"] = dice[0][e, :, k].mean().item()
         metrics[f"valid/dice-{k}"] = dice[1][e, :, k].mean().item()
+        metrics[f"train/jaccard-{k}"] = jaccard[0][e, :, k].mean().item()
+        metrics[f"valid/jaccard-{k}"] = jaccard[1][e, :, k].mean().item()
+        metrics[f"train/precision-{k}"] = precision[0][e, :, k].mean().item()
+        metrics[f"valid/precision-{k}"] = precision[1][e, :, k].mean().item()
+        metrics[f"train/recall-{k}"] = recall[0][e, :, k].mean().item()
+        metrics[f"valid/recall-{k}"] = recall[1][e, :, k].mean().item()
+        metrics[f"valid/ahd-{k}"] = ahd_validation[e, :, k].mean().item()
     return metrics
 
 
