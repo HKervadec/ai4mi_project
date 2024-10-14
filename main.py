@@ -94,7 +94,7 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
-    base_img_transforms, base_gt_transforms, train_img_transforms, train_gt_transforms = dataset.get_transforms(K)
+    train_img_transforms, train_gt_transforms, valid_img_transforms, valid_gt_transforms = dataset.get_transforms(K)
     # Used to seed dataloader workers, passed in `generator` param
     g = torch.Generator()
     g.manual_seed(args.seed)
@@ -114,8 +114,8 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
 
     val_set = SliceDataset('val',
                            root_dir,
-                           img_transform=base_img_transforms,
-                           gt_transform=base_gt_transforms,
+                           img_transform=valid_img_transforms,
+                           gt_transform=valid_gt_transforms,
                            debug=args.debug,
                            remove_unannotated=args.remove_unannotated)
     val_loader = DataLoader(val_set,
