@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-
+import argparse
+from argparse import Namespace
 # MIT License
 
 # Copyright (c) 2024 Hoel Kervadec
@@ -28,6 +29,8 @@ from multiprocessing import Pool
 from contextlib import AbstractContextManager
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
+import wandb
+import random
 import torch
 import numpy as np
 from PIL import Image
@@ -179,18 +182,25 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     return res
 
 
-def prepare_wandb_login():
-    try:
-        with open("wandb.password", "rt") as f:
-            pw = f.readline().strip()
-            os.environ["WANDB_API_KEY"] = pw
-    except FileNotFoundError:
-        print("!! File wandb.password was not found in the project root. WandB will be disabled during this run !!")
+def wandb_login(disable_wandb: bool):
+    if disable_wandb:
+        print("!! WandB disabled !!")
+        return
+    else:
+        try:
+            with open("wandb.password", "rt") as f:
+                pw = f.readline().strip()
+                os.environ["WANDB_API_KEY"] = pw
+                wandb.login()
+        except FileNotFoundError:
+            raise FileNotFoundError("File wandb.password was not found in the project root. Either add it or disable wandb by running --disable_wandb")
 
 
 # K - num of classes, e - epoch num
 # Loss and every metric are an array of [train_result, valid_result]
-def save_loss_and_metrics(K: int, e: int, dest: Path, loss: [Tensor, Tensor], dice: [Tensor, Tensor]) -> dict:
+def save_loss_and_metrics(K: int, e: int, dest: Path,
+                          loss: [Tensor, Tensor],
+                          dice: [Tensor, Tensor]) -> dict:
     # Save and log metrics and losses
     # I save it at each epochs, in case the code crashes or I decide to stop it early
     np.save(dest / "loss_tra.npy", loss[0])
@@ -207,3 +217,44 @@ def save_loss_and_metrics(K: int, e: int, dest: Path, loss: [Tensor, Tensor], di
         metrics[f"train/dice-{k}"] = dice[0][e, :, k].mean().item()
         metrics[f"valid/dice-{k}"] = dice[1][e, :, k].mean().item()
     return metrics
+
+
+def get_run_name(args: Namespace, parser: argparse.ArgumentParser) -> str:
+    prefix = args.run_prefix + '_' if args.run_prefix else ''
+    lr = f'lr({"{:.0E}".format(args.lr)})_' if args.lr != parser.get_default('lr') else ''
+    lr += f'LR-WD({args.lr_weight_decay})_' if args.lr_weight_decay != parser.get_default('lr_weight_decay') else ''
+    dropout = f'dropout({args.dropoutRate})' if args.dropoutRate != parser.get_default('dropoutRate') else ''
+    encoder_name = ''
+    if args.model != 'ENet':
+        encoder_name = f'_{args.encoder_name}'
+        if args.unfreeze_enc_last_n_layers != parser.get_default('unfreeze_enc_last_n_layers'):
+            encoder_name += f'(unfreeze-{args.unfreeze_enc_last_n_layers})'
+    run_name = f'{prefix}{dropout}{lr}{args.loss}_{args.model}{encoder_name}'
+    run_name = 'DEBUG_' + run_name if args.debug else run_name
+    return run_name
+
+
+# Using the suggestions from https://pytorch.org/docs/stable/notes/randomness.html
+def seed_everything(args) -> None:
+    import os
+
+    seed = args.seed
+    print(f"> Using seed: {seed}")
+    # Seed python
+    random.seed(seed)
+    # Seed numpy
+    np.random.seed(seed)
+    # Seed torch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # Cannot set this since there are some operations which do not have deterministic equivalent (like max_unpool2d)
+    # torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+    # For the cuBLAS API of the CUDA implementation
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)

@@ -1,0 +1,5 @@
+--model ENet --lr 0.0005 --lr_scheduler_T0 10 --lr_scheduler_Tmult 1
+--model ENet --lr 0.0005 --lr_scheduler_T0 10 --lr_scheduler_Tmult 2
+--model ENet --lr 0.0005 --lr_scheduler_T0 20 --lr_scheduler_Tmult 1
+--model ENet --lr 0.0005 --lr_scheduler_T0 20 --lr_scheduler_Tmult 2
+--model ENet --dropoutRate 0.1 --lr 0.0005 --lr_scheduler_T0 10 --lr_scheduler_Tmult 2

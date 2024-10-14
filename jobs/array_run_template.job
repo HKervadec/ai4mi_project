@@ -1,0 +1,32 @@
+#!/bin/bash
+
+#SBATCH --array=1-3
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=LR_scheduler
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=04:00:00
+#SBATCH --output=/home/scur2504/output/success/out-%x.%A.out
+#SBATCH --error=/home/scur2504/output/error/out-%x.%A.err
+
+module purge
+# The default modules for deep learning
+module load 2022
+module load Anaconda3/2022.05
+
+# Activate your environment
+source activate ai4mi
+
+# Go to the directory that contains the project, the runnable
+# Your job starts in the directory where you call sbatch
+cd $HOME/ai4mi_project
+
+# Read line by line (per job in array) from the config file
+CONFIG_FILE=$HOME/config_array_job.txt
+PARAMS=$( sed -n ${SLURM_ARRAY_TASK_ID}p $CONFIG_FILE )
+
+echo $PARAMS
+
+# Run your code
+srun python -O main.py --gpu --dataset SEGTHOR --dest results/segthor --dry_run $PARAMS
