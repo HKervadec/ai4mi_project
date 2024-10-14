@@ -86,10 +86,10 @@ def setup(args) -> tuple[nn.Module, torch.optim.Optimizer, torch.optim.lr_schedu
     img_transform = transforms.Compose([
         lambda img: img.convert('L'),
         lambda img: np.array(img)[np.newaxis, ...],
-        lambda nd: nd / 255,  # max <= 1
+        #lambda nd: nd / 255,  # max <= 1
         lambda nd: torch.tensor(nd, dtype=torch.float32),
-        transforms.Normalize([0.5], [0.5]),
-        transforms.GaussianBlur(3, sigma=(0.1, 2.0))
+        transforms.GaussianBlur(3, sigma=(0.1, 2.0)),
+        transforms.Lambda(lambda x: (x-x.min())/(x.max()-x.min()))  # Normalize the image between 0-1
     ])
 
     gt_transform = transforms.Compose([
