@@ -252,5 +252,13 @@ class ENet(nn.Module):
                 interpolated = F.interpolate(bn5_out, mode='nearest', scale_factor=2)
                 return self.final(interpolated)
 
-        def init_weights(self, *args, **kwargs):
+        def init_weights(self, args):
+            # If in evaluation mode, load the model from the file
+            if args.evaluation:
+                print(f"Loading model weights from  {args.dest} ...")
+                trained_weights_path = args.dest / "bestweights.pt"
+                device = 'cpu' if not args.gpu else None
+                self.load_state_dict(torch.load(trained_weights_path, map_location=device))
+
+            else:
                 self.apply(random_weights_init)

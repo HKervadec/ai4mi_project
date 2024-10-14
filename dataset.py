@@ -22,12 +22,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import numpy as np
+import torch
+
 from pathlib import Path
 from typing import Callable, Union
 
 from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms
+from operator import itemgetter
+
+from utils import class2one_hot
 
 
 def make_dataset(root, subset) -> list[tuple[Path, Path]]:
@@ -86,3 +93,47 @@ class SliceDataset(Dataset):
         return {"images": img,
                 "gts": gt,
                 "stems": img_path.stem}
+
+
+def get_transforms(K: int):
+    train_transform = transforms.Compose([
+        lambda img: img.convert('L'),
+        lambda img: np.array(img)[np.newaxis, ...],
+        # lambda nd: nd / 255,  # max <= 1
+        lambda nd: torch.tensor(nd, dtype=torch.float32),
+        transforms.GaussianBlur(3, sigma=(0.1, 2.0)), # Add some Gaussian blur, only to the train image
+        transforms.Lambda(lambda x: (x - x.min()) / (x.max() - x.min()))  # Normalize the image between 0-1
+    ])
+
+    train_gt_transform = transforms.Compose([
+        lambda img: np.array(img)[...],
+        # The idea is that the classes are mapped to {0, 255} for binary cases
+        # {0, 85, 170, 255} for 4 classes
+        # {0, 51, 102, 153, 204, 255} for 6 classes
+        # Very sketchy but that works here and that simplifies visualization
+        lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
+        lambda nd: torch.tensor(nd, dtype=torch.int64)[None, ...],  # Add one dimension to simulate batch
+        lambda t: class2one_hot(t, K=K),
+        itemgetter(0)
+    ])
+
+    valid_transform = transforms.Compose([
+        lambda img: img.convert('L'),
+        lambda img: np.array(img)[np.newaxis, ...],
+        #lambda nd: nd / 255,  # max <= 1
+        lambda nd: torch.tensor(nd, dtype=torch.float32),
+        transforms.Lambda(lambda x: (x-x.min())/(x.max()-x.min()))  # Normalize the image between 0-1
+    ])
+
+    valid_gt_transform = transforms.Compose([
+        lambda img: np.array(img)[...],
+        # The idea is that the classes are mapped to {0, 255} for binary cases
+        # {0, 85, 170, 255} for 4 classes
+        # {0, 51, 102, 153, 204, 255} for 6 classes
+        # Very sketchy but that works here and that simplifies visualization
+        lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
+        lambda nd: torch.tensor(nd, dtype=torch.int64)[None, ...],  # Add one dimension to simulate batch
+        lambda t: class2one_hot(t, K=K),
+        itemgetter(0)
+    ])
+    return train_transform, train_gt_transform, valid_transform, valid_gt_transform
