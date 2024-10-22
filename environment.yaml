@@ -16,3 +16,4 @@ dependencies:
     - scikit-image
     - matplotlib
     - wandb # will have to remove this at final submission time
+    - segmentation-models-pytorch
