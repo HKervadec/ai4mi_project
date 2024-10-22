@@ -200,7 +200,7 @@ def runTraining(args):
                         loss.backward()
                         opt.step()
 
-                    if m == 'val':
+                    if m == 'val' and not args.dry_run:
                         with warnings.catch_warnings():
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
@@ -230,10 +230,11 @@ def runTraining(args):
             with open(args.dest / "best_epoch.txt", 'w') as f:
                     f.write(str(e))
 
-            best_folder = args.dest / "best_epoch"
-            if best_folder.exists():
-                    rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
+            if not args.dry_run:
+                best_folder = args.dest / "best_epoch"
+                if best_folder.exists():
+                        rmtree(best_folder)
+                copytree(args.dest / f"iter{e:03d}", Path(best_folder))
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
@@ -272,10 +273,12 @@ def main():
 
     # Arguments for more flexibility of the run
     parser.add_argument('--remove_unannotated', action='store_true', help="Remove the unannotated images")
-    parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'Dice', 'FocalLoss', 'CombinedLoss', 'FocalDiceLoss', 'TverskyLoss'])
+    parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'DiceLoss', 'FocalLoss', 'CombinedLoss', 'TverskyLoss'])
     parser.add_argument('--model', type=str, default='ENet', choices=['ENet', 'shallowCNN'])
     parser.add_argument('--run_prefix', type=str, default='', help='Name to prepend to the run name')
     parser.add_argument('--run_group', type=str, default=None, help='Your name so that the run can be grouped by it')
+
+    parser.add_argument('--dry_run', action='store_true', help="Disable saving the image validation results on every epoch")
 
     args = parser.parse_args()
     prefix = args.run_prefix + '_' if args.run_prefix else ''
