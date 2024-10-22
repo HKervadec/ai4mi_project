@@ -40,7 +40,7 @@ def create_loss_fn(args, K: int):
     match args.loss:
         case 'CrossEntropy':
             loss_fn = CrossEntropy(idk=idk)
-        case 'Dice':
+        case 'DiceLoss':
             loss_fn = DiceLoss()
         case 'FocalLoss':
             loss_fn = FocalLoss(alpha=args.focal_alpha, gamma=args.focal_gamma, idk=idk)  # Preference for alpha=0.25 and gamma=2
@@ -129,20 +129,7 @@ class CombinedLoss:
         ce = self.ce_loss(pred_softmax, target)
         dice = self.dice_loss(pred_softmax, target)
         return self.alpha * ce + self.beta * dice
-    
 
-class FocalDiceLoss:
-    def __init__(self, alpha=.3, beta=.7, focal_alpha=.25, focal_gamma=2, **kwargs):
-        self.alpha = alpha
-        self.beta = beta
-        self.focal_loss = FocalLoss(alpha=focal_alpha, gamma=focal_gamma, **kwargs)
-        self.dice_loss = DiceLoss()
-
-    def __call__(self, pred_softmax: Tensor, target: Tensor) -> Tensor:
-        focal = self.focal_loss(pred_softmax, target)
-        dice = self.dice_loss(pred_softmax, target)
-        return self.alpha * focal + self.beta * dice
-    
 
 class TverskyLoss:
     def __init__(self, alpha=.5, beta=.5, smooth=1e-5):
