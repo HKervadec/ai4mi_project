@@ -24,6 +24,7 @@ python -O main.py \
     --gpu \
     --loss focal \
     --focal_loss_gamma ${gamma} \
+    --plot_results \
     --optimizer adamw \
     --lr 0.0003 \
-    --plot_results
+    --channels 25

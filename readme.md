@@ -48,7 +48,34 @@ We you run the baseline, to modify the hyperparameters you just need to add:
 * Loss 
 
 ### 3. DeepLabv3
-Instructions
+Run the following (if working on snellius):
+```
+sbatch jobs/scripts/train_deeplabv3.job             # training from scratch
+sbatch jobs/scipts/train_deeplabv3_pretrained.job   # finetuning
+```
+If you're not working from the snellius cluster, simpy run the following:
+```
+# if training from scratch
+python -O main.py \
+    --dataset SEGTHORCORRECT \
+    --mode full \
+    --epochs 100 \
+    --dest results/segthor/ce/deeplabv3 \
+    --gpu \
+    --deeplabv3 \
+    --transformation preprocess_augment
+
+# if finetuning
+python -O main.py \
+    --dataset SEGTHORCORRECT \
+    --mode full \
+    --epochs 100 \
+    --dest results/segthor/ce/deeplabv3_pretrained \
+    --gpu \
+    --deeplabv3 \
+    --pretrained \
+    --transformation preprocess_augment
+```
 
 ### 4. Post processing
 Instructions 
