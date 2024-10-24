@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 
+import torch
 from torch import einsum
 import torch
 from utils import simplex, sset
@@ -38,11 +39,34 @@ class CrossEntropy():
         assert pred_softmax.shape == weak_target.shape
         assert simplex(pred_softmax)
         assert sset(weak_target, [0, 1])
-
+    
         log_p = (pred_softmax[:, self.idk, ...] + 1e-10).log()
         mask = weak_target[:, self.idk, ...].float()
 
         loss = - einsum("bkwh,bkwh->", mask, log_p)
+        loss /= mask.sum() + 1e-10
+
+        return loss
+
+class FocalLoss():
+    def __init__(self, **kwargs):
+        self.gamma = kwargs["gamma"]
+        self.idk = kwargs["idk"]
+        self.weights = kwargs["focal_loss_weights"] # [1.0, 22.3814, 1.3688, 29.9430, 5.2261] (for inv class frequency experiment)
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+    
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+
+        b, _, h, w = pred_softmax.shape
+
+        alpha = torch.tensor(self.weights).view(1, -1, 1, 1).repeat(b, 1, h, w)
+        p = pred_softmax[:, self.idk, ...]
+
+        log_p = (p[:, self.idk, ...] + 1e-10).log()
+        mask = weak_target[:, self.idk, ...].float()
+
+        loss = - einsum("bkwh,bkwh->", mask, alpha * (1 - p) ** self.gamma * (log_p))
         loss /= mask.sum() + 1e-10
 
         return loss

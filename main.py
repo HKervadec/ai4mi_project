@@ -24,33 +24,36 @@
 
 import argparse
 import warnings
-from typing import Any
-from pathlib import Path
-from pprint import pprint
+from datetime import datetime
 from operator import itemgetter
+from pathlib import Path
+from plot import run as plot
+from pprint import pprint
 from shutil import copytree, rmtree
+from typing import Any
 
-import torch
 import numpy as np
+import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision import transforms
-from torch.utils.data import DataLoader
 from torchvision.transforms import InterpolationMode
 
 from dataset import SliceDataset, SliceDatasetWithTransforms
-from ShallowNet import shallowCNN
-from ENet import ENet
 from DeepLabV3 import DeepLabV3
-from utils import (Dcm,
-                   class2one_hot,
-                   probs2one_hot,
-                   probs2class,
-                   tqdm_,
-                   dice_coef,
-                   save_images)
-
-from losses import (CrossEntropy, JaccardLoss, DiceLoss, LovaszSoftmaxLoss,CustomLoss)
+from ENet import ENet
+from ShallowNet import shallowCNN
+from losses import (CrossEntropy, JaccardLoss, DiceLoss, LovaszSoftmaxLoss, CustomLoss, FocalLoss)
+from utils import (
+    Dcm,
+    class2one_hot,
+    dice_coef,
+    probs2class,
+    probs2one_hot,
+    save_images,
+    tqdm_
+)
 from torch.utils.data import WeightedRandomSampler
 
 from utils import (Dcm,
@@ -106,6 +109,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     lr = args.lr
     if args.optimizer == 'sgd':
         optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9)
+    elif args.optimizer == 'adamw':
+        optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
     else:
         optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
@@ -232,6 +237,8 @@ def runTraining(args):
         loss_fn = LovaszSoftmaxLoss(idk=idk)
     elif args.loss == "custom":
         loss_fn = CustomLoss(idk=idk)
+    elif args.loss == "focal":
+        loss_fn = FocalLoss(idk=idk, gamma=args.focal_loss_gamma, weighted=args.focal_loss_weights)
     else:
         raise ValueError(args.loss)
 
@@ -295,9 +302,10 @@ def runTraining(args):
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
                             mult: int = 63 if K == 5 else (255 / (K - 1))
-                            save_images(predicted_class * mult,
-                                        data['stems'],
-                                        args.dest / f"iter{e:03d}" / m)
+                            if not args.dont_save_predictions and log_dice[e, :, 1:].mean().item() > best_dice:
+                                save_images(predicted_class * mult,
+                                            data['stems'],
+                                            args.dest / f"iter{e:03d}" / m)
 
                     j += B  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
@@ -321,10 +329,11 @@ def runTraining(args):
             with open(args.dest / "best_epoch.txt", 'w') as f:
                     f.write(str(e))
 
-            best_folder = args.dest / "best_epoch"
-            if best_folder.exists():
-                    rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
+            if not args.dont_save_predictions:
+                best_folder = args.dest / "best_epoch"
+                if best_folder.exists():
+                        rmtree(best_folder)
+                copytree(args.dest / f"iter{e:03d}", Path(best_folder))
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
@@ -347,21 +356,32 @@ def main():
     parser.add_argument('--deeplabv3', action='store_true', help="Use DeepLabV3 instead of the default model")
     parser.add_argument('--pretrained', action='store_true', help="Use a pretrained deeplabv3 model")
     parser.add_argument('--lr', type=float, default=0.0005)
-    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd'])
+    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd', 'adamw'])
     parser.add_argument('--remove_background', action='store_true', default=False,
                         help="If set, remove slices that contain only background.")
     parser.add_argument('--transformation', default='none', choices=['none', 'preprocessed', 'augmented', 'preprocess_augment'])
 
     parser.add_argument('--class_aware_sampling', action='store_true', default=False,
                         help="If set, samples batches so that every batch has a balanced representation of all classes.")
-    parser.add_argument("--loss", type=str, choices=["ce","jaccard","dice","lovasz","custom"],default='ce',
+    parser.add_argument('--plot_results', action='store_true', default=False)
+    parser.add_argument('--dont_save_predictions', action='store_true', default=False)
+    parser.add_argument('--focal_loss_gamma', type=float, default=2.0)
+    parser.add_argument('--focal_loss_weights', type=float, nargs=5, default=[1.0, 1.0, 1.0, 1.0, 1.0],
+                        help="Weights for the classes in the following order background, esophagus, heart, trachea, aorta")
+    parser.add_argument("--loss", type=str, choices=["ce", "jaccard", "dice", "lovasz", "custom", "focal"],default='ce',
                         help="Loss function to be used.")
 
     args = parser.parse_args()
 
+    args.dest = Path(args.dest) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
     pprint(args)
 
     runTraining(args)
+    
+    if args.plot_results:
+        plot_args = argparse.Namespace(metric_file=args.dest / "dice_val.npy", dest=args.dest / "dice_val.png", headless=True)
+        plot(plot_args)
 
 
 if __name__ == '__main__':

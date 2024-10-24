@@ -44,9 +44,11 @@ def run(args: argparse.Namespace) -> None:
 
     epcs = np.arange(E)
 
+    class_names = ["background", "esophagus", "heart", "trachea", "aorta"]
+
     for k in range(1, K):
         y = metrics[:, :, k].mean(axis=1)
-        ax.plot(epcs, y, label=f"{k=}", linewidth=1.5)
+        ax.plot(epcs, y, label=class_names[k], linewidth=1.5)
 
     if K > 2:
         ax.plot(epcs, metrics.mean(axis=1).mean(axis=1), label="All classes", linewidth=3)

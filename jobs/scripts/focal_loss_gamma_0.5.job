@@ -2,23 +2,27 @@
 
 #SBATCH --partition=gpu
 #SBATCH --gpus=1
-#SBATCH --job-name=train_deeplabv3_pretrained
+#SBATCH --job-name=train_baseline
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=02:00:00
-#SBATCH --output=jobs/outputs/train_deeplabv3_pretrained_output%A.out
+#SBATCH --output=jobs/outputs/focal_loss_gamma_0.5_%A.out
 
 module purge
 module load 2023
 source ai4mi/bin/activate
 
 cd $HOME/SegTHOR_ai4mi
+
+gamma=0.5
+
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
     --epochs 100 \
-    --dest results/segthor/ce/deeplabv3_pretrained \
+    --dest results/segthor/focal/baseline/gamma_${gamma} \
     --gpu \
-    --deeplabv3 \
-    --pretrained \
-    --transformation preprocess_augment
+    --transformation preprocess_augment \
+    --loss focal \
+    --focal_loss_gamma ${gamma} \
+    --plot_results

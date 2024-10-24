@@ -6,18 +6,22 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=02:00:00
-#SBATCH --output=jobs/outputs/train_baseline_output%A.out
+#SBATCH --output=jobs/outputs/focal_loss_weighted_icf_%A.out
 
 module purge
 module load 2023
 source ai4mi/bin/activate
 
 cd $HOME/SegTHOR_ai4mi
+
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
     --epochs 100 \
-    --dest results/segthor/ce/baseline \
+    --dest results/segthor/focal/weighted/icf \
     --gpu \
-    --transformation preprocess_augment \
-    --plot_results
+    --loss focal \
+    --plot_results \
+    --focal_loss_weights 1.0 22.3814 1.3688 29.9430 5.2261 # weights obtained by computing inverse class frequencies \
+    --optimizer adamw \
+    --lr 0.0003

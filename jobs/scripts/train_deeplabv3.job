@@ -5,7 +5,7 @@
 #SBATCH --job-name=train_deeplabv3
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=01:00:00
+#SBATCH --time=02:00:00
 #SBATCH --output=jobs/outputs/train_deeplabv3_output%A.out
 
 module purge
@@ -16,11 +16,8 @@ cd $HOME/SegTHOR_ai4mi
 python -O main.py \
     --dataset SEGTHORCORRECT \
     --mode full \
-    --epochs 30 \
+    --epochs 100 \
     --dest results/segthor/ce/deeplabv3 \
     --gpu \
-    --deeplabv3
-
-python plot.py \
-    --metric_file results/segthor/ce/deeplabv3/dice_val.npy \
-    --dest results/segthor/ce/deeplabv3/dice_val.png
+    --deeplabv3 \
+    --transformation preprocess_augment
