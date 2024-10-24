@@ -1,0 +1,29 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=baseline_focal_g1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=01:30:00
+#SBATCH --output=jobs/outputs/baseline_focal_g1.out
+
+module purge
+module load 2023
+source ai4mi/bin/activate
+
+cd $HOME/SegTHOR_ai4mi
+
+gamma=1
+
+python -O main.py \
+    --dataset SEGTHORCORRECT \
+    --mode full \
+    --epochs 100 \
+    --dest results/segthor/focal/baseline/gamma_${gamma} \
+    --gpu \
+    --loss focal \
+    --focal_loss_gamma ${gamma} \
+    --optimizer adamw \
+    --lr 0.0003 \
+    --plot_results
