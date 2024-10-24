@@ -32,25 +32,21 @@ import numpy as np
 import nibabel as nib
 from skimage.io import imread
 from skimage.transform import resize
-
 from utils import map_, tqdm_
-
-
+from postprocessing import morphological_postprocessing, keep_largest_components, smooth_labels
 def get_z(image: Path) -> int:
     return int(image.stem.split('_')[-1])
 
 
 def merge_patient(id_: str, dest_folder: str, images: list[Path],
-                  idxes: list[int], K: int, source_pattern: str) -> None:
-    
-    if source_pattern:
-        orig_nib = nib.load(source_pattern.format(id_=id_))
-        orig_shape = np.asarray(orig_nib.dataobj).shape
-    else:
-        orig_nib = nib.load("data/segthor_train/train/Patient_27/GT2.nii.gz")
-        X = Y = 512
-        Z = len(idxes)
-        orig_shape = X, Y, Z
+                  idxes: list[int], K: int, source_pattern: str, post_processing: bool) -> None:
+    # print(source_pattern.format(id_=id_))
+    orig_nib = nib.load(source_pattern.format(id_=id_))
+    orig_shape = np.asarray(orig_nib.dataobj).shape
+    # print(orig_nib.affine)
+
+    X, Y, Z = orig_shape
+    assert Z == len(idxes)
 
     res_arr: np.ndarray = np.zeros((X, Y, Z), dtype=np.int16)
 
@@ -73,9 +69,13 @@ def merge_patient(id_: str, dest_folder: str, images: list[Path],
     assert set(np.unique(res_arr)) <= set(range(K))
     assert orig_shape == res_arr.shape, (orig_shape, res_arr.shape)
 
+    if post_processing:
+        res_arr = morphological_postprocessing(res_arr, operation="dilation", structure_size=1)
+        res_arr = keep_largest_components(res_arr)
+        res_arr = smooth_labels(res_arr, sigma=2)
+
     new_nib = nib.nifti1.Nifti1Image(res_arr, affine=orig_nib.affine, header=orig_nib.header)
     nib.save(new_nib, (Path(dest_folder) / id_).with_suffix(".nii.gz"))
-
 
 def main(args) -> None:
     images: list[Path] = list(Path(args.data_folder).glob("*.png"))
@@ -103,7 +103,7 @@ def main(args) -> None:
     args.dest_folder.mkdir(parents=True, exist_ok=True)
 
     for p in tqdm_(unique_patients):
-        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes, args.source_scan_pattern)
+        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes, args.source_scan_pattern, post_processing=args.post_processing)
     # mmap_(lambda p: merge_patient(p, args.dest_folder, images, idx_map[p], K=args.num_classes), patients)
 
 
@@ -111,12 +111,13 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Merging slices parameters')
     parser.add_argument('--data_folder', type=Path, required=True,
                         help="The folder containing the images to predict")
-    parser.add_argument('--source_scan_pattern', type=str,
+    parser.add_argument('--source_scan_pattern', type=str, required=True,
                         help="The pattern to get the original scan. This is used to get the correct metadata")
     parser.add_argument('--dest_folder', type=Path, required=True)
     parser.add_argument('--grp_regex', type=str, required=True)
 
     parser.add_argument('--num_classes', type=int, default=4)
+    parser.add_argument('--post_processing', type=bool, default=False)
 
     args = parser.parse_args()
 
