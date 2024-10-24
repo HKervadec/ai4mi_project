@@ -109,6 +109,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     lr = args.lr
     if args.optimizer == 'sgd':
         optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9)
+    elif args.optimizer == 'adamw':
+        optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
     else:
         optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
@@ -300,7 +302,7 @@ def runTraining(args):
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
                             mult: int = 63 if K == 5 else (255 / (K - 1))
-                            if not args.dont_save_predictions:
+                            if not args.dont_save_predictions and log_dice[e, :, 1:].mean().item() > best_dice:
                                 save_images(predicted_class * mult,
                                             data['stems'],
                                             args.dest / f"iter{e:03d}" / m)
@@ -354,7 +356,7 @@ def main():
     parser.add_argument('--deeplabv3', action='store_true', help="Use DeepLabV3 instead of the default model")
     parser.add_argument('--pretrained', action='store_true', help="Use a pretrained deeplabv3 model")
     parser.add_argument('--lr', type=float, default=0.0005)
-    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd'])
+    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd', 'adamw'])
     parser.add_argument('--remove_background', action='store_true', default=False,
                         help="If set, remove slices that contain only background.")
     parser.add_argument('--transformation', default='none', choices=['none', 'preprocessed', 'augmented', 'preprocess_augment'])

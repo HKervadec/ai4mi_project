@@ -24,5 +24,5 @@ python -O main.py \
     --gpu \
     --transformation preprocess_augment \
     --loss focal \
-    --focal_loss_gamma ${gamma} \    
+    --focal_loss_gamma ${gamma} \
     --plot_results

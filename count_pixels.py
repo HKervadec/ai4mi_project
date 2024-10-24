@@ -28,23 +28,21 @@ def count_pixels_per_class(dataloader, K):
 
 def plot_class_counts(class_counts, class_names, output_file):
     """
-    Plot a bar chart of class counts with labels of actual values over each bar.
+    Plot a bar chart of background pixels vs total of all other classes.
     """
-    # Exclude the background class
-    class_counts = class_counts[1:]
-    class_names = class_names[1:]
+    background_count = class_counts[0]
+    other_classes_count = class_counts[1:].sum()
 
     plt.figure(figsize=(10, 6))
-    bars = plt.bar(class_names, class_counts, color='skyblue', width=0.2)  # Set bar width to 0.3
+    bars = plt.bar(['Background', 'Other Classes'], [background_count, other_classes_count], color='skyblue', width=0.2)
     
     # Add labels on top of each bar
     for bar in bars:
         yval = bar.get_height()
         plt.text(bar.get_x() + bar.get_width()/2, yval, int(yval), va='bottom', ha='center')  # va: vertical alignment, ha: horizontal alignment
     
-    plt.xlabel('Classes')
     plt.ylabel('Pixel Count')
-    plt.title('Total Pixel Count per Class (Excluding Background)')
+    plt.title('Background Pixels vs Total of All Other Classes')
     plt.savefig(output_file)
     plt.show()
 
