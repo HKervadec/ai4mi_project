@@ -77,6 +77,24 @@ python -O main.py \
     --transformation preprocess_augment
 ```
 
+### 4. Loss functions
+* Specify the loss function: `--loss` (default is `ce`), you can choose from `ce, jaccard, dice, lovasz, custom, focal`.
+* When using focal loss, specify gamma value: `--focal_loss_gamma` (default is `2.0`)
+* When using focal loss, specify class weights: `--focal_loss_weights` (default is `1.0` for all classes)
+
+#### Example:
+```
+python -O main.py \
+    --dataset SEGTHORCORRECT \
+    --mode full \
+    --epochs 100 \
+    --dest results/segthor/focal/gamma_1 \
+    --gpu \
+    --loss focal \
+    --focal_loss_gamma 1 \
+    --focal_loss_weights 1.0 5.0 1.0 1.0 1.0
+```
+
 ### 4. Post processing
 Instructions 
 
