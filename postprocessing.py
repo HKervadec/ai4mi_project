@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.ndimage import binary_dilation, binary_erosion
-from skimage.morphology import dilation, erosion, disk, ball
+from skimage.morphology import dilation, erosion, disk, ball, opening, closing
 import nibabel as nib
 import argparse
 import torch
@@ -72,6 +72,10 @@ def morphological_postprocessing(volume, operation="dilation", structure_size=2)
         if operation == "dilation":
             refined_mask = dilation(binary_mask, struct_elem)
         elif operation == "erosion":
+            refined_mask = erosion(binary_mask, struct_elem)
+        elif operation == "closing":
+            refined_mask = erosion(binary_mask, struct_elem)
+        elif operation == "opening":
             refined_mask = erosion(binary_mask, struct_elem)
         else:
             raise ValueError("Operation should be 'dilation' or 'erosion'")
