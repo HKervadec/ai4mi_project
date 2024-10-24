@@ -16,7 +16,7 @@ def add_gaussian_noise(image, mean=0, std=0.05):
     """
     Adds Gaussian noise to the image.
     """
-    noisy_img = image + np.random.normal(mean, std * 255, image.shape).astype(np.uint8)
+    noisy_img = image + np.random.normal(mean, std, image.shape).astype(np.uint8)
     return np.clip(noisy_img, 0, 255)  # Ensure pixel values remain in valid range [0, 255]
 
 def apply_gaussian_blur(image, sigma=1):
@@ -46,11 +46,11 @@ def augment_noise_contrast(image):
     """
     Apply Gaussian noise and contrast adjustment.
     """
-    # Gaussian Noise
-    image = add_gaussian_noise(image, mean=0, std=0.05)
+    # Gaussian Noise with variable standard deviation
+    image = add_gaussian_noise(image, mean=0, std=random.uniform(0.03, 0.08))
 
-    # Contrast Adjustment
-    image = adjust_contrast(image, low=2, high=98)
+    # Contrast Adjustment with variable percentiles
+    image = adjust_contrast(image, low=random.randint(1, 5), high=random.randint(95, 99))
 
     return image
 
@@ -102,17 +102,26 @@ def main():
     parser = argparse.ArgumentParser(description='Augment dataset with realistic transformations.')
     parser.add_argument('--data_dir', type=str, required=True, help='Base directory containing the SEGTHOR dataset')
     parser.add_argument('--num_augmentations', type=int, default=3, help='Number of augmentations per image')
+    parser.add_argument('--run_on_preprocessed', action='store_true', help='Run the augmentations on the preprocessed data.')
 
     args = parser.parse_args()
 
     # Define the data directories
     data_dir = Path(args.data_dir)
-    train_img_dir = data_dir / "train" / "img_preprocessed"
-    train_gt_dir = data_dir / "train" / "gt_preprocessed"
+    if args.run_on_preprocessed:
+        train_img_dir = data_dir / "train" / "img_preprocessed"
+        train_gt_dir = data_dir / "train" / "gt_preprocessed"
+    else:
+        train_img_dir = data_dir / "train" / "img"
+        train_gt_dir = data_dir / "train" / "gt"
 
     # Define the augmented directories
-    aug_train_img_dir = data_dir / "train" / "img_pre_intensity_aug"
-    aug_train_gt_dir = data_dir / "train" / "gt_pre_intensity_aug"
+    if args.run_on_preprocessed:
+        aug_train_img_dir = data_dir / "train" / "img_pre_intensity_aug"
+        aug_train_gt_dir = data_dir / "train" / "gt_pre_intensity_aug"
+    else:
+        aug_train_img_dir = data_dir / "train" / "img_intensity_aug"
+        aug_train_gt_dir = data_dir / "train" / "gt_intensity_aug"
 
     # Augment and save the training set
     print("Augmenting training set...")
