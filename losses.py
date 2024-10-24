@@ -60,7 +60,7 @@ class FocalLoss():
 
         b, _, h, w = pred_softmax.shape
 
-        alpha = torch.tensor(self.weights).view(1, -1, 1, 1).repeat(b, 1, h, w)
+        alpha = torch.tensor(self.weights).view(1, -1, 1, 1).repeat(b, 1, h, w).to(pred_softmax.device)
         p = pred_softmax[:, self.idk, ...]
 
         log_p = (p[:, self.idk, ...] + 1e-10).log()
