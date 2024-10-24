@@ -1,0 +1,43 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=train_baseline
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=01:00:00
+#SBATCH --output=jobs/outputs/train_baseline_output%A.out
+
+module purge
+module load 2022
+module load Python/3.10.4-GCCcore-11.3.0
+source ai4mi/bin/activate
+
+cd $HOME/SegTHOR_ai4mi
+python main.py \
+    --dataset SEGTHOR \
+    --mode full \
+    --epochs 100 \
+    --dest results/segthor/ce/ \
+    --gpu \
+    --loss ce
+
+python plot.py \
+    --metric_file results/segthor/ce/dice_val.npy \
+    --dest results/segthor/ce/dice_val.png
+
+python plot.py \
+    --metric_file results/segthor/ce/iou_val.npy \
+    --dest results/segthor/ce/iou_val.png
+
+python plot.py \
+    --metric_file results/segthor/ce/assd_val.npy \
+    --dest results/segthor/ce/assd_val.png
+
+python plot.py \
+    --metric_file results/segthor/ce/volsim_val.npy \
+    --dest results/segthor/ce/volsim_val.png
+
+python plot.py \
+    --metric_file results/segthor/ce/hausdorff_val.npy \
+    --dest results/segthor/ce/hausdorff_val.png
