@@ -238,7 +238,7 @@ def runTraining(args):
     elif args.loss == "custom":
         loss_fn = CustomLoss(idk=idk)
     elif args.loss == "focal":
-        loss_fn = FocalLoss(idk=idk, gamma=args.focal_loss_gamma, weighted=args.focal_loss_weights)
+        loss_fn = FocalLoss(idk=idk, gamma=args.focal_loss_gamma, focal_loss_weights=args.focal_loss_weights)
     else:
         raise ValueError(args.loss)
 
