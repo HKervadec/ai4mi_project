@@ -39,12 +39,16 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
+from torch.optim.lr_scheduler import ExponentialLR, StepLR 
 
 from dataset import SliceDataset, SliceDatasetWithTransforms
 from DeepLabV3 import DeepLabV3
 from ENet import ENet
 from ShallowNet import shallowCNN
 from losses import (CrossEntropy, JaccardLoss, DiceLoss, LovaszSoftmaxLoss, CustomLoss, FocalLoss)
+from ENet_less_layers import less_ENet
+from ENet_more_layers import more_ENet
+from ENet_kernelsize import kernel_ENet
 from utils import (
     Dcm,
     class2one_hot,
@@ -101,6 +105,12 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
+    if args.architecture == "normal":
+        net = kernel_ENet(1, K, kernels = args.channels, kernelsize = args.kernelsize)
+    elif args.architecture == "more":
+        net = more_ENet(1, K, kernels = args.channels, kernelsize = args.kernelsize)
+    elif args.architecture == "less":
+        net = less_ENet(1, K, kernels = args.channels, kernelsize = args.kernelsize)
 
     if args.deeplabv3:
         net = DeepLabV3(K, pretrained=args.pretrained)
@@ -117,6 +127,14 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
     else:
         optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+
+    
+    if args.scheduler == "exp": 
+        scheduler = ExponentialLR(optimizer, gamma=0.95)  
+
+    elif args.scheduler == "steps": 
+        scheduler = StepLR(optimizer, step_size=5, gamma=0.5)  
+
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -217,12 +235,20 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    if args.scheduler == "None":
+        return (net, optimizer, device, train_loader, val_loader, K)
+    else: 
+        return (net, optimizer, device, train_loader, val_loader, K, scheduler) #ME -> added scheduler
+
 
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    if args.scheduler == "None": #ME
+        net, optimizer, device, train_loader, val_loader, K = setup(args) #ME
+    else:   #ME
+        net, optimizer, device, train_loader, val_loader, K, scheduler =setup(args) #ME -> added scheduler
+
 
     if args.mode == "full":
         idk = list(range(K))
@@ -354,6 +380,10 @@ def runTraining(args):
                                          for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
+        
+        if args.scheduler != "None":
+            scheduler.step()
+
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
         np.save(args.dest / "dice_tra.npy", log_dice_tra)
@@ -389,7 +419,7 @@ def runTraining(args):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epochs', default=200, type=int)
+    parser.add_argument('--epochs', default=25, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--dest', type=Path, required=True,
@@ -417,6 +447,11 @@ def main():
                         help="Weights for the classes in the following order background, esophagus, heart, trachea, aorta")
     parser.add_argument("--loss", type=str, choices=["ce", "jaccard", "dice", "lovasz", "custom", "focal"],default='ce',
                         help="Loss function to be used.")
+    
+    parser.add_argument('--architecture', default='normal', choices=['normal', 'more', 'less'])
+    parser.add_argument('--scheduler', default='None', choices=['None', 'exp', 'steps'])
+    parser.add_argument('--kernelsize', default=3, type=int)
+    parser.add_argument('--channels', default=16, type=int)
 
     args = parser.parse_args()
 
