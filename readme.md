@@ -216,7 +216,7 @@ The folder should then be [tarred](https://xkcd.com/1168/) and compressed, e.g.:
 $ tar cf - group-XX/ | zstd -T0 -3 > group-XX.tar.zst
 $ tar cf group-XX.tar.gz - group-XX/
 ```
-
+Zip files are also accepted for submission.
 
 ## Known issues
 ### Cannot pickle lambda in the dataloader
