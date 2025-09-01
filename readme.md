@@ -48,6 +48,56 @@ $ python -m pip install -r requirements.txt
 ```
 Conda is an alternative to pip, but is recommended not to mix `conda install` and `pip install`.
 
+### Setting up the environment - Some troubleshooting for windows users 
+These steps assume you are using Git Bash + Anaconda + an IDE (e.g., PyCharm).
+
+Open git bash and run:
+Step 1:
+```
+$ git clone https://github.com/HKervadec/ai4mi_project.git
+$ cd ai4mi_project
+$ git submodule init
+$ git submodule update
+```
+Step 2:
+```
+# 1) Create a fresh conda env with Python 3.10+ (matches project note)
+conda create -n ai4mi python=3.10 -y
+
+# 2) Activate it
+conda activate ai4mi
+
+# 3) (Optional but nice) make sure pip is present/updated
+python -m pip install --upgrade pip
+
+# 4) From the repo folder, install dependencies with pip
+python -m pip install -r requirements.txt
+```
+
+Some common troubleshooting for windows users:
+
+In case in bash u got - conda: command not found
+
+Open Anaconda Prompt:
+```
+conda init bash
+
+#Find where conda is installed
+where conda
+```
+Yous should get sth like - C:\Users\<YourName>\anaconda3
+
+Close and open git bash - change CONDA_HOME in the code below
+
+```
+$ CONDA_HOME="/c/Users/<YourName>/anaconda3"
+if [ -f "$CONDA_HOME/etc/profile.d/conda.sh" ]; then
+    . "$CONDA_HOME/etc/profile.d/conda.sh"
+else
+    export PATH="$CONDA_HOME:$CONDA_HOME/Scripts:$CONDA_HOME/Library/bin:$PATH"
+fi
+```
+
 ### Getting the data
 The synthetic dataset is generated randomly, whereas for Segthor it is required to put the file [`segthor_train.zip`](https://amsuni-my.sharepoint.com/:u:/g/personal/h_t_g_kervadec_uva_nl/EfMdFte7pExAnPwt4tYUcxcBbJJO8dqxJP9r-5pm9M_ARw?e=ZNdjee) (required a UvA account) in the `data/` folder. If the computer running it is powerful enough, the recipe for `data/SEGTHOR` can be modified in the [Makefile](Makefile) to enable multi-processing (`-p -1` option, see `python slice_segthor.py --help` or its code directly).
 ```
