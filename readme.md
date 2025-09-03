@@ -61,16 +61,16 @@ $ git submodule update
 ```
 Step 2:
 ```
-# 1) Create a fresh conda env with Python 3.10+ (matches project note)
+$ 1) Create a fresh conda env with Python 3.10+ (matches project note)
 conda create -n ai4mi python=3.10 -y
 
-# 2) Activate it
+$ 2) Activate it
 conda activate ai4mi
 
-# 3) (Optional but nice) make sure pip is present/updated
+$ 3) (Optional but nice) make sure pip is present/updated
 python -m pip install --upgrade pip
 
-# 4) From the repo folder, install dependencies with pip
+$ 4) From the repo folder, install dependencies with pip
 python -m pip install -r requirements.txt
 ```
 
