@@ -2,18 +2,19 @@
 ## Data extraction, slicing and visualization
 The goal of this assignment is to practice data extraction, slicing, and visualisation.
 ###Overview:
-The purpose of this assignment is to unpack the dataset, split it into individual .png slices (for both the images and their labels), and then visualise the results using two different tools: the provided viewer and 3D Slicer. It also provides a chance to practice working with NIfTI files and 3D arrays in Python. Additionally, during this assignment, you should to explore the dataset by examining data from multiple patients in order to better understand its structure and characteristics.
+The purpose of this assignment is to unpack the dataset, split it into individual .png slices (for both the images and their labels), and then visualise the results using two different tools: the provided viewer and 3D Slicer. It also provides a chance to practice working with NIfTI files and 3D arrays in Python. Additionally, during this assignment, you should explore the dataset by examining data from multiple patients in order to better understand its structure and characteristics.
 
 # 1. Environment setup and data download
 First, set up your environment and download the required data by following the instructions from the project repository: https://github.com/HKervadec/ai4mi_project/tree/master 
 Once your environment and data are ready, continue with the tasks below.
 
 # 2. Create the slicing script (slice_segthor.py)
-Fill the missing parts in this Python script called slice_segthor.py (see code below), which will slice patients’ CT into individual .png slices (for both the images and their labels)
+Fill the missing parts in this Python script called slice_segthor.py (see code below, can also be found in the GitHub repo), which will slice patients’ CT into individual .png slices (for both the images and their labels)
 
-A highly recommended library for handling medical imaging data is Nibabel: https://nipy.org/nibabel/Links 
+A library for handling medical imaging data is Nibabel: https://nipy.org/nibabel/Links 
 
 During this process, you need to to:
+- Implement a train/validation split at the patient level—ensuring that all slices from a single patient belong exclusively to either the training or validation set
 - Normalize CT to greyscale from 0 to 255
 - Adapt the greyscale of the segmentation masks (see the code below)
 - Resize 2D slices to the following shape - 256 x 256 (useful function: resize from skimage.transform and its anti_aliasing parameter)
@@ -22,17 +23,18 @@ Your code needs to work when run:
 ```
 python slice_segthor.py --source_dir "c/user/projects/ai4mi_project/data/segthor_train" --dest_dir "c/user/projects/ai4mi_project/data/SEGTHOR_tmp" --retains 5
 ```
-
+# Deliverable:
 Deliverable -zip file containing (please upload it to canvas):
 
 - The executable slice_segthor.py script:
-    - Code is running and files are correctly ordered and named (3 pt)
-    -  2D CT images are rescaled and normalised properly (2 pt)
+    - Code is running and files are correctly ordered and named (including train/val split; naming convention - see the comments in the code) (3 pt)
+    - 2D CT images are rescaled and normalised properly (2 pt)
     - Sliced segmentation masks are correct (2 pt)
 - A screenshot of the data visualised using the provided viewer (Segthor dataset, not the TOY dataset) (1 pt)
 - A screenshot of the data visualised using 3D Slicer (Segthor dataset, not the TOY dataset) (1 pt)
 - A .txt file describing any interesting observations you made about the data, or providing your description of the datasets (1 pt)
-Please use the following convention when naming your zip file: surname_name.zip
+- 
+Please use the following convention when naming your zip folder: student-nnn.zip (nnn being your number)
 
 Contact
 Maria Galanty (m.galanty@uva.nl) (lead), Caroline Magg (c.magg@uva.nl) (helper).
