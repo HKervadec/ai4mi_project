@@ -1,16 +1,15 @@
+import argparse
 import pickle
 import random
-import argparse
 import warnings
-from pathlib import Path
 from functools import partial
 from multiprocessing import Pool
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
 
 from utils import map_, tqdm_
-
 
 """
 TODO: Implement image normalisation.
@@ -18,6 +17,8 @@ CT images have a wide range of intensity values (Hounsfield units)
 Goal: normalize an image array to the range [0, 255]  and return it as a dtype=uint8
 Which is compatible with standard image formats (PNG)
 """
+
+
 def norm_arr(img: np.ndarray) -> np.ndarray:
     # TODO: your code here
 
@@ -38,6 +39,7 @@ def sanity_ct(ct, x, y, z, dx, dy, dz) -> bool:
     assert 135 <= z <= 284, z
 
     return True
+
 
 def sanity_gt(gt, ct) -> bool:
     assert gt.shape == ct.shape
@@ -71,11 +73,17 @@ Hints:
   - Use consistent filenames: e.g. f"{id_}_{idz:04d}.png" inside subfolders "img" and "gt"; where idz is the slice index.
 """
 
-def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int, int], test_mode=False)\
-        -> tuple[float, float, float]:
+
+def slice_patient(
+    id_: str,
+    dest_path: Path,
+    source_path: Path,
+    shape: tuple[int, int],
+    test_mode=False,
+) -> tuple[float, float, float]:
 
     id_path: Path = source_path / ("train" if not test_mode else "test") / id_
-    ct_path: Path = (id_path / f"{id_}.nii.gz")
+    ct_path: Path = id_path / f"{id_}.nii.gz"
     assert id_path.exists()
     assert ct_path.exists()
 
@@ -84,19 +92,43 @@ def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int
     raise NotImplementedError("Implement slice_patient")
 
 
-"""
-TODO: Implement a simple train/val split.
-Requirements:
-  - List patient IDs from <src_path>/train (folder names).
-  - Shuffle them (respect a seed set in main()).
-  - Take the first `retains` as validation, and the rest as training.
-  - Return (training_ids, validation_ids).
-"""
-
 def get_splits(src_path: Path, retains: int) -> tuple[list[str], list[str]]:
-    # TODO: your code here
+    """
+    Simple train/val split.
 
-    raise NotImplementedError("Implement get_splits")
+    Requirements:
+      - List patient IDs from <src_path>/train (folder names).
+      - Shuffle them (respect a seed set in main()).
+      - Take the first `retains` as validation, and the rest as training.
+      - Return (training_ids, validation_ids).
+
+
+    Args:
+        src_path (Path): Path to raw data.
+        retains (int): Number of datapoints to be used for val. Rest for train.
+
+    Returns:
+        (train_ids, val_ids)
+    """
+    all_ids: list[str] = []
+
+    train_dir = src_path / "train"
+    file_names = train_dir.glob("*")
+    for file_name in file_names:
+        all_ids.append(file_name.name)
+
+    random.shuffle(all_ids)
+
+    val_ids = all_ids[:retains]
+    train_ids = all_ids[retains:]
+
+    print(
+        f"\n{len(all_ids)} datapoints from '{train_dir}' split using {len(train_ids)}"
+        f" datapoints for training and {len(val_ids)} datapoints for validation.\n"
+    )
+
+    return train_ids, val_ids
+
 
 def main(args: argparse.Namespace):
     src_path: Path = Path(args.source_dir)
@@ -111,17 +143,18 @@ def main(args: argparse.Namespace):
     validation_ids: list[str]
     training_ids, validation_ids = get_splits(src_path, args.retains)
 
-
     resolution_dict: dict[str, tuple[float, float, float]] = {}
 
     for mode, split_ids in zip(["train", "val"], [training_ids, validation_ids]):
         dest_mode: Path = dest_path / mode
         print(f"Slicing {len(split_ids)} pairs to {dest_mode}")
 
-        pfun: Callable = partial(slice_patient,
-                                 dest_path=dest_mode,
-                                 source_path=src_path,
-                                 shape=tuple(args.shape))
+        pfun: Callable = partial(
+            slice_patient,
+            dest_path=dest_mode,
+            source_path=src_path,
+            shape=tuple(args.shape),
+        )
 
         resolutions: list[tuple[float, float, float]]
         iterator = tqdm_(split_ids)
@@ -130,20 +163,23 @@ def main(args: argparse.Namespace):
         for key, val in zip(split_ids, resolutions):
             resolution_dict[key] = val
 
-    with open(dest_path / "spacing.pkl", 'wb') as f:
+    with open(dest_path / "spacing.pkl", "wb") as f:
         pickle.dump(resolution_dict, f, pickle.HIGHEST_PROTOCOL)
         print(f"Saved spacing dictionnary to {f}")
 
 
-
-
 def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description = "Slicing parameters")
+    parser = argparse.ArgumentParser(description="Slicing parameters")
 
-    parser.add_argument('--source_dir', type=str, required=True)
-    parser.add_argument('--dest_dir', type=str, required=True)
-    parser.add_argument('--shape', type=int, nargs="+", default=[256, 256])
-    parser.add_argument('--retains', type=int, default=10, help="Number of retained patient for the validation data")
+    parser.add_argument("--source_dir", type=str, required=True)
+    parser.add_argument("--dest_dir", type=str, required=True)
+    parser.add_argument("--shape", type=int, nargs="+", default=[256, 256])
+    parser.add_argument(
+        "--retains",
+        type=int,
+        default=10,
+        help="Number of retained patient for the validation data",
+    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
 
     args = parser.parse_args()
@@ -152,5 +188,7 @@ def get_args() -> argparse.Namespace:
 
     return args
 
+
 if __name__ == "__main__":
     main(get_args())
+
