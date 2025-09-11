@@ -7,6 +7,7 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import Callable
 
+import nibabel as nib
 import numpy as np
 
 from utils import map_, tqdm_
@@ -51,29 +52,6 @@ def sanity_gt(gt, ct) -> bool:
     return True
 
 
-"""
-TODO: Implement patient slicing.
-Context:
-  - Given an ID and paths, load the NIfTI CT volume and (if not test_mode) the GT volume.
-  - Validate with sanity_ct / sanity_gt.
-  - Normalise CT with norm_arr().
-  - Slice the 3D volumes into 2D slices, resize to `shape`, and save PNGs.
-  - Currently we have groundtruth masks marked as {0,1,2,3,4} but those values are hard to distinguish in a grayscale png.
-    Multiplying by 63 maps them to {0,63,126,189,252}, which keeps labels visually distinct in a grayscale PNG.
-    You can use the following code, which works for already sliced 2d images:
-    gt_slice *= 63
-    assert gt_slice.dtype == np.uint8, gt_slice.dtype
-    assert set(np.unique(gt_slice)) <= set([0, 63, 126, 189, 252]), np.unique(gt_slice)
-  - Return the original voxel spacings (dx, dy, dz).
-
-Hints:
-  - Use nibabel to load NIfTI images.
-  - Use skimage.transform.resize (tip: anti_aliasing might be useful)
-  - The PNG files should be stored in the dest_path, organised into separate subfolders: train/img, train/gt, val/img, and val/gt
-  - Use consistent filenames: e.g. f"{id_}_{idz:04d}.png" inside subfolders "img" and "gt"; where idz is the slice index.
-"""
-
-
 def slice_patient(
     id_: str,
     dest_path: Path,
@@ -81,6 +59,27 @@ def slice_patient(
     shape: tuple[int, int],
     test_mode=False,
 ) -> tuple[float, float, float]:
+    """
+    Patient slicing.
+    Context:
+      - [x] Given an ID and paths, load the NIfTI CT volume and (if not test_mode) the GT volume.
+      - [x] Validate with sanity_ct / sanity_gt.
+      - Normalise CT with norm_arr().
+      - Slice the 3D volumes into 2D slices, resize to `shape`, and save PNGs.
+      - Currently we have groundtruth masks marked as {0,1,2,3,4} but those values are hard to distinguish in a grayscale png.
+        Multiplying by 63 maps them to {0,63,126,189,252}, which keeps labels visually distinct in a grayscale PNG.
+        You can use the following code, which works for already sliced 2d images:
+        gt_slice *= 63
+        assert gt_slice.dtype == np.uint8, gt_slice.dtype
+        assert set(np.unique(gt_slice)) <= set([0, 63, 126, 189, 252]), np.unique(gt_slice)
+      - Return the original voxel spacings (dx, dy, dz).
+
+    Hints:
+      - Use nibabel to load NIfTI images.
+      - Use skimage.transform.resize (tip: anti_aliasing might be useful)
+      - The PNG files should be stored in the dest_path, organised into separate subfolders: train/img, train/gt, val/img, and val/gt
+      - Use consistent filenames: e.g. f"{id_}_{idz:04d}.png" inside subfolders "img" and "gt"; where idz is the slice index.
+    """
 
     id_path: Path = source_path / ("train" if not test_mode else "test") / id_
     ct_path: Path = id_path / f"{id_}.nii.gz"
@@ -88,6 +87,16 @@ def slice_patient(
     assert ct_path.exists()
 
     # --------- FILL FROM HERE -----------
+    ct_img = nib.nifti1.load(ct_path)
+    x, y, z = ct_img.shape
+    print(ct_img.header.get_zooms())
+    dx, dy, dz = ct_img.header.get_zooms()[:3]
+    sanity_ct(ct_img, x, y, z, dx, dy, dz)
+
+    if not test_mode:
+        gt_path: Path = id_path / "GT.nii.gz"
+        gt_img = nib.nifti1.load(gt_path)
+        sanity_gt(gt_img, ct_img)
 
     raise NotImplementedError("Implement slice_patient")
 
@@ -123,7 +132,7 @@ def get_splits(src_path: Path, retains: int) -> tuple[list[str], list[str]]:
     train_ids = all_ids[retains:]
 
     print(
-        f"\n{len(all_ids)} datapoints from '{train_dir}' split using {len(train_ids)}"
+        f"\nSplit {len(all_ids)} datapoints from '{train_dir}' into {len(train_ids)}"
         f" datapoints for training and {len(val_ids)} datapoints for validation.\n"
     )
 
@@ -191,4 +200,3 @@ def get_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     main(get_args())
-
