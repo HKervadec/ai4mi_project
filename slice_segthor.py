@@ -129,7 +129,7 @@ def slice_patient(
         resized_ct_u8 = np.rint(resized_ct).astype(np.uint8)
 
         out_name = img_dir / f"{id_}_{iz:04d}.png"
-        Image.fromarray(resized_ct_u8).convert("L").save(out_name)
+        Image.fromarray(resized_ct_u8.T).convert("L").save(out_name)
 
     if not test_mode:
         # load GT nifti
@@ -165,7 +165,7 @@ def slice_patient(
             )
 
             out_name = gt_dir / f"{id_}_{iz:04d}.png"
-            Image.fromarray(resized_gt).convert("L").save(out_name)
+            Image.fromarray(resized_gt.T).convert("L").save(out_name)
 
     return dx, dy, dz
 
