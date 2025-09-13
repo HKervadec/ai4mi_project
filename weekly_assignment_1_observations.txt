@@ -1,0 +1,27 @@
+Observations from slice_segthor.py
+Lower torso:
+- Intestines are visible, though they appear faint compared to other organs.
+- Kidneys are present at the same height and stand out more clearly.
+
+Mid torso:
+- The liver can be seen on the left side, which leads me to believe the scans are flipped vertically as usually it is on the right.
+- The stomach is also visible in this region.
+
+Upper torso:
+The heart is clearly visible.
+The lungs appear with a tree-like structure.
+
+Top slices:
+- Shoulders and part of the neck are included.
+- The brain is not part of these scans. Although I was hoping to see it. :D
+
+Consistent features across all slices:
+- Vertebrae are visible with their characteristic "pointy ends".
+- The central canal, through which the spinal cord passes, is also seen.
+
+Observations from Slicer 3D
+- We can also see slices across the x and y directions, which is quite interesting.
+- In one view, the scans of the bed on which the patient is lying are visible.
+- The bones are clearly seen, including the ribs, spine, and shoulder bones.
+- In another view, the S-shaped curvature of the spine is visible.
+- The relative sizes of the organs are easier to compare, since they are shown one above the other in these orientations.
