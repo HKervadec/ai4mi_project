@@ -8,8 +8,8 @@ Mid torso:
 - The stomach is also visible in this region.
 
 Upper torso:
-The heart is clearly visible.
-The lungs appear with a tree-like structure.
+- The heart is clearly visible.
+- The lungs appear with a tree-like structure.
 
 Top slices:
 - Shoulders and part of the neck are included.
