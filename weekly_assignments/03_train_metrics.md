@@ -1,20 +1,28 @@
 # AI for medical imaging: individual assignment 3
+
 ## Running the baseline, stitching slices to 3D volume and computing metrics
+
 ### Overview
-Now that the data has been sliced, visualized, and REDACTED,
-the data can be used to train the first baseline model. 
-As the network is in 2D and works with 2D slices, 
+
+Now that the data has been sliced, visualized, and corrected (class: heart),
+the data can be used to train the first baseline model.
+As the network is in 2D and works with 2D slices,
 the 3D segmentation mask has to be reconstructed (i.e., stitched).
 After that, the performance metrics have to be calculated with the distorch framework.
 
+**Note: Pay close attention to the described submission format! The structure and file names are important!**
+
 ### Given resources
+
 - codebase with slicing script (assignment 01) and assignment 02
 - link to distorch framework (github): [distorch](https://github.com/jeromerony/distorch)
 
 ### Todo
+
 1. **Run baseline model and create plot.pdf**
 
 Running a training with [`main.py`](../main.py):
+
 ```
 $ usage: main.py [-h] [--epochs EPOCHS] [--dataset {TOY2,SEGTHOR,SEGTHOR_CLEAN}] [--mode {partial,full}] --dest DEST [--gpu] [--debug]
 
@@ -29,16 +37,19 @@ options:
 $ python main.py --dataset TOY2 --mode full --epoch 25 --dest results/toy2/ce --gpu
 ```
 
-The codebase uses a lot of assertions for control and self-documentation, 
-they can easily be disabled with the `-O` option (for faster training) once everything is known to be correct 
+The codebase uses a lot of assertions for control and self-documentation,
+they can easily be disabled with the `-O` option (for faster training) once everything is known to be correct
 (for instance run the previous command for 1 or 2 epochs, check if everything works, and then relaunch it with `-O`):
+
 ```
 $ python -O main.py --dataset SEGTHOR --mode full --epoch 25 --dest results/segthor/ce --gpu
 ```
 
 <br><br>
-Plot the dice score and loss values for the training and validation set and combine all four plots into 1 A4 pdf file. <Br>
+Plot the dice score and loss values for the training and validation set and combine all four plots into 1 A4 pdf
+file. <Br>
 There are some facilities to plot the metrics saved by [`main.py`](../main.py):
+
 ```
 $ python plot.py --help
 usage: plot.py [-h] --metric_file METRIC_MODE.npy [--dest METRIC_MODE.png] [--headless]
@@ -54,17 +65,20 @@ options:
   --headless            Does not display the plot and save it directly (implies --dest to be provided.
 $ python plot.py --metric_file results/segthor/ce/dice_val.npy --dest results/segthor/ce/dice_val.png
 ```
+
 ![Validation DSC](../dice_val.png)
 **Note**: It should be visible that all four classes should be trained!
 
 2. **Create stitchting script called stitch.py**
 
 The input to the script (with args - see previous scripts how to do that):
+
 - data_folder - name of the data folder with sliced data, eg data/prediction/best_epoch/val
 - dest_folder - name of the destination folder with stitched data, eg val/pred
 - num_classes - number of classes, eg 255
 - grp_regex - pattern for the filename, eg "(Patient_\d\d)_\d\d\d\d"
-- source_scan_pattern - pattern to the original scans to get original size, eg "data/train/train/{id_}/GT.nii.gz" (with {id_} to be replaced in [stitch.py](http://stitch.py) by the PatientID)
+- source_scan_pattern - pattern to the original scans to get original size, eg "data/train/train/{id_}/GT.nii.gz" (with
+  {id_} to be replaced in [stitch.py](http://stitch.py) by the PatientID)
 
 The script should be callable by:
 
@@ -74,16 +88,20 @@ python stitch.py --data_folder data/train/sliced/train/gt --dest_folder data/tra
 
 The output:
 One 3D segmentation mask for each patient stored as nifti file (”.nii.gz”).
-The shape should match the original scan shape, the values of the segmentation are np.uint8 ranging 0-255 (for segthor data, it should have 0-4).
+The shape should match the original scan shape, the values of the segmentation are np.uint8 ranging 0-255 (for segthor
+data, it should have 0-4).
 
-**Hint**: You can test your script on the GT segmentation masks of the training and/or validation set. There you have both, sliced and original, data available.
+**Hint**: You can test your script on the GT segmentation masks of the training and/or validation set. There you have
+both, sliced and original, data available.
 
 3. **Calculate metrics with distorch**
 
 Install [distorch](https://github.com/jeromerony/distorch) according to the instructions in the repo description.
 
 You should use the script compute_metrics.py for the calculation of Dice and HD95.
-Check the options and set the correct values for metrics, ref_folder, pred_folder, ref_extension, pred_extension, num_classes, save_folder, see the help for explanation:
+Check the options and set the correct values for metrics, ref_folder, pred_folder, ref_extension, pred_extension,
+num_classes, save_folder, see the help for explanation:
+
 ```
 python compute_metrics.py --help
 usage: compute_metrics.py [-h] --ref_folder REF_FOLDER --pred_folder PRED_FOLDER --ref_extension {.nii.gz,.png,.npy,.nii} [--pred_extension {.nii.gz,.png,.npy,.nii}]
@@ -116,6 +134,7 @@ options:
 ```
 
 ### To submit
+
 A **zip folder called student-nnn.zip** (nnn being your number) with the following content:
 
 - stitching script (stitch.py);
@@ -126,6 +145,7 @@ A **zip folder called student-nnn.zip** (nnn being your number) with the followi
 - computed metrics as .npz following the described format.
 
 and the following structure:
+
 ```
 student-nnn.zip
     val/
@@ -144,9 +164,12 @@ student-nnn.zip
     bestweights.pt
     best_epoch.txt
 ```
-**Note**: The structure and file names are important!
+
+**Note**: The structure and file names are important! As part of the evaluation is automatic, you risk getting 0 points
+if you do not follow the described format and naming convention!
 
 ### Grading
+
 1. training baseline and plot (2 points)
 2. stitch.py script (6 points)
 3. calculate metrics (2 points)
