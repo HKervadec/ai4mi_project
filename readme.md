@@ -163,9 +163,11 @@ $ python viewer/viewer.py --img_source data/TOY2/val/img \
 ![Example of the viewer on the TOY example](viewer_toy.png)
 **Note:** if using it from a SSH session, it requires X to be forwarded ([Unix/BSD](https://man.archlinux.org/man/ssh.1#X), [Windows](https://mobaxterm.mobatek.net/documentation.html#1_4)) for it to work. Note that X forwarding also needs to be enabled on the server side.
 
+
+For Segthor, comparing for instance the original data, the fixed ones, and the validation predictions at epoch 10:
 ```
-$ python viewer/viewer.py --img_source data/SEGTHOR/val/img \
-    data/SEGTHOR/val/gt data/SEGTHOR_CLEAN/val/gt \
+$ python viewer/viewer.py --img_source data/SEGTHOR_CLEAN/val/img \
+    data/SEGTHOR/val/gt data/SEGTHOR_CLEAN/val/gt results/segthor/ce/iter010/val \
     -n 2 -C 5 --remap "{63: 1, 126: 2, 189: 3, 252: 4}" \
     --legend --class_names background esophagus heart trachea aorta
 ```
