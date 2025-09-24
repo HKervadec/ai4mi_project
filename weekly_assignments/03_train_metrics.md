@@ -21,7 +21,7 @@ After that, the performance metrics have to be calculated with the distorch fram
 
 1. **Run baseline model and create plot.pdf**
 
-Running a training with [`main.py`](../main.py):
+Running a training with [`main.py`](../main.py) for the data SEGTHOR_CLEAN:
 
 ```
 $ usage: main.py [-h] [--epochs EPOCHS] [--dataset {TOY2,SEGTHOR,SEGTHOR_CLEAN}] [--mode {partial,full}] --dest DEST [--gpu] [--debug]
@@ -42,7 +42,7 @@ they can easily be disabled with the `-O` option (for faster training) once ever
 (for instance run the previous command for 1 or 2 epochs, check if everything works, and then relaunch it with `-O`):
 
 ```
-$ python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest results/segthor/ce --gpu
+$ python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest YOUR_RESULT_FOLDER --gpu
 ```
 
 <br><br>
@@ -63,7 +63,7 @@ options:
   --dest METRIC_MODE.png
                         Optional: save the plot to a .png file
   --headless            Does not display the plot and save it directly (implies --dest to be provided.
-$ python plot.py --metric_file results/segthor/ce/dice_val.npy --dest results/segthor/ce/dice_val.png
+$ python plot.py --metric_file YOUR_RESULT_FOLDER/dice_val.npy --dest YOUR_RESULT_FOLDER/dice_val.png
 ```
 
 ![Validation DSC](../dice_val.png)
@@ -77,13 +77,13 @@ The input to the script (with args - see previous scripts how to do that):
 - dest_folder - name of the destination folder with stitched data, eg val/pred
 - num_classes - number of classes, eg 255
 - grp_regex - pattern for the filename, eg "(Patient_\d\d)_\d\d\d\d"
-- source_scan_pattern - pattern to the original scans to get original size, eg "data/train/train/{id_}/GT.nii.gz" (with
+- source_scan_pattern - pattern to the original scans to get original meta-data, such as size, eg "data/segthor_train/train/{id_}/GT.nii.gz" (with
   {id_} to be replaced in [stitch.py](http://stitch.py) by the PatientID)
 
 The script should be callable by:
 
 ```
-python stitch.py --data_folder data/train/sliced/train/gt --dest_folder data/train/stitched/train/gt --num_classes 255 --grp_regex "(Patient_\d\d)_\d\d\d\d" --source_scan_pattern "data/train/train/{id_}/GT.nii.gz"
+python stitch.py --data_folder FOLDER_SLICED_DATA --dest_folder FOLDER_STITCHED_DATA --num_classes 255 --grp_regex "(Patient_\d\d)_\d\d\d\d" --source_scan_pattern "data/segthor_train/train/{id_}/GT.nii.gz"
 ```
 
 The output:
@@ -139,7 +139,7 @@ A **zip folder called student-nnn.zip** (nnn being your number) with the followi
 
 - stitching script (stitch.py);
 - stitched prediction segmentation masks of the validation scans (in folder val/pred);
-- GT segmentation masks of the validation scans (in folder val/gt);
+- GT segmentation masks of the validation scans (in folder val/gt and val/pred - this should be the same files that you used for the metrics calculation, i.e., 3D files);
 - plots of training and validation dice and loss in 1 A4 page (plot.png or plot.pdf);
 - bestweights.pt and best_epoch.txt file;
 - computed metrics as .npz following the described format.
@@ -150,17 +150,17 @@ and the following structure:
 student-nnn.zip
     val/
         pred/
-            Patient_21.nii.gz
-            Patient_32.nii.gz
+            Patient_XY.nii.gz
+            Patient_ZZ.nii.gz
             ...
         gt/
-            Patient_21.nii.gz
-            Patient_32.nii.gz
+            Patient_XY.nii.gz
+            Patient_ZZ.nii.gz
             ...
         3d_hd95.npz
         3d_dice.npz
     stitch.py
-    plots.pdf
+    plot.pdf or plot.png
     bestweights.pt
     best_epoch.txt
 ```
