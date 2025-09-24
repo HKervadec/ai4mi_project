@@ -75,7 +75,7 @@ The input to the script (with args - see previous scripts how to do that):
 
 - data_folder - name of the data folder with sliced data, eg data/prediction/best_epoch/val
 - dest_folder - name of the destination folder with stitched data, eg val/pred
-- num_classes - number of classes, eg 255
+- num_classes - number of classes, eg 5
 - grp_regex - pattern for the filename, eg "(Patient_\d\d)_\d\d\d\d"
 - source_scan_pattern - pattern to the original scans to get original meta-data, such as size, eg "data/segthor_train/train/{id_}/GT.nii.gz" (with
   {id_} to be replaced in [stitch.py](http://stitch.py) by the PatientID)
@@ -83,7 +83,7 @@ The input to the script (with args - see previous scripts how to do that):
 The script should be callable by:
 
 ```
-python stitch.py --data_folder FOLDER_SLICED_DATA --dest_folder FOLDER_STITCHED_DATA --num_classes 255 --grp_regex "(Patient_\d\d)_\d\d\d\d" --source_scan_pattern "data/segthor_train/train/{id_}/GT.nii.gz"
+python stitch.py --data_folder FOLDER_SLICED_DATA --dest_folder FOLDER_STITCHED_DATA --num_classes 5 --grp_regex "(Patient_\d\d)_\d\d\d\d" --source_scan_pattern "data/segthor_train/train/{id_}/GT.nii.gz"
 ```
 
 The output:
@@ -138,8 +138,8 @@ options:
 A **zip folder called student-nnn.zip** (nnn being your number) with the following content:
 
 - stitching script (stitch.py);
-- stitched prediction segmentation masks of the validation scans (in folder val/pred);
-- GT segmentation masks of the validation scans (in folder val/gt and val/pred - this should be the same files that you used for the metrics calculation, i.e., 3D files);
+- stitched prediction segmentation masks of the validation scans (in folder val/pred - this should be the same files taht you use for the metrics calcucation, i.e., 3D files);
+- GT segmentation masks of the validation scans (in folder val/gt - this should be the same files that you used for the metrics calculation, i.e., 3D files);
 - plots of training and validation dice and loss in 1 A4 page (plot.png or plot.pdf);
 - bestweights.pt and best_epoch.txt file;
 - computed metrics as .npz following the described format.
