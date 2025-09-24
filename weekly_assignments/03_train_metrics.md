@@ -42,7 +42,7 @@ they can easily be disabled with the `-O` option (for faster training) once ever
 (for instance run the previous command for 1 or 2 epochs, check if everything works, and then relaunch it with `-O`):
 
 ```
-$ python -O main.py --dataset SEGTHOR --mode full --epoch 25 --dest results/segthor/ce --gpu
+$ python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest results/segthor/ce --gpu
 ```
 
 <br><br>
