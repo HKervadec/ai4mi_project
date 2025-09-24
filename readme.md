@@ -172,8 +172,11 @@ $ python viewer/viewer.py --img_source data/SEGTHOR/val/img \
 ![Example of the viewer on the SEGTHOR pre-processed sets](viewer_segthor.png)
 
 #### 3D viewers
-[3D Slicer](https://www.slicer.org/) and [ITK Snap](http://www.itksnap.org) are two popular viewers for medical data. We recommend 3D Slicer for the course.
+[3D Slicer](https://www.slicer.org/) and [ITK Snap](http://www.itksnap.org) are two popular viewers for medical data, here comparing `GT.nii.gz` and the corresponding stitched prediction `Patient_01.nii.gz`:
+![Viewing label and prediction](3dslicer.png)
 
+Zooming on the prediction with smoothing disabled:
+![Viewing the prediction without smoothing](3dslicer_zoom.png)
 
 ## Known issues
 ### Cannot pickle lambda in the dataloader
