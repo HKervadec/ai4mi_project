@@ -17,6 +17,7 @@ data/TOY2:
 
 
 # Extraction and slicing for Segthor
+## Original one
 data/segthor_train: data/segthor_train.zip
 	$(info $(yellow)unzip $<$(reset))
 	sha256sum -c data/segthor_train.sha256
@@ -28,4 +29,18 @@ data/SEGTHOR: data/segthor_train
 	rm -rf $@_tmp $@
 	python $(CFLAGS) slice_segthor.py --source_dir $^ --dest_dir $@_tmp \
 		--shape 256 256 --retain 10
+	mv $@_tmp $@
+
+## Fixed (with the affine transformation)
+data/segthor_fixed: data/segthor_train
+	$(info $(blue)python sabotage.py $@$(reset))
+	rm -rf $@_tmp $@
+	python $(CFLAGS) sabotage.py --mode inv --source_dir $< --dest_dir $@_tmp -K 2 --regex_gt "GT.nii.gz" -p 4
+	mv $@_tmp $@
+
+data/SEGTHOR_CLEAN: data/segthor_fixed
+	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --source_dir $^ --dest_dir $@_tmp \
+		--shape 256 256 --retain 10 -p -1
 	mv $@_tmp $@
