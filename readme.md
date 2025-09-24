@@ -140,10 +140,10 @@ $ python slice_segthor.py --help   # May be useful for the project
 ```
 
 
-**Alternatively**, if you had saved the "fixed" scans within the `data/segthor_train` folder under the `GT_fixed.nii.gz`, you can trivially create a `data/segthor_fixed` folder with:
+**Alternatively**, if you had saved the "fixed" scans within the `data/segthor_train` folder under the `GT_fixed.nii.gz` name, you can trivially create a `data/segthor_fixed` folder with:
 ```
 cp -r data/segthor_train data/segthor_fixed
-rm data/segthor_fixed/train*/GT.nii.gz
+rm data/segthor_fixed/train/*/GT.nii.gz
 for p in data/segthor_fixed/train/*/; do mv $p/GT_fixed.nii.gz $p/GT.nii.gz ; done
 ```
 
