@@ -7,3 +7,7 @@ ai4mi/
 __pycache__/
 
 projects
+out/
+# jobs/
+results_old/
+student-15704939
