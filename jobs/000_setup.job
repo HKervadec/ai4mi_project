@@ -1,0 +1,39 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=InstallAI4MIEnvironment
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=00:30:00
+#SBATCH --output=out/setup_%A.out
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+
+# Change to your project directory
+cd $HOME/ai4mi_project/
+
+# Remove existing virtual environment if it exists
+if [ -d "ai4mi" ]; then
+    echo "Existing virtual environment found. Removing..."
+    rm -rf ai4mi
+fi
+
+# Create a virtual environment named "ai4mi" using Python 3.11
+python3.11 -m venv ai4mi
+
+# Activate the virtual environment
+source ai4mi/bin/activate
+
+# (Optional) Verify that the correct Python is being used
+echo "Python path:"
+which python
+echo "Python version:"
+python --version
+
+# Install dependencies from requirements.txt
+python -m pip install -r requirements.txt
+
+# Echo a message upon successful completion
+echo "Job completed successfully."

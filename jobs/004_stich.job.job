@@ -1,0 +1,40 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=SEGTHOR_stitch_sample
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=00:30:00
+#SBATCH --output=out/stitch_sample_SEGTHOR_%A.out
+
+# Clean module environment
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+
+# Change to your project directory
+cd $HOME/ai4mi_project/
+
+# Activate the virtual environment
+source ai4mi/bin/activate
+
+# Verify that the correct Python is being used
+which python
+
+# Define paths
+PRED_OUTPUT_DIR="$HOME/ai4mi_project/student-15704939/val/pred"
+SRC_SCANS_PATTERN="data/segthor_fixed/train/{id_}/GT.nii.gz"
+
+echo "Starting stitching for SEGTHOR dataset..."
+python stitch.py \
+  --data_folder results/segthor/ce/best_epoch/val \
+  --dest_folder "$PRED_OUTPUT_DIR" \
+  --num_classes 5 \
+  --grp_regex "(Patient_\d\d)_\d\d\d\d" \
+  --source_scan_pattern "$SRC_SCANS_PATTERN" \
+  --copy-gt
+
+echo "Stitching completed."
+
+# Echo a message upon successful completion
+echo "Stitching task completed successfully."

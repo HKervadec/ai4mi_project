@@ -1,0 +1,33 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=SEGTHOR_metrics
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=00:30:00
+#SBATCH --output=out/metrics_SEGTHOR_%A.out
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+
+# Change to your project directory
+cd $HOME/ai4mi_project/
+
+# Activate the virtual environment
+source ai4mi/bin/activate
+
+# (Optional) Verify that the correct Python is being used
+which python
+cd distorch/
+
+# Run metrics calculation with distorch (adjust paths and parameters as needed)
+echo "Starting metrics computation for SEGTHOR dataset..."
+python compute_metrics.py --ref_folder $HOME/res/val/gt \
+                          --pred_folder $HOME/res/val/pred \
+                          --ref_extension .nii.gz \
+                          --pred_extension .nii.gz \
+                          --num_classes 5 \
+                          --metrics 3d_hd95 3d_dice \
+                          --save_folder $HOME/res/val
+echo "Metrics computation completed successfully."

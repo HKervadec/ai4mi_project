@@ -1,0 +1,40 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=SEGTHOR_train_sample
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=01:30:00
+#SBATCH --output=out/train_sample_SEGTHOR_%A.out
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+
+# Change to your project directory
+cd $HOME/ai4mi_project/
+
+# Activate the virtual environment
+source ai4mi/bin/activate
+
+# (Optional) Verify that the correct Python is being used
+which python
+
+# Run baseline training for SEGTHOR dataset with optimizations enabled (-O)
+echo "Starting training for SEGTHOR dataset..."
+# python -O main.py --dataset SEGTHOR --mode full --epoch 25 --dest results/segthor/ce --gpu
+python main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest results/segthor/ce --gpu
+echo "SEGTHOR training completed."
+
+# Plotting the dice validation scores as an example
+echo "Generating plot for SEGTHOR dice validation scores..."
+python plot.py --metric_file results/segthor/ce/dice_val.npy --dest results/segthor/dice_val.png
+echo "Plot generated."
+
+# Generate the combined plot for SEGTHOR training metrics
+echo "Generating combined plot for SEGTHOR..."
+python combined_plot.py --results_dir results/segthor/ce --output results/segthor/combined_plot.pdf
+echo "Combined plot generated."
+
+# Echo a message upon successful completion
+echo "Baseline training and plotting tasks completed successfully."
