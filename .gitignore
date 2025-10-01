@@ -14,11 +14,12 @@ student-15704939
 .env
 outfiles/
 wandb/
-# Exclude intermediate training iterations, keep only best_epoch
-train_results/*
-# Keep best_epoch folders and important training files
-!train_results/*/best_epoch/*
+
+train_results/
+# Then specifically include what we want to keep
+!train_results/*/best_epoch/
 !train_results/*/best_epoch.txt
 !train_results/*/bestmodel.pkl
+!train_results/*/bestweights.pt
 !train_results/*/dice_*.npy
 !train_results/*/loss_*.npy
