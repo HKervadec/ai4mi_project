@@ -1,0 +1,1 @@
+/gpfs/home2/scur1616/ai4mi_project/train_results/train_results_baseline_420/bestmodel.pkl

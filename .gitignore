@@ -13,7 +13,6 @@ results_old/
 student-15704939
 .env
 outfiles/
-wandb/
 
 
 # Ignore everything inside those subdirectories

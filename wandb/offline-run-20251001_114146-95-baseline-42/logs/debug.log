@@ -1,0 +1,26 @@
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_setup.py:_flush():81] Current SDK version is 0.22.1
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_setup.py:_flush():81] Configure stats pid to 773458
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_setup.py:_flush():81] Loading settings from /home/scur1616/.config/wandb/settings
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_setup.py:_flush():81] Loading settings from /gpfs/home2/scur1616/ai4mi_project/wandb/settings
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_init.py:setup_run_log_directory():705] Logging user logs to /gpfs/home2/scur1616/ai4mi_project/wandb/offline-run-20251001_114146-95aazol8/logs/debug.log
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_init.py:setup_run_log_directory():706] Logging internal logs to /gpfs/home2/scur1616/ai4mi_project/wandb/offline-run-20251001_114146-95aazol8/logs/debug-internal.log
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_init.py:init():832] calling init triggers
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_init.py:init():837] wandb.init called with sweep_config: {}
+config: {'dataset': 'SEGTHOR_CLEAN', 'mode': 'full', 'epochs': 25, 'gpu': True, 'debug': False, 'dest': 'train_results/train_results_baseline_42', 'seed': 42, 'experiment_name': 'baseline_seed_42', '_wandb': {}}
+2025-10-01 11:41:46,670 INFO    MainThread:773458 [wandb_init.py:init():880] starting backend
+2025-10-01 11:41:46,887 INFO    MainThread:773458 [wandb_init.py:init():883] sending inform_init request
+2025-10-01 11:41:46,898 INFO    MainThread:773458 [wandb_init.py:init():891] backend started and connected
+2025-10-01 11:41:46,899 INFO    MainThread:773458 [wandb_init.py:init():961] updated telemetry
+2025-10-01 11:41:46,916 INFO    MainThread:773458 [wandb_init.py:init():985] communicating run to backend with 90.0 second timeout
+2025-10-01 11:41:47,091 INFO    MainThread:773458 [wandb_init.py:init():1036] starting run threads in backend
+2025-10-01 11:41:47,327 INFO    MainThread:773458 [wandb_run.py:_console_start():2506] atexit reg
+2025-10-01 11:41:47,327 INFO    MainThread:773458 [wandb_run.py:_redirect():2354] redirect: wrap_raw
+2025-10-01 11:41:47,327 INFO    MainThread:773458 [wandb_run.py:_redirect():2423] Wrapping output streams.
+2025-10-01 11:41:47,327 INFO    MainThread:773458 [wandb_run.py:_redirect():2446] Redirects installed.
+2025-10-01 11:41:47,333 INFO    MainThread:773458 [wandb_init.py:init():1076] run started, returning control to user process
+2025-10-01 11:41:47,824 INFO    MainThread:773458 [wandb_run.py:_config_callback():1392] config_cb None None {'learning_rate': 0.0005, 'optimizer': 'Adam', 'betas': [0.9, 0.999], 'num_classes': 5, 'kernels': 8, 'factor': 2, 'batch_size': 8, 'num_workers': 5, 'seed': 42}
+2025-10-01 12:02:01,469 INFO    MainThread:773458 [wandb_run.py:_finish():2272] finishing run michal.mazuryk@student.uva.nl/ai4med/95aazol8
+2025-10-01 12:02:01,470 INFO    MainThread:773458 [wandb_run.py:_atexit_cleanup():2471] got exitcode: 0
+2025-10-01 12:02:01,470 INFO    MainThread:773458 [wandb_run.py:_restore():2453] restore
+2025-10-01 12:02:01,470 INFO    MainThread:773458 [wandb_run.py:_restore():2459] restore done
