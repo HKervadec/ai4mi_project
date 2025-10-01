@@ -15,11 +15,13 @@ student-15704939
 outfiles/
 wandb/
 
-train_results/
-# Then specifically include what we want to keep
+
+# Ignore everything inside those subdirectories
+train_results/*/*
+
+# Now specifically un-ignore what we want to keep
 !train_results/*/best_epoch/
 !train_results/*/best_epoch.txt
 !train_results/*/bestmodel.pkl
-!train_results/*/bestweights.pt
 !train_results/*/dice_*.npy
 !train_results/*/loss_*.npy
