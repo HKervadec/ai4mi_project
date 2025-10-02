@@ -100,17 +100,17 @@ for SEED in "${SEEDS[@]}"; do
 
   echo "[INFO] === Seed ${SEED} ==="
 
-  # # Training
-  # python -O main.py \
-  #   --dataset SEGTHOR_CLEAN \
-  #   --mode full \
-  #   --epoch "$EPOCHS" \
-  #   --dest "$DEST" \
-  #   --gpu \
-  #   --wandb_entity "$WANDB_ENTITY" \
-  #   --wandb_project "$WANDB_PROJECT" \
-  #   --seed "$SEED" \
-  #   --wandb_name "${RUN_NAME}_${SEED}"
+  # Training
+  python -O main.py \
+    --dataset SEGTHOR_CLEAN \
+    --mode full \
+    --epoch "$EPOCHS" \
+    --dest "$DEST" \
+    --gpu \
+    --wandb_entity "$WANDB_ENTITY" \
+    --wandb_project "$WANDB_PROJECT" \
+    --seed "$SEED" \
+    --wandb_name "${RUN_NAME}_${SEED}"
 
   # Plotting
   python combined_plot.py \
@@ -134,9 +134,9 @@ for SEED in "${SEEDS[@]}"; do
     --pred_extension .nii.gz \
     --num_classes 5 \
     --metrics 3d_dice 3d_hd95 \
-    --save_folder "$DEST/metrics"
+    --save_folder "${DEST}/metrics"
 
-  echo "[INFO] Seed ${SEED} done. Results: $DEST | Plots: $PLOT_PDF | Metrics: val/metrics_${SEED}"
+  echo "[INFO] Seed ${SEED} done. Results: $DEST | Plots: $PLOT_PDF | Metrics: $DEST/metrics"
 done
 
 echo "[INFO] All seeds completed."
