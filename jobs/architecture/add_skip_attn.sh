@@ -134,7 +134,7 @@ for SEED in "${SEEDS[@]}"; do
     --ref_extension .nii.gz \
     --pred_extension .nii.gz \
     --num_classes 5 \
-    --metrics 3d_dice 3d_hd95 \
+    --metrics 3d_dice 3d_hd95 3d_assd 3d_jaccard \
     --save_folder "${DEST}/metrics"
 
   echo "[INFO] Seed ${SEED} done. Results: $DEST | Plots: $PLOT_PDF | Metrics: $DEST/metrics"

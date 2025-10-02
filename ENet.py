@@ -237,11 +237,11 @@ class ENet(nn.Module):
 
                 # Upsampling half
                 self.bottleneck4 = nn.Sequential(BottleNeckUpSampling(K*8, K*4, F, alter_enet=alter_enet, attn=attn,
-                                 skip_attention=skip_attention, skip_channels=K*4, gate_channels=K*8),
+                                 skip_attention=skip_attention, skip_channels=K*4, gate_channels=K*4),
                                                  BottleNeck(K * 4, K * 4, F, dropoutRate=0.1, alter_enet=alter_enet, attn=attn),
                                                  BottleNeck(K * 4, K, F, dropoutRate=0.1, alter_enet=alter_enet, attn=attn))
                 self.bottleneck5 = nn.Sequential(BottleNeckUpSampling(K*2, K, F, alter_enet=alter_enet, attn=attn,
-                                 skip_attention=skip_attention, skip_channels=K, gate_channels=K*4),
+                                 skip_attention=skip_attention, skip_channels=K, gate_channels=K),
                                                  BottleNeck(K, K, F, dropoutRate=0.1, alter_enet=alter_enet, attn=attn))
 
                 # Final upsampling and covolutions
