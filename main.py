@@ -157,7 +157,9 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
     net = datasets_params[args.dataset]['net'](
         1, K, kernels=kernels, factor=factor,
-        alter_enet=getattr(args, 'alter_enet', False)
+        alter_enet=getattr(args, 'alter_enet', False),
+        attn=args.attn,
+        skip_attention=args.skip_attention
     )
     net.init_weights()
     net.to(device)
@@ -405,6 +407,11 @@ def main():
                         help="Random seed for reproducibility (default: 42)")
     parser.add_argument('--alter_enet', action='store_true',
                     help="Apply paper-faithful ENet tweaks (bias-free convs, SpatialDropout2d, BN+PReLU on initial conv, final fullconv)")
+    parser.add_argument('--attn', type=str, default=None,
+                    choices=[None, 'eca', 'cbam'],
+                    help="Per-bottleneck attention: eca | cbam | None")
+    parser.add_argument('--skip_attention', action='store_true',
+                    help="Enable attention gates on decoder skip connections")
 
 
     args = parser.parse_args()
