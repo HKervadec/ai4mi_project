@@ -180,6 +180,68 @@ $ python viewer/viewer.py --img_source data/SEGTHOR_CLEAN/val/img \
 Zooming on the prediction with smoothing disabled:
 ![Viewing the prediction without smoothing](3dslicer_zoom.png)
 
+
+## Submission and scoring
+Groups will have to submit:
+* archive of the git repo with the whole project, which includes:
+    * slicing (if any) and any other pre-processing;
+    * training;
+    * post-processing when applicable;
+    * inference;
+    * metrics computation/scripts to run the metrics submodule;
+* the best trained model;
+* predictions on the [test set (required @uva.nl account)](https://amsuni-my.sharepoint.com/:u:/g/personal/h_t_g_kervadec_uva_nl/EWZH7ylUUFFCg3lEzzLzJqMBG7OrPw1K4M78wq9t5iBj_w?e=Yejv5d) (`sha256sum -c data/test.zip.sha256` as optional checksum);
+* predictions on the group's internal validation set, the labels of their validation set, and the metrics they computed (akin to Assignment 3).
+
+The main criterions for scoring will include (listed here only for convenience, please see Canvas for reference rubric):
+* improvement or lack thereof of performances over baseline;
+* code quality/clear [git use](git.md);
+* the [final choice of metrics](https://metrics-reloaded.dkfz.de/) (they need to be in 3D);
+* correctness of the computed metrics (on the validation set);
+* oral presentation.
+
+
+### Packing the code
+`$ git bundle create group-XX.bundle master`
+
+### Saving the best model
+`torch.save(net, args.dest / "bestmodel-group-XX.pkl")`
+
+### Archiving everything for submission
+All files should be grouped in single folder with the following structure
+```
+group-XX/
+    test/
+        pred/
+            Patient_41.nii.gz
+            Patient_42.nii.gz
+            ...
+    val/
+        pred/
+            Patient_21.nii.gz
+            Patient_32.nii.gz
+            ...
+        gt/
+            Patient_21.nii.gz
+            Patient_32.nii.gz
+            ...
+        metric01.npz
+        metric02.npz
+        ...
+    group-XX.bundle
+    bestmodel-group-XX.pkl
+```
+The metrics should be a `.npz` archives, that maps patient ID (e.g., `Patient_21`) to a `ndarray` with shape `KxD` (or `K` if `D = 1`), with `K` the number of classes and `D` the eventual dimensionality of the metric (can be simply 1). Ultimately it is the same format as Distorch from Assignment 3.
+
+
+The folder should then be [tarred](https://xkcd.com/1168/) and compressed, e.g.:
+```
+Example using Zstandard:
+$ tar cf - group-XX/ | zstd -T0 -3 > group-XX.tar.zst
+Example using gunzip:
+$ tar cf group-XX.tar.gz - group-XX/
+```
+
 ## Known issues
 ### Cannot pickle lambda in the dataloader
 Some installs (probably due to Python/Pytorch version mismatch) throw an error about an inability to pickle lambda functions (at the dataloader stage). Short of reinstalling everything, setting the number of workers to 0 seems to get around the problem (`--num_workers 0`).
