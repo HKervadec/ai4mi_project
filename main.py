@@ -155,7 +155,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     K: int = datasets_params[args.dataset]['K']
     kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
-    net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
+    net = datasets_params[args.dataset]['net'](
+        1, K, kernels=kernels, factor=factor,
+        alter_enet=getattr(args, 'alter_enet', False)
+    )
     net.init_weights()
     net.to(device)
 
@@ -400,6 +403,9 @@ def main():
                         help="Custom name for wandb experiment run")
     parser.add_argument('--seed', type=int, default=42,
                         help="Random seed for reproducibility (default: 42)")
+    parser.add_argument('--alter_enet', action='store_true',
+                    help="Apply paper-faithful ENet tweaks (bias-free convs, SpatialDropout2d, BN+PReLU on initial conv, final fullconv)")
+
 
     args = parser.parse_args()
 

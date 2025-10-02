@@ -56,7 +56,8 @@ def conv_block_asym(in_dim, out_dim, *, kernel_size: int):
 class BottleNeck(nn.Module):
         def __init__(self, in_dim, out_dim, projectionFactor,
                      *, dropoutRate=0.01, dilation=1,
-                     asym: bool = False, dilate_last: bool = False):
+                     asym: bool = False, dilate_last: bool = False,
+                     alter_enet: bool = False):
                 super().__init__()
                 self.in_dim = in_dim
                 self.out_dim = out_dim
@@ -74,7 +75,8 @@ class BottleNeck(nn.Module):
 
                 self.block2 = conv_block(mid_dim, out_dim, kernel_size=1)
 
-                self.do = nn.Dropout(p=dropoutRate)
+                # Paper: SpatialDropout (Dropout2d) -> https://arxiv.org/abs/1411.4280
+                self.do = nn.Dropout2d(p=dropoutRate) if alter_enet else nn.Dropout(p=dropoutRate)
                 self.PReLU_out = nn.PReLU()
 
                 if in_dim > out_dim:
@@ -98,7 +100,7 @@ class BottleNeck(nn.Module):
 
 
 class BottleNeckDownSampling(nn.Module):
-        def __init__(self, in_dim, out_dim, projectionFactor):
+        def __init__(self, in_dim, out_dim, projectionFactor, *, alter_enet: bool = False):
                 super().__init__()
                 mid_dim: int = in_dim // projectionFactor
 
@@ -110,8 +112,8 @@ class BottleNeckDownSampling(nn.Module):
                 self.block1 = conv_block(mid_dim, mid_dim, kernel_size=3, padding=1)
                 self.block2 = conv_block(mid_dim, out_dim, kernel_size=1)
 
-                # Regularizer
-                self.do = nn.Dropout(p=0.01)
+                # Regularizer (paper-style SpatialDropout toggle)
+                self.do = nn.Dropout2d(p=0.01) if alter_enet else nn.Dropout(p=0.01)
                 self.PReLU = nn.PReLU()
 
                 # Out
@@ -136,7 +138,7 @@ class BottleNeckDownSampling(nn.Module):
 
 
 class BottleNeckUpSampling(nn.Module):
-        def __init__(self, in_dim, out_dim, projectionFactor):
+        def __init__(self, in_dim, out_dim, projectionFactor, *, alter_enet: bool = False):
                 super().__init__()
                 mid_dim: int = in_dim // projectionFactor
 
@@ -148,8 +150,8 @@ class BottleNeckUpSampling(nn.Module):
                 self.block1 = conv_block(mid_dim, mid_dim, kernel_size=3, padding=1)
                 self.block2 = conv_block(mid_dim, out_dim, kernel_size=1)
 
-                # Regularizer
-                self.do = nn.Dropout(p=0.01)
+                # Regularizer (paper-style SpatialDropout toggle)
+                self.do = nn.Dropout2d(p=0.01) if alter_enet else nn.Dropout(p=0.01)
                 self.PReLU = nn.PReLU()
 
                 # Out
@@ -177,48 +179,44 @@ class ENet(nn.Module):
                 super().__init__()
                 F: int = kwargs["factor"] if "factor" in kwargs else 4  # Projecting factor
                 K: int = kwargs["kernels"] if "kernels" in kwargs else 16  # n_kernels
-
-                # from models.enet import (BottleNeck,
-                #                          BottleNeckDownSampling,
-                #                          BottleNeckUpSampling,
-                #                          conv_block)
+                alter_enet: bool = bool(kwargs.get("alter_enet", False))
 
                 # Initial operations
                 self.conv0 = nn.Conv2d(in_dim, K - 1, kernel_size=3, stride=2, padding=1)
                 self.maxpool0 = nn.MaxPool2d(2, return_indices=False, ceil_mode=False)
 
                 # Downsampling half
-                self.bottleneck1_0 = BottleNeckDownSampling(K, K * 4, F)
-                self.bottleneck1_1 = nn.Sequential(BottleNeck(K * 4, K * 4, F),
-                                                   BottleNeck(K * 4, K * 4, F),
-                                                   BottleNeck(K * 4, K * 4, F),
-                                                   BottleNeck(K * 4, K * 4, F))
-                self.bottleneck2_0 = BottleNeckDownSampling(K * 4, K * 8, F)
-                self.bottleneck2_1 = nn.Sequential(BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=2),
-                                                   BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=4),
-                                                   BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=8),
-                                                   BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                   BottleNeck(K * 8, K * 8, F, dilation=16))
+                self.bottleneck1_0 = BottleNeckDownSampling(K, K * 4, F, alter_enet=alter_enet)
+                self.bottleneck1_1 = nn.Sequential(BottleNeck(K * 4, K * 4, F, alter_enet=alter_enet),
+                                                   BottleNeck(K * 4, K * 4, F, alter_enet=alter_enet),
+                                                   BottleNeck(K * 4, K * 4, F, alter_enet=alter_enet),
+                                                   BottleNeck(K * 4, K * 4, F, alter_enet=alter_enet))
+                self.bottleneck2_0 = BottleNeckDownSampling(K * 4, K * 8, F, alter_enet=alter_enet)
+                self.bottleneck2_1 = nn.Sequential(BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, alter_enet=alter_enet),
+                                                   BottleNeck(K * 8, K * 8, F, dilation=2, alter_enet=alter_enet),
+                                                   BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True, alter_enet=alter_enet),
+                                                   BottleNeck(K * 8, K * 8, F, dilation=4, alter_enet=alter_enet),
+                                                   BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, alter_enet=alter_enet),
+                                                   BottleNeck(K * 8, K * 8, F, dilation=8, alter_enet=alter_enet),
+                                                   BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True, alter_enet=alter_enet),
+                                                   BottleNeck(K * 8, K * 8, F, dilation=16, alter_enet=alter_enet))
 
                 # Middle operations
-                self.bottleneck3 = nn.Sequential(BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                 BottleNeck(K * 8, K * 8, F, dilation=2),
-                                                 BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                 BottleNeck(K * 8, K * 8, F, dilation=4),
-                                                 BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
-                                                 BottleNeck(K * 8, K * 8, F, dilation=8),
-                                                 BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True),
-                                                 BottleNeck(K * 8, K * 4, F, dilation=16, dilate_last=True))
+                self.bottleneck3 = nn.Sequential(BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, alter_enet=alter_enet),
+                                                 BottleNeck(K * 8, K * 8, F, dilation=2, alter_enet=alter_enet),
+                                                 BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True, alter_enet=alter_enet),
+                                                 BottleNeck(K * 8, K * 8, F, dilation=4, alter_enet=alter_enet),
+                                                 BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, alter_enet=alter_enet),
+                                                 BottleNeck(K * 8, K * 8, F, dilation=8, alter_enet=alter_enet),
+                                                 BottleNeck(K * 8, K * 8, F, dropoutRate=0.1, asym=True, alter_enet=alter_enet),
+                                                 BottleNeck(K * 8, K * 4, F, dilation=16, dilate_last=True, alter_enet=alter_enet))
 
                 # Upsampling half
-                self.bottleneck4 = nn.Sequential(BottleNeckUpSampling(K * 8, K * 4, F),
-                                                 BottleNeck(K * 4, K * 4, F, dropoutRate=0.1),
-                                                 BottleNeck(K * 4, K, F, dropoutRate=0.1))
-                self.bottleneck5 = nn.Sequential(BottleNeckUpSampling(K * 2, K, F),
-                                                 BottleNeck(K, K, F, dropoutRate=0.1))
+                self.bottleneck4 = nn.Sequential(BottleNeckUpSampling(K * 8, K * 4, F, alter_enet=alter_enet),
+                                                 BottleNeck(K * 4, K * 4, F, dropoutRate=0.1, alter_enet=alter_enet),
+                                                 BottleNeck(K * 4, K, F, dropoutRate=0.1, alter_enet=alter_enet))
+                self.bottleneck5 = nn.Sequential(BottleNeckUpSampling(K * 2, K, F, alter_enet=alter_enet),
+                                                 BottleNeck(K, K, F, dropoutRate=0.1, alter_enet=alter_enet))
 
                 # Final upsampling and covolutions
                 self.final = nn.Sequential(conv_block(K, K, kernel_size=3, padding=1, bias=False, stride=1),

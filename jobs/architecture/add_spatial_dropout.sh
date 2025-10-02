@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --partition=gpu_a100
 #SBATCH --gpus=1
-#SBATCH --job-name=TestEval
+#SBATCH --job-name=SpDrop
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=9
 #SBATCH --time=02:00:00
-#SBATCH --output=outfiles/test_full_%A.out
+#SBATCH --output=outfiles/sp_drop__%A.out
 
 set -Eeuo pipefail
 trap 'echo "[ERR] Line $LINENO failed. Exiting." >&2' ERR
@@ -36,8 +36,8 @@ fi
 # ------------------------------
 SEEDS=(42) # 420 37)
 EPOCHS=25
-RUN_NAME="baseline_test"
-RESULTS_DIR="train_results"
+RUN_NAME="add_spatial_dropout"
+RESULTS_DIR="train_results_architecture"
 
 
 # Constants for stitching
@@ -110,7 +110,8 @@ for SEED in "${SEEDS[@]}"; do
     --wandb_entity "$WANDB_ENTITY" \
     --wandb_project "$WANDB_PROJECT" \
     --seed "$SEED" \
-    --wandb_name "${RUN_NAME}_${SEED}"
+    --wandb_name "${RUN_NAME}_${SEED}" \
+    --alter_enet  # Enable altered ENet with SpatialDropout
 
   # Plotting
   python combined_plot.py \
