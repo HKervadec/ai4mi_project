@@ -16,16 +16,17 @@ OUTPUT_DIR_REL="outfiles"  # relative to PROJECT_DIR
 # Concurrency control
 MAX_JOBS="${MAX_JOBS:-3}"      # max concurrent jobs for this user
 SLEEP_TIME="${SLEEP_TIME:-60}" # seconds between queue checks
-
 # Optional: run a single prep job first to avoid race conditions
-RUN_PREP_FIRST="${RUN_PREP_FIRST:-true}"
+RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}"
 
 # Seeds to launch (each becomes its own Slurm job)
 SEEDS=(42 420 37)
 # Training config to export
-EPOCHS="${EPOCHS:-25}"
-RUN_NAME="${RUN_NAME:-baseline_test}"
+EPOCHS="${EPOCHS:-1}"
+RUN_NAME="${RUN_NAME:-cbam_test}"
 RESULTS_DIR="${RESULTS_DIR:-train_results}"
+EXTRA_PARAMS="${EXTRA_PARAMS:---attn cbam}"
+
 GRP_REGEX="${GRP_REGEX:-(Patient_\\d\\d)_\\d\\d\\d\\d}"
 SRC_SCAN_PATTERN_FIXED="${SRC_SCAN_PATTERN_FIXED:-data/segthor_fixed/train/{id_}/GT.nii.gz}"
 
@@ -87,7 +88,7 @@ for seed in "${SEEDS[@]}"; do
     --time="$TIME_LIMIT" \
     --hint=nomultithread \
     ${prep_job_id:+--dependency=afterok:${prep_job_id}} \
-    --export=ALL,PROJECT_DIR="$PROJECT_DIR",MODE="train",SEED="$seed",EPOCHS="$EPOCHS",RUN_NAME="$RUN_NAME",RESULTS_DIR="$RESULTS_DIR",GRP_REGEX="$GRP_REGEX",SRC_SCAN_PATTERN_FIXED="$SRC_SCAN_PATTERN_FIXED" \
+    --export=ALL,PROJECT_DIR="$PROJECT_DIR",MODE="train",SEED="$seed",EPOCHS="$EPOCHS",RUN_NAME="$RUN_NAME",RESULTS_DIR="$RESULTS_DIR",GRP_REGEX="$GRP_REGEX",SRC_SCAN_PATTERN_FIXED="$SRC_SCAN_PATTERN_FIXED",EXTRA_PARAMS="$EXTRA_PARAMS" \
     "$JOB_SCRIPT"
 done
 

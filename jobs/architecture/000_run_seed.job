@@ -107,6 +107,8 @@ run_train_eval_for_seed() {
   local pred_dir="${dest}/val/pred"
 
   echo "[INFO] === Seed ${seed} ==="
+  echo "[INFO] EXTRA_PARAMS seen by job: ${EXTRA_PARAMS:-<empty>}"
+
 
   # Training
   python -O main.py \
@@ -118,7 +120,8 @@ run_train_eval_for_seed() {
     --wandb_entity "${WANDB_ENTITY:-}" \
     --wandb_project "${WANDB_PROJECT:-}" \
     --seed "$seed" \
-    --wandb_name "${RUN_NAME}_${seed}"
+    --wandb_name "${RUN_NAME}_${seed}" \
+    ${EXTRA_PARAMS:-}
 
   # Plotting
   python combined_plot.py \
