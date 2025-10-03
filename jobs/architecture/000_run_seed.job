@@ -20,8 +20,6 @@ SEED="${SEED:-42}"
 EPOCHS="${EPOCHS:-25}"
 RUN_NAME="${RUN_NAME:-baseline_test}"
 RESULTS_DIR="${RESULTS_DIR:-train_results}"
-GRP_REGEX="${GRP_REGEX:-(Patient_\\d\\d)_\\d\\d\\d\\d}"
-SRC_SCAN_PATTERN_FIXED="${SRC_SCAN_PATTERN_FIXED:-data/segthor_fixed/train/{id_}/GT.nii.gz}"
 
 echo "[INFO] Job mode: $MODE | Seed: $SEED | Epochs: $EPOCHS"
 echo "[INFO] Project dir: $PROJECT_DIR"
@@ -90,8 +88,8 @@ stitch_reference_gt() {
       --data_folder data/SEGTHOR_CLEAN/val/gt \
       --dest_folder val/gt \
       --num_classes 5 \
-      --grp_regex "$GRP_REGEX" \
-      --source_scan_pattern "$SRC_SCAN_PATTERN_FIXED"
+      --grp_regex "(Patient_\\d\\d)_\\d\\d\\d\\d" \
+      --source_scan_pattern "data/segthor_fixed/train/{id_}/GT.nii.gz"
   else
     echo "[INFO] Skipping GT stitching (val/gt already populated)."
   fi
@@ -133,8 +131,8 @@ run_train_eval_for_seed() {
     --data_folder "$dest/best_epoch/val" \
     --dest_folder "$pred_dir" \
     --num_classes 5 \
-    --grp_regex "$GRP_REGEX" \
-    --source_scan_pattern "$SRC_SCAN_PATTERN_FIXED"
+    --grp_regex "(Patient_\\d\\d)_\\d\\d\\d\\d" \
+    --source_scan_pattern "data/segthor_fixed/train/{id_}/GT.nii.gz"
 
   # Evaluation (3D Dice + HD95 etc.) vs stitched GT
   python distorch/compute_metrics.py \
@@ -145,6 +143,14 @@ run_train_eval_for_seed() {
     --num_classes 5 \
     --metrics 3d_dice 3d_hd95 3d_assd 3d_jaccard \
     --save_folder "${dest}/metrics"
+    
+  # Log metrics to wandb (using the same run ID from training)
+  if [[ -f "${dest}/wandb_run_id.txt" ]]; then
+    echo "[INFO] Logging 3D metrics to wandb..."
+    python log_metrics_to_wandb.py --results_dir "${dest}" --epoch "$EPOCHS"
+  else
+    echo "[WARN] No wandb run ID found. Skipping wandb metric logging."
+  fi
 
   echo "[INFO] Seed ${seed} done. Results: $dest | Plots: $plot_pdf | Metrics: $dest/metrics"
 }

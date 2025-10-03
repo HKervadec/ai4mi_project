@@ -20,15 +20,12 @@ SLEEP_TIME="${SLEEP_TIME:-60}" # seconds between queue checks
 RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}"
 
 # Seeds to launch (each becomes its own Slurm job)
-SEEDS=(42 420 37)
+SEEDS=(42) # 420 37)
 # Training config to export
-EPOCHS="${EPOCHS:-1}"
+EPOCHS="${EPOCHS:-25}"
 RUN_NAME="${RUN_NAME:-cbam_test}"
 RESULTS_DIR="${RESULTS_DIR:-train_results}"
 EXTRA_PARAMS="${EXTRA_PARAMS:---attn cbam}"
-
-GRP_REGEX="${GRP_REGEX:-(Patient_\\d\\d)_\\d\\d\\d\\d}"
-SRC_SCAN_PATTERN_FIXED="${SRC_SCAN_PATTERN_FIXED:-data/segthor_fixed/train/{id_}/GT.nii.gz}"
 
 mkdir -p "${PROJECT_DIR}/${OUTPUT_DIR_REL}"
 USER_NAME=$(whoami)
@@ -61,7 +58,7 @@ if [[ "$RUN_PREP_FIRST" == "true" ]]; then
     --cpus-per-task="$CPUS_PER_TASK" \
     --time="$TIME_LIMIT" \
     --hint=nomultithread \
-    --export=ALL,PROJECT_DIR="$PROJECT_DIR",MODE="prep",GRP_REGEX="$GRP_REGEX",SRC_SCAN_PATTERN_FIXED="$SRC_SCAN_PATTERN_FIXED" \
+    --export=ALL,PROJECT_DIR="$PROJECT_DIR",MODE="prep" \
     "$JOB_SCRIPT")
   # Extract job ID (sbatch prints: "Submitted batch job <id>")
   prep_job_id=$(echo "$prep_submit" | awk '{print $4}')
@@ -88,7 +85,7 @@ for seed in "${SEEDS[@]}"; do
     --time="$TIME_LIMIT" \
     --hint=nomultithread \
     ${prep_job_id:+--dependency=afterok:${prep_job_id}} \
-    --export=ALL,PROJECT_DIR="$PROJECT_DIR",MODE="train",SEED="$seed",EPOCHS="$EPOCHS",RUN_NAME="$RUN_NAME",RESULTS_DIR="$RESULTS_DIR",GRP_REGEX="$GRP_REGEX",SRC_SCAN_PATTERN_FIXED="$SRC_SCAN_PATTERN_FIXED",EXTRA_PARAMS="$EXTRA_PARAMS" \
+    --export=ALL,PROJECT_DIR="$PROJECT_DIR",MODE="train",SEED="$seed",EPOCHS="$EPOCHS",RUN_NAME="$RUN_NAME",RESULTS_DIR="$RESULTS_DIR",EXTRA_PARAMS="$EXTRA_PARAMS" \
     "$JOB_SCRIPT"
 done
 

@@ -130,7 +130,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     else:
         experiment_name = f"{args.dataset}_{args.mode}_{args.epochs}epochs"
     
-    wandb.init(
+    run = wandb.init(
         project=args.wandb_project,
         entity=args.wandb_entity,
         name=experiment_name,
@@ -146,6 +146,15 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
             "experiment_name": experiment_name
         }
     )
+    
+    # Save wandb run ID for later use (to append metrics)
+    try:
+        args.dest.mkdir(parents=True, exist_ok=True)
+        with open(args.dest / "wandb_run_id.txt", "w") as f:
+            f.write(run.id)
+        print(f">> Saved wandb run ID: {run.id}")
+    except Exception as e:
+        print(f">> Warning: Could not save wandb run ID: {e}")
     
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
