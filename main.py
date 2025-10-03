@@ -195,6 +195,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     net.init_weights()
     net.to(device)
+    # print number of trainable parameters
+    num_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
+    print(f">> Created {NetCls.__name__} with {num_params:,} trainable parameters")
+    print(net)
 
     lr = 0.0005
     optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
