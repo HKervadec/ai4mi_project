@@ -18,7 +18,8 @@ val/gt
 
 # Ignore everything inside those subdirectories
 train_results/*/*
-train_results_architecture/
+jobs/architecture/archive
+train_results_architecture
 
 # Now specifically un-ignore what we want to keep
 # !train_results/*/best_epoch/
