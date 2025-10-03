@@ -20,12 +20,13 @@ SLEEP_TIME="${SLEEP_TIME:-60}" # seconds between queue checks
 RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}"
 
 # Seeds to launch (each becomes its own Slurm job)
-SEEDS=(42) # 420 37)
+SEEDS=(42 420 37)
 # Training config to export
 EPOCHS="${EPOCHS:-25}"
-RUN_NAME="${RUN_NAME:-cbam_test}"
-RESULTS_DIR="${RESULTS_DIR:-train_results}"
-EXTRA_PARAMS="${EXTRA_PARAMS:---attn cbam}"
+RUN_NAME="${RUN_NAME:-2_5d_attn}"
+RESULTS_DIR="${RESULTS_DIR:-train_results_arch}"
+# EXTRA_PARAMS="${EXTRA_PARAMS:-}"
+EXTRA_PARAMS="${EXTRA_PARAMS:---2_5d}"
 
 mkdir -p "${PROJECT_DIR}/${OUTPUT_DIR_REL}"
 USER_NAME=$(whoami)

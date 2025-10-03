@@ -107,7 +107,7 @@ class BottleNeck(nn.Module):
                 if self.attn is not None:
                         do = self.attn(do)
 
-                output = self.PReLU_out(self.conv_out(in_) + do)
+                output = self.PReLU_out(self.conv_out(in_) + do) # Residual connection
 
                 return output
 
@@ -146,7 +146,7 @@ class BottleNeckDownSampling(nn.Module):
 
                 _, c, _, _ = maxpool_output.shape
                 output = do
-                output[:, :c, :, :] += maxpool_output
+                output[:, :c, :, :] += maxpool_output # Residual connection
 
                 final_output = self.PReLU(output)
 
@@ -191,7 +191,7 @@ class BottleNeckUpSampling(nn.Module):
                 do = self.do(b2)
                 if self.attn is not None:
                         do = self.attn(do)
-                output = self.PReLU(up + do)
+                output = self.PReLU(up + do) # Residual connection
 
                 return output
 

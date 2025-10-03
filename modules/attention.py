@@ -49,7 +49,6 @@ class CBAM(nn.Module):
             x = x * sa
         return x
 
-# TODO: debug, see: outfiles/skip_attn_15071723.out
 class AttentionGate(nn.Module):
     """Attention gate for skip connections (Attention U-Net style)."""
     # https://arxiv.org/abs/1804.03999
