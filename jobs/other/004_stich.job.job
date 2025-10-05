@@ -26,7 +26,7 @@ PRED_OUTPUT_DIR="$HOME/ai4mi_project/student-15704939/val/pred"
 SRC_SCANS_PATTERN="data/segthor_fixed/train/{id_}/GT.nii.gz"
 
 echo "Starting stitching for SEGTHOR dataset..."
-python stitch.py \
+python stitch_new.py \
   --data_folder results/segthor/ce/best_epoch/val \
   --dest_folder "$PRED_OUTPUT_DIR" \
   --num_classes 5 \

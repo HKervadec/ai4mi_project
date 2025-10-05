@@ -84,7 +84,7 @@ stitch_reference_gt() {
   mkdir -p val/gt
   if [[ ! -d val/gt || -z "$(ls -A val/gt 2>/dev/null)" ]]; then
     echo "[INFO] Stitching ground-truth volumes → val/gt"
-    python stitch.py \
+    python stitch_new.py \
       --data_folder data/SEGTHOR_CLEAN/val/gt \
       --dest_folder val/gt \
       --num_classes 5 \
@@ -119,6 +119,7 @@ run_train_eval_for_seed() {
     --wandb_project "${WANDB_PROJECT:-}" \
     --seed "$seed" \
     --wandb_name "${RUN_NAME}_${seed}" \
+    --save_best_only \
     ${EXTRA_PARAMS:-}
 
   # Plotting
@@ -127,7 +128,7 @@ run_train_eval_for_seed() {
     --output "$plot_pdf"
 
   # Stitch predictions (best epoch val slices → 3D vols)
-  python stitch.py \
+  python stitch_new.py \
     --data_folder "$dest/best_epoch/val" \
     --dest_folder "$pred_dir" \
     --num_classes 5 \

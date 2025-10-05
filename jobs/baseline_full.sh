@@ -33,7 +33,7 @@ python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest train_re
 python plot_full.py --result_folder train_results_baseline_42 --output_pdf plot_full.pdf
 
 
-python stitch.py \
+python stitch_new.py \
   --data_folder train_results_baseline_42/best_epoch/val \
   --dest_folder val/pred \
   --num_classes 5 \
@@ -42,6 +42,6 @@ python stitch.py \
 
 mkdir -p val/gt
 
-python stitch.py --data_folder data/SEGTHOR_CLEAN/val/gt --dest_folder val/gt --num_classes 5 --grp_regex "(Patient_\d\d)_\d\d\d\d" --source_scan_pattern "data/segthor_fixed/train/{id_}/GT.nii.gz"
+python stitch_new.py --data_folder data/SEGTHOR_CLEAN/val/gt --dest_folder val/gt --num_classes 5 --grp_regex "(Patient_\d\d)_\d\d\d\d" --source_scan_pattern "data/segthor_fixed/train/{id_}/GT.nii.gz"
 
 python distorch/compute_metrics.py --ref_folder val/gt --pred_folder val/pred --ref_extension .nii.gz --pred_extension .nii.gz --num_classes 5 --metrics 3d_dice 3d_hd95 --save_folder val
