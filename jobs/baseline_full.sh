@@ -13,21 +13,22 @@ module load Anaconda3/2023.07-2
 module load CUDA/12.4.0
 #
 
-source ../ai4mi_project_michal/ai4mi/bin/activate
+cd "$HOME/ai4mi_project" || exit 1
+source ai4mi/bin/activate
 
-make data/SEGTHOR_CLEAN CFLAGS=-O -n  # Will display the commands that will run, easy to inspect:
-rm -rf data/segthor_fixed_tmp data/segthor_fixed
-python -O sabotage.py --mode inv --source_dir data/segthor_train --dest_dir data/segthor_fixed_tmp -K 2 --regex_gt "GT.nii.gz" -p 4
-mv data/segthor_fixed_tmp data/segthor_fixed
-rm -rf data/SEGTHOR_CLEAN_tmp data/SEGTHOR_CLEAN
-python -O slice_segthor.py --source_dir data/segthor_fixed --dest_dir data/SEGTHOR_CLEAN_tmp \
-        --shape 256 256 --retain 10 -p -1
-mv data/SEGTHOR_CLEAN_tmp data/SEGTHOR_CLEAN
+# make data/SEGTHOR_CLEAN CFLAGS=-O -n  # Will display the commands that will run, easy to inspect:
+# rm -rf data/segthor_fixed_tmp data/segthor_fixed
+# python -O sabotage.py --mode inv --source_dir data/segthor_train --dest_dir data/segthor_fixed_tmp -K 2 --regex_gt "GT.nii.gz" -p 4
+# mv data/segthor_fixed_tmp data/segthor_fixed
+# rm -rf data/SEGTHOR_CLEAN_tmp data/SEGTHOR_CLEAN
+# python -O slice_segthor.py --source_dir data/segthor_fixed --dest_dir data/SEGTHOR_CLEAN_tmp \
+#         --shape 256 256 --retain 10 -p -1
+# mv data/SEGTHOR_CLEAN_tmp data/SEGTHOR_CLEAN
 
 
-python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest train_results_baseline_42 --gpu --wandb_entity michal.mazuryk@student.uva.nl --wandb_project ai4med --seed 42 --wandb_name "baseline_seed_42"
-python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest train_results_baseline_420 --gpu --wandb_entity michal.mazuryk@student.uva.nl --wandb_project ai4med --seed 420 --wandb_name "baseline_seed_420"
-python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest train_results_baseline_37 --gpu --wandb_entity michal.mazuryk@student.uva.nl --wandb_project ai4med --seed 37 --wandb_name "baseline_seed_37"
+python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest train_results_baseline_42 --gpu --wandb_entity azywot --wandb_project ai4med --seed 42 --wandb_name "baseline_seed_42"
+# python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest train_results_baseline_420 --gpu --wandb_entity michal.mazuryk@student.uva.nl --wandb_project ai4med --seed 420 --wandb_name "baseline_seed_420"
+# python -O main.py --dataset SEGTHOR_CLEAN --mode full --epoch 25 --dest train_results_baseline_37 --gpu --wandb_entity michal.mazuryk@student.uva.nl --wandb_project ai4med --seed 37 --wandb_name "baseline_seed_37"
 
 python plot_full.py --result_folder train_results_baseline_42 --output_pdf plot_full.pdf
 
