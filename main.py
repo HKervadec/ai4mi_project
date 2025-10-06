@@ -66,6 +66,13 @@ from utils import (Dcm,
 from losses import (CrossEntropy)
 
 
+# Dictionary to map model class names to their corresponding classes
+MODEL_CLASSES = {
+    'ENet': ENet,
+    'ENet_25d': ENet_25d,
+}
+
+
 def set_random_seed(seed: int = 42) -> None:
     """
     Set random seed for reproducibility across different libraries.
@@ -163,41 +170,21 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     print(f">> Picked {device} to run experiments")
 
 
-    # 2.5D basic sanity
-    if getattr(args, "two_point_five_d", False):
-        if args.num_slices < 3 or args.num_slices % 2 == 0:
-            raise ValueError(f"--num_slices must be an odd number >= 3; got {args.num_slices}")
+    # # 2.5D basic sanity
+    # if getattr(args, "two_point_five_d", False):
+    #     if args.num_slices < 3 or args.num_slices % 2 == 0:
+    #         raise ValueError(f"--num_slices must be an odd number >= 3; got {args.num_slices}")
 
     K: int = datasets_params[args.dataset]['K']
     kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
-
-    two_point_five_d = getattr(args, "two_point_five_d", False)
-    NetCls = datasets_params[args.dataset]['net'] if not two_point_five_d else ENet_25d
-
-    # Extra kwargs only for ENet in 2.5D mode; otherwise keep original behavior
-    extra_model_kwargs = {}
-    if NetCls is ENet_25d and two_point_five_d:
-        extra_model_kwargs.update(
-            two_point_five_d=True,
-            num_slices=args.num_slices,
-            attn_heads=args.attn_heads,
-            attn_downsample=args.attn_downsample,
-        )
-
-    net = NetCls(
-        1, K, kernels=kernels, factor=factor,
-        alter_enet=getattr(args, 'alter_enet', False),
-        attn=args.attn,
-        skip_attention=args.skip_attention,
-        **extra_model_kwargs
-    )
+    net = MODEL_CLASSES[args.model_class](1, K, kernels=kernels, factor=factor)
 
     net.init_weights()
     net.to(device)
     # print number of trainable parameters
     num_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
-    print(f">> Created {NetCls.__name__} with {num_params:,} trainable parameters")
+    print(f">> Created {MODEL_CLASSES[args.model_class].__name__} with {num_params:,} trainable parameters")
     print(net)
 
     lr = 0.0005
@@ -214,13 +201,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         "batch_size": datasets_params[args.dataset]['B'],
         "num_workers": 5,
         "seed": args.seed,
-        "2.5D": two_point_five_d,
-        "num_slices": args.num_slices if two_point_five_d else None,
-        "attn_heads": args.attn_heads if two_point_five_d else None,
-        "attn_downsample": args.attn_downsample if two_point_five_d else None,
-        "alter_enet": getattr(args, 'alter_enet', False),
-        "attn": args.attn,
-        "skip_attention": args.skip_attention
     })
     
     # Log model architecture (commented out due to pickle issues with wandb.watch)
@@ -237,7 +217,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                              img_transform=img_transform,
                              gt_transform= partial(gt_transform, K),
                              debug=args.debug,
-                             two_point_five_d=args.two_point_five_d,
+                            #  two_point_five_d=args.two_point_five_d,
                              num_slices=args.num_slices)
     train_loader = DataLoader(train_set,
                               batch_size=B,
@@ -249,7 +229,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                            img_transform=img_transform,
                            gt_transform=partial(gt_transform, K),
                            debug=args.debug,
-                           two_point_five_d=args.two_point_five_d,
+                        #    two_point_five_d=args.two_point_five_d,
                            num_slices=args.num_slices)
     val_loader = DataLoader(val_set,
                             batch_size=B,
@@ -307,17 +287,17 @@ def runTraining(args):
                     img = data['images'].to(device)
                     gt = data['gts'].to(device)
 
-                    # 2.5D input shape assertion (dataset must stack slices along channels)
-                    if getattr(args, "two_point_five_d", False):
-                        expected_c = 1 * args.num_slices  # per-slice C=1 from img_transform('L')
-                    else:
-                        expected_c = 1
-                    if img.shape[1] != expected_c:
-                        raise RuntimeError(
-                            f"Input channel mismatch: expected {expected_c} channels but got {img.shape[1]}.\n"
-                            f"When --2_5d is enabled, the dataset must return a centered z-window stacked "
-                            f"along channels with num_slices={args.num_slices} (center at index {args.num_slices//2})."
-                        )
+                    # # 2.5D input shape assertion (dataset must stack slices along channels)
+                    # if getattr(args, "two_point_five_d", False):
+                    #     expected_c = 1 * args.num_slices  # per-slice C=1 from img_transform('L')
+                    # else:
+                    #     expected_c = 1
+                    # if img.shape[1] != expected_c:
+                    #     raise RuntimeError(
+                    #         f"Input channel mismatch: expected {expected_c} channels but got {img.shape[1]}.\n"
+                    #         f"When --2_5d is enabled, the dataset must return a centered z-window stacked "
+                    #         f"along channels with num_slices={args.num_slices} (center at index {args.num_slices//2})."
+                    #     )
 
                     if opt:  # So only for training
                         opt.zero_grad()
@@ -479,25 +459,31 @@ def main():
                         help="Custom name for wandb experiment run")
     parser.add_argument('--seed', type=int, default=42,
                         help="Random seed for reproducibility (default: 42)")
-    
     parser.add_argument('--save_best_only', action='store_true',
                         help="If set, only store images for best_epoch; intermediate epoch images are temporary")
-    parser.add_argument('--alter_enet', action='store_true',
-                    help="Apply paper-faithful ENet tweaks (bias-free convs, SpatialDropout2d, BN+PReLU on initial conv, final fullconv)")
-    parser.add_argument('--attn', type=str, default=None,
-                    choices=[None, 'eca', 'cbam'],
-                    help="Per-bottleneck attention: eca | cbam | None")
-    parser.add_argument('--skip_attention', action='store_true',
-                    help="Enable attention gates on decoder skip connections")
-    # ---- 2.5D CSA options ----
-    parser.add_argument('--2_5d', dest='two_point_five_d', action='store_true',
-                        help="Enable 2.5D mode: cross-slice + in-slice attention fusion before ENet.")
-    parser.add_argument('--num_slices', type=int, default=3,
-                        help="Odd number of slices (>=3) stacked along channels when --2_5d is on.")
-    parser.add_argument('--attn_heads', type=int, default=4,
-                        help="Attention heads used by the 2.5D fusion.")
-    parser.add_argument('--attn_downsample', type=int, default=8,
-                        help="Downsample factor for attention tokenization (controls memory).")
+    
+    ###############################################################################
+    parser.add_argument('--model_class', type=str, default='ENet',
+                        choices=['ENet', 'ENet_attn'],
+                        default='ENet',
+                        help="Network architecture to use.")
+    # parser.add_argument('--alter_enet', action='store_true',
+    #                 help="Apply paper-faithful ENet tweaks (bias-free convs, SpatialDropout2d, BN+PReLU on initial conv, final fullconv)")
+    # parser.add_argument('--attn', type=str, default=None,
+    #                 choices=[None, 'eca', 'cbam'],
+    #                 help="Per-bottleneck attention: eca | cbam | None")
+    # parser.add_argument('--skip_attention', action='store_true',
+    #                 help="Enable attention gates on decoder skip connections")
+    # # ---- 2.5D CSA options ----
+    # parser.add_argument('--2_5d', dest='two_point_five_d', action='store_true',
+    #                     help="Enable 2.5D mode: cross-slice + in-slice attention fusion before ENet.")
+    # parser.add_argument('--num_slices', type=int, default=3,
+    #                     help="Odd number of slices (>=3) stacked along channels when --2_5d is on.")
+    # parser.add_argument('--attn_heads', type=int, default=4,
+    #                     help="Attention heads used by the 2.5D fusion.")
+    # parser.add_argument('--attn_downsample', type=int, default=8,
+    #                     help="Downsample factor for attention tokenization (controls memory).")
+    ###############################################################################
 
 
     args = parser.parse_args()
