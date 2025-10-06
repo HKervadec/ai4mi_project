@@ -26,6 +26,7 @@ class CBAM(nn.Module):
     def __init__(self, channels: int, r: int = 16, spatial: bool = True):
         super().__init__()
         # Channel attention
+        self.beta = nn.Parameter(torch.zeros(1))  # <- new
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.gmp = nn.AdaptiveMaxPool2d(1)
         mid = max(8, channels // r)
@@ -41,13 +42,14 @@ class CBAM(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ca = self.sig(self.mlp(self.gap(x)) + self.mlp(self.gmp(x)))
-        x = x * ca
+        y = x * ca
         if self.spatial:
-            avg = torch.mean(x, dim=1, keepdim=True)
-            mx, _ = torch.max(x, dim=1, keepdim=True)
+            avg = torch.mean(y, dim=1, keepdim=True)
+            mx, _ = torch.max(y, dim=1, keepdim=True)
             sa = torch.sigmoid(self.spatial_conv(torch.cat([avg, mx], dim=1)))
-            x = x * sa
-        return x
+            y = y * sa
+        # interpolate between identity and attention with beta
+        return x + self.beta * (y - x)
 
 class AttentionGate(nn.Module):
     """Attention gate for skip connections (Attention U-Net style)."""
