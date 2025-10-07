@@ -54,7 +54,12 @@ from functools import partial
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
-from modules.ENet_25d import ENet_25d
+# from modules.ENet_MH_setf_attn import ENet as ENet_MH_setf_attn
+from modules.ENet_MobileVit import ENet as ENet_MobileVit
+from modules.ENet_MobileVit2 import ENet as ENet_MobileVit2
+from modules.ENet_SE_CBAM_ASPP import ENet as ENet_SE_CBAM_ASPP
+# from modules.ENet_ViT_scheduled_dp_best import ENet as ENet_ViT_scheduled_dp_best
+from modules.ENet_ViT import ENet as ENet_ViT
 from utils import (Dcm,
                    class2one_hot,
                    probs2one_hot,
@@ -69,7 +74,12 @@ from losses import (CrossEntropy)
 # Dictionary to map model class names to their corresponding classes
 MODEL_CLASSES = {
     'ENet': ENet,
-    'ENet_25d': ENet_25d,
+    # 'ENet_MH_setf_attn': ENet_MH_setf_attn,
+    'ENet_MobileVit': ENet_MobileVit,
+    'ENet_MobileVit2': ENet_MobileVit2,
+    'ENet_SE_CBAM_ASPP': ENet_SE_CBAM_ASPP,
+    # 'ENet_ViT_scheduled_dp_best': ENet_ViT_scheduled_dp_best,
+    'ENet_ViT': ENet_ViT,
 }
 
 
@@ -216,9 +226,9 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                              root_dir,
                              img_transform=img_transform,
                              gt_transform= partial(gt_transform, K),
-                             debug=args.debug,
+                             debug=args.debug)
                             #  two_point_five_d=args.two_point_five_d,
-                             num_slices=args.num_slices)
+                            #  num_slices=args.num_slices)
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=5,
@@ -228,9 +238,9 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                            root_dir,
                            img_transform=img_transform,
                            gt_transform=partial(gt_transform, K),
-                           debug=args.debug,
+                           debug=args.debug)
                         #    two_point_five_d=args.two_point_five_d,
-                           num_slices=args.num_slices)
+                        #    num_slices=args.num_slices)
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=5,
@@ -464,8 +474,7 @@ def main():
     
     ###############################################################################
     parser.add_argument('--model_class', type=str, default='ENet',
-                        choices=['ENet', 'ENet_attn'],
-                        default='ENet',
+                        # choices=['ENet', 'ENet_attn'], TODO: add choices in the end
                         help="Network architecture to use.")
     # parser.add_argument('--alter_enet', action='store_true',
     #                 help="Apply paper-faithful ENet tweaks (bias-free convs, SpatialDropout2d, BN+PReLU on initial conv, final fullconv)")

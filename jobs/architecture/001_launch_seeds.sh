@@ -14,7 +14,7 @@ TIME_LIMIT="${TIME_LIMIT:-02:00:00}"
 OUTPUT_DIR_REL="outfiles"  # relative to PROJECT_DIR
 
 # Concurrency control
-MAX_JOBS="${MAX_JOBS:-3}"      # max concurrent jobs for this user
+MAX_JOBS="${MAX_JOBS:-9}"      # max concurrent jobs for this user
 SLEEP_TIME="${SLEEP_TIME:-60}" # seconds between queue checks
 # Optional: run a single prep job first to avoid race conditions
 RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}"
@@ -23,10 +23,10 @@ RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}"
 SEEDS=(42 420 37)
 # Training config to export
 EPOCHS="${EPOCHS:-25}"
-RUN_NAME="${RUN_NAME:-2_5d_attn_num_slices5}"
+RUN_NAME="${RUN_NAME:-ENet}"
 RESULTS_DIR="${RESULTS_DIR:-train_results_arch}"
 # EXTRA_PARAMS="${EXTRA_PARAMS:-}"
-EXTRA_PARAMS="${EXTRA_PARAMS:---2_5d --num_slices 5}"
+EXTRA_PARAMS="${EXTRA_PARAMS:---model_class ENet}"
 
 mkdir -p "${PROJECT_DIR}/${OUTPUT_DIR_REL}"
 USER_NAME=$(whoami)
