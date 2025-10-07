@@ -1,0 +1,1 @@
+>>> Improved dice at epoch 17: 0.750->0.794 DSC
