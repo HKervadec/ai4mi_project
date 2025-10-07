@@ -23,10 +23,10 @@ RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}"
 SEEDS=(42 420 37)
 # Training config to export
 EPOCHS="${EPOCHS:-25}"
-RUN_NAME="${RUN_NAME:-ENet}"
+RUN_NAME="${RUN_NAME:-TransUNetMid}"
 RESULTS_DIR="${RESULTS_DIR:-train_results_arch}"
 # EXTRA_PARAMS="${EXTRA_PARAMS:-}"
-EXTRA_PARAMS="${EXTRA_PARAMS:---model_class ENet}"
+EXTRA_PARAMS="${EXTRA_PARAMS:---model_class TransUNetMid}"
 
 mkdir -p "${PROJECT_DIR}/${OUTPUT_DIR_REL}"
 USER_NAME=$(whoami)

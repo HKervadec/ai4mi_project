@@ -54,12 +54,13 @@ from functools import partial
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
-# from modules.ENet_MH_setf_attn import ENet as ENet_MH_setf_attn
 from modules.ENet_MobileVit import ENet as ENet_MobileVit
 from modules.ENet_MobileVit2 import ENet as ENet_MobileVit2
 from modules.ENet_SE_CBAM_ASPP import ENet as ENet_SE_CBAM_ASPP
-# from modules.ENet_ViT_scheduled_dp_best import ENet as ENet_ViT_scheduled_dp_best
 from modules.ENet_ViT import ENet as ENet_ViT
+from modules.TransUNet import TransUNet
+from modules.TransUnetLite import TransUNetLite
+from modules.TransUNetMid import TransUNetMid
 from utils import (Dcm,
                    class2one_hot,
                    probs2one_hot,
@@ -74,12 +75,13 @@ from losses import (CrossEntropy)
 # Dictionary to map model class names to their corresponding classes
 MODEL_CLASSES = {
     'ENet': ENet,
-    # 'ENet_MH_setf_attn': ENet_MH_setf_attn,
     'ENet_MobileVit': ENet_MobileVit,
     'ENet_MobileVit2': ENet_MobileVit2,
     'ENet_SE_CBAM_ASPP': ENet_SE_CBAM_ASPP,
-    # 'ENet_ViT_scheduled_dp_best': ENet_ViT_scheduled_dp_best,
     'ENet_ViT': ENet_ViT,
+    'TransUNet': TransUNet,
+    'TransUNetLite': TransUNetLite,
+    'TransUNetMid': TransUNetMid,
 }
 
 
@@ -188,7 +190,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     K: int = datasets_params[args.dataset]['K']
     kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
-    net = MODEL_CLASSES[args.model_class](1, K, kernels=kernels, factor=factor)
+    try:
+        net = MODEL_CLASSES[args.model_class](1, K, kernels=kernels, factor=factor)
+    except TypeError:
+        net = MODEL_CLASSES[args.model_class]()
 
     net.init_weights()
     net.to(device)
