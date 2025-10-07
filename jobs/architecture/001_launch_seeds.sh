@@ -11,22 +11,21 @@ PARTITION="${PARTITION:-gpu_a100}"
 GPUS="${GPUS:-1}"
 CPUS_PER_TASK="${CPUS_PER_TASK:-9}"
 TIME_LIMIT="${TIME_LIMIT:-02:00:00}"
-OUTPUT_DIR_REL="outfiles"  # relative to PROJECT_DIR
+OUTPUT_DIR_REL="outfiles"
 
 # Concurrency control
 MAX_JOBS="${MAX_JOBS:-9}"      # max concurrent jobs for this user
 SLEEP_TIME="${SLEEP_TIME:-60}" # seconds between queue checks
-# Optional: run a single prep job first to avoid race conditions
-RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}"
+RUN_PREP_FIRST="${RUN_PREP_FIRST:-false}" # Optional: run a single prep job first to avoid race conditions
 
 # Seeds to launch (each becomes its own Slurm job)
 SEEDS=(42 420 37)
 # Training config to export
 EPOCHS="${EPOCHS:-25}"
-RUN_NAME="${RUN_NAME:-TransUNetMid}"
+RUN_NAME="${RUN_NAME:-ExampleName}"
 RESULTS_DIR="${RESULTS_DIR:-train_results_arch}"
-# EXTRA_PARAMS="${EXTRA_PARAMS:-}"
-EXTRA_PARAMS="${EXTRA_PARAMS:---model_class TransUNetMid}"
+EXTRA_PARAMS="${EXTRA_PARAMS:-}"
+# EXTRA_PARAMS="${EXTRA_PARAMS:---model_class ExampleModel}"
 
 mkdir -p "${PROJECT_DIR}/${OUTPUT_DIR_REL}"
 USER_NAME=$(whoami)

@@ -182,11 +182,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     print(f">> Picked {device} to run experiments")
 
 
-    # # 2.5D basic sanity
-    # if getattr(args, "two_point_five_d", False):
-    #     if args.num_slices < 3 or args.num_slices % 2 == 0:
-    #         raise ValueError(f"--num_slices must be an odd number >= 3; got {args.num_slices}")
-
     K: int = datasets_params[args.dataset]['K']
     kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
@@ -232,8 +227,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                              img_transform=img_transform,
                              gt_transform= partial(gt_transform, K),
                              debug=args.debug)
-                            #  two_point_five_d=args.two_point_five_d,
-                            #  num_slices=args.num_slices)
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=5,
@@ -244,8 +237,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                            img_transform=img_transform,
                            gt_transform=partial(gt_transform, K),
                            debug=args.debug)
-                        #    two_point_five_d=args.two_point_five_d,
-                        #    num_slices=args.num_slices)
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=5,
@@ -301,18 +292,6 @@ def runTraining(args):
                 for i, data in tq_iter:
                     img = data['images'].to(device)
                     gt = data['gts'].to(device)
-
-                    # # 2.5D input shape assertion (dataset must stack slices along channels)
-                    # if getattr(args, "two_point_five_d", False):
-                    #     expected_c = 1 * args.num_slices  # per-slice C=1 from img_transform('L')
-                    # else:
-                    #     expected_c = 1
-                    # if img.shape[1] != expected_c:
-                    #     raise RuntimeError(
-                    #         f"Input channel mismatch: expected {expected_c} channels but got {img.shape[1]}.\n"
-                    #         f"When --2_5d is enabled, the dataset must return a centered z-window stacked "
-                    #         f"along channels with num_slices={args.num_slices} (center at index {args.num_slices//2})."
-                    #     )
 
                     if opt:  # So only for training
                         opt.zero_grad()
@@ -479,24 +458,8 @@ def main():
     
     ###############################################################################
     parser.add_argument('--model_class', type=str, default='ENet',
-                        # choices=['ENet', 'ENet_attn'], TODO: add choices in the end
+                        choices=MODEL_CLASSES.keys(),
                         help="Network architecture to use.")
-    # parser.add_argument('--alter_enet', action='store_true',
-    #                 help="Apply paper-faithful ENet tweaks (bias-free convs, SpatialDropout2d, BN+PReLU on initial conv, final fullconv)")
-    # parser.add_argument('--attn', type=str, default=None,
-    #                 choices=[None, 'eca', 'cbam'],
-    #                 help="Per-bottleneck attention: eca | cbam | None")
-    # parser.add_argument('--skip_attention', action='store_true',
-    #                 help="Enable attention gates on decoder skip connections")
-    # # ---- 2.5D CSA options ----
-    # parser.add_argument('--2_5d', dest='two_point_five_d', action='store_true',
-    #                     help="Enable 2.5D mode: cross-slice + in-slice attention fusion before ENet.")
-    # parser.add_argument('--num_slices', type=int, default=3,
-    #                     help="Odd number of slices (>=3) stacked along channels when --2_5d is on.")
-    # parser.add_argument('--attn_heads', type=int, default=4,
-    #                     help="Attention heads used by the 2.5D fusion.")
-    # parser.add_argument('--attn_downsample', type=int, default=8,
-    #                     help="Downsample factor for attention tokenization (controls memory).")
     ###############################################################################
 
 
