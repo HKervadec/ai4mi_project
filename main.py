@@ -37,7 +37,13 @@ from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from functools import partial 
+from functools import partial
+
+from torch.optim import AdamW, SGD, Adam
+from torch.optim.lr_scheduler import OneCycleLR
+from lion_pytorch import Lion
+
+# ---------------------------------------------
 
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
@@ -77,32 +83,45 @@ def gt_transform(K, img):
         img = class2one_hot(img, K=K)
         return img[0]
 
-def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+def setup(args) -> tuple[nn.Module, Any, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
-    kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
-    factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
+    kernels: int = datasets_params[args.dataset].get('kernels', 8)
+    factor: int = datasets_params[args.dataset].get('factor', 2)
     net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
     net.init_weights()
     net.to(device)
 
+    # --- Optimizer selection ---
     lr = 0.0005
-    optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    optimizer_type = args.optimizer if hasattr(args, 'optimizer') else 'adamw'
+
+    if optimizer_type == 'adamw':
+        optimizer = AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    elif optimizer_type == 'adam':
+        optimizer = Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    elif optimizer_type == 'radam':
+        from torch.optim import RAdam
+        optimizer = RAdam(net.parameters(), lr=lr)
+    elif optimizer_type == 'sgd':
+        optimizer = SGD(net.parameters(), lr=0.01, momentum=0.9, nesterov=True)
+    elif optimizer_type == 'lion':
+        optimizer = Lion(net.parameters(), lr=lr)
+    else:
+        raise ValueError(f"Unknown optimizer: {optimizer_type}")
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
     root_dir = Path("data") / args.dataset
 
-
-
     train_set = SliceDataset('train',
                              root_dir,
                              img_transform=img_transform,
-                             gt_transform= partial(gt_transform, K),
+                             gt_transform=partial(gt_transform, K),
                              debug=args.debug)
     train_loader = DataLoader(train_set,
                               batch_size=B,
@@ -121,12 +140,25 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    # --- OneCycleLR Scheduler ---
+    scheduler = OneCycleLR(
+        optimizer,
+        max_lr=lr * 10,       
+        steps_per_epoch=len(train_loader),
+        epochs=args.epochs,
+        pct_start=0.3,
+        anneal_strategy='cos',
+        div_factor=10,
+        final_div_factor=100
+    )
+
+    return (net, optimizer, scheduler, device, train_loader, val_loader, K)
 
 
 def runTraining(args):
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    print(f">>> Setting up to train on {args.dataset} with {args.mode} using {args.optimizer} optimizer")
+    # Updated setup function now returns the scheduler
+    net, optimizer, scheduler, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
         loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
@@ -149,6 +181,7 @@ def runTraining(args):
                 case 'train':
                     net.train()
                     opt = optimizer
+                    sched = scheduler # Use the scheduler
                     cm = Dcm
                     desc = f">> Training   ({e: 4d})"
                     loader = train_loader
@@ -157,6 +190,7 @@ def runTraining(args):
                 case 'val':
                     net.eval()
                     opt = None
+                    sched = None # No scheduler update on validation
                     cm = torch.no_grad
                     desc = f">> Validation ({e: 4d})"
                     loader = val_loader
@@ -190,6 +224,7 @@ def runTraining(args):
                     if opt:  # Only for training
                         loss.backward()
                         opt.step()
+                        sched.step() # Step the scheduler after the optimizer step
 
                     if m == 'val':
                         with warnings.catch_warnings():
@@ -203,7 +238,7 @@ def runTraining(args):
                     j += B  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
                     postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
-                                                    "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
+                                                     "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
                     if K > 2:
                         postfix_dict |= {f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
                                          for k in range(1, K)}
@@ -240,6 +275,10 @@ def main():
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
+
+    optimizer_choices = ['adam','adamw', 'radam', 'sgd', 'lion']
+    parser.add_argument('--optimizer', default='adam', choices=optimizer_choices,
+                        help="The optimizer to use for training.")
 
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--debug', action='store_true',
