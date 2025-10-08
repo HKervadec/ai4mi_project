@@ -50,7 +50,7 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import (CrossEntropy)
+from losses import (CrossEntropy, DiceLoss, DiceLoss2, GeneralizedDiceLoss, FocalLoss, ComboLoss1)
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -90,8 +90,16 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     net.init_weights()
     net.to(device)
 
-    lr = 0.0005
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    lr = args.lr
+    match args.optimizer:
+        case 'Adam':
+            optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+        case 'AdamW':
+            optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999), weight_decay=1e-2)
+        case 'SGD':
+            optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, nesterov=False)
+        case 'SGDm':
+            optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, nesterov=True)
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -134,6 +142,21 @@ def runTraining(args):
         loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
     else:
         raise ValueError(args.mode, args.dataset)
+
+    match args.loss:
+        case 'CE':
+            loss_fn = CrossEntropy(idk=list(range(K)))
+        case 'DICE':
+            loss_fn = DiceLoss()
+        case 'DICE2':
+            loss_fn = DiceLoss2()
+        case 'GENDICE':
+            loss_fn = GeneralizedDiceLoss()
+        case 'FOCAL':
+            loss_fn = FocalLoss()
+        case 'COMBO1':
+            loss_fn = ComboLoss1(idk=list(range(K)))
+
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -245,6 +268,12 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logics around epochs and logging easily.")
+
+
+    # arguments related to loss functions/optimizers
+    parser.add_argument('--lr', default=0.0005, type=float)
+    parser.add_argument('--loss', default='CE', choices=['CE', 'DICE', 'DICE2', 'GENDICE', 'FOCAL'])
+    parser.add_argument('--optimizer', default='Adam', choices=['Adam', 'SGD', 'Adamw', 'SGDm'])
 
     args = parser.parse_args()
 
