@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 from pathlib import Path
-from typing import Callable, Union
+from typing import Callable, Union, Optional
 
 from torch import Tensor
 from PIL import Image
@@ -51,11 +51,11 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
 
 class SliceDataset(Dataset):
     def __init__(self, subset, root_dir, img_transform=None,
-                 gt_transform=None, augment=False, equalize=False, debug=False):
+                 gt_transform=None, augment=None, equalize=False, debug=False):
         self.root_dir: str = root_dir
         self.img_transform: Callable = img_transform
         self.gt_transform: Callable = gt_transform
-        self.augmentation: bool = augment
+        self.augmentation: Optional[Callable] = augment
         self.equalize: bool = equalize
 
         self.test_mode: bool = subset == 'test'
@@ -85,5 +85,11 @@ class SliceDataset(Dataset):
             assert gt.shape == (K, W, H)
 
             data_dict["gts"] = gt
+            if self.augmentation is not None:
+                # Expect the augmenter to return tensors with the same shapes
+                img, gt = self.augmentation(img, gt)
+                data_dict["images"] = img
+                data_dict["gts"] = gt
+
 
         return data_dict

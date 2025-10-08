@@ -51,6 +51,7 @@ from utils import (Dcm,
                    save_images)
 
 from losses import (CrossEntropy)
+from augment import OnlineAugment2D, AugConfig2D
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -97,23 +98,44 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     B: int = datasets_params[args.dataset]['B']
     root_dir = Path("data") / args.dataset
 
+    # build augmenter (train only)\
+    if args.aug == 'online':
+        aug_cfg = AugConfig2D(
+            rot_deg=8.0, shear_deg=5.0, translate=0.010, p_rot90=0.10,
+            p_roi_focus=0.60, small_class_indices=(0, 2),  # 食管 + 气管
+            p_elastic=0.20, elastic_sigma=8.0, elastic_alpha=1.2
+        )
+        aug = OnlineAugment2D(aug_cfg)
+    else:
+        aug = None
 
-
-    train_set = SliceDataset('train',
-                             root_dir,
+    # pass augmenter to train dataset; keep val clean
+    train_set = SliceDataset('train', root_dir,
                              img_transform=img_transform,
-                             gt_transform= partial(gt_transform, K),
-                             debug=args.debug)
+                             gt_transform=partial(gt_transform, K),
+                             debug=args.debug,
+                             augment=aug)
+    val_set = SliceDataset('val', root_dir,
+                           img_transform=img_transform,
+                           gt_transform=partial(gt_transform, K),
+                           debug=args.debug,
+                           augment=None)
+
+    # train_set = SliceDataset('train',
+    #                          root_dir,
+    #                          img_transform=img_transform,
+    #                          gt_transform= partial(gt_transform, K),
+    #                          debug=args.debug)
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=5,
                               shuffle=True)
 
-    val_set = SliceDataset('val',
-                           root_dir,
-                           img_transform=img_transform,
-                           gt_transform=partial(gt_transform, K),
-                           debug=args.debug)
+    # val_set = SliceDataset('val',
+    #                        root_dir,
+    #                        img_transform=img_transform,
+    #                        gt_transform=partial(gt_transform, K),
+    #                        debug=args.debug)
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=5,
@@ -144,6 +166,25 @@ def runTraining(args):
     best_dice: float = 0
 
     for e in range(args.epochs):
+        aug_ref = getattr(train_loader.dataset, "augment", None)
+        if args.aug == 'online' and aug_ref is not None:
+            if e < 8:
+                aug_ref.cfg.p_roi_focus = 0.65
+                aug_ref.cfg.rot_deg = 6.0
+                aug_ref.cfg.shear_deg = 4.0
+                aug_ref.cfg.translate = 0.008
+                aug_ref.cfg.p_rot90 = 0.0
+                aug_ref.cfg.p_elastic = 0.0
+            else:
+                aug_ref.cfg.p_roi_focus = 0.60
+                aug_ref.cfg.rot_deg = 8.0
+                aug_ref.cfg.shear_deg = 5.0
+                aug_ref.cfg.translate = 0.010
+                aug_ref.cfg.p_rot90 = 0.10
+                aug_ref.cfg.p_elastic = 0.20
+                aug_ref.cfg.elastic_sigma = 8.0
+                aug_ref.cfg.elastic_alpha = 1.2
+
         for m in ['train', 'val']:
             match m:
                 case 'train':
@@ -181,8 +222,10 @@ def runTraining(args):
                     pred_probs = F.softmax(1 * pred_logits, dim=1)  # 1 is the temperature parameter
 
                     # Metrics computation, not used for training
-                    pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
+                    pred_seg = probs2one_hot(pred_probs) # float {0,1}
+                    pred_seg_bool = pred_seg.bool()  # -> bool for bitwise &
+                    gt_bool = gt.bool()  # keep a bool copy for Dice
+                    log_dice[e, j:j + B, :] = dice_coef(pred_seg_bool, gt_bool)  # One DSC value per sample and per class
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
@@ -235,17 +278,19 @@ def runTraining(args):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epochs', default=20, type=int)
-    parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
+    parser.add_argument('--epochs', default=25, type=int)
+    parser.add_argument('--dataset', default='SEGTHOR_CLEAN', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
-    parser.add_argument('--dest', type=Path, required=True,
+    parser.add_argument('--dest', type=Path, default="D:/Github Projects/ai4mi_project\data/results\SEGTHOR_CLEAN/aug4",
                         help="Destination directory to save the results (predictions and weights).")
 
-    parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--gpu', default=True,action='store_true')
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logics around epochs and logging easily.")
 
+    parser.add_argument('--aug', default='online', choices=['none', 'online'],
+                        help="online augmentation for training set")
     args = parser.parse_args()
 
     pprint(args)
