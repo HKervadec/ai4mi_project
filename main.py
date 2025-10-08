@@ -91,7 +91,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     net.to(device)
 
     lr = 0.0005
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    optimizer = torch.optim.AdamW(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
