@@ -58,7 +58,7 @@ class DiceLoss:
 
     def __call__(self, pred_softmax, weak_target):
         assert pred_softmax.shape == weak_target.shape, "Shapes must match"
-
+        weak_target = weak_target.float()
         intersection = einsum("bkwh,bkwh->bk", pred_softmax, weak_target)
         denominator = einsum("bkwh->bk", pred_softmax) + einsum("bkwh->bk", weak_target)
 
@@ -75,7 +75,7 @@ class DiceLoss2:
 
     def __call__(self, pred_softmax, weak_target):
         assert pred_softmax.shape == weak_target.shape, "Shapes must match"
-
+        weak_target = weak_target.float()
         intersection = einsum("bkwh,bkwh->bk", pred_softmax, weak_target)
         denominator = einsum("bkwh->bk", pred_softmax) + einsum("bkwh->bk", weak_target)
 
