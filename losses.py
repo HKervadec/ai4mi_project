@@ -93,6 +93,28 @@ class DiceLoss2:
         return loss
 
 
+class DiceLoss3:
+    def __init__(self, smooth=1e-10):
+        self.smooth = smooth
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape, "Shapes must match"
+        weak_target = weak_target.float()
+
+        # Drop background class (assumed to be channel 0)
+        pred_softmax = pred_softmax[:, 1:, ...]
+        weak_target = weak_target[:, 1:, ...]
+
+        intersection = einsum("bkwh,bkwh->bk", pred_softmax, weak_target)
+        denominator = einsum("bkwh->bk", pred_softmax) + einsum("bkwh->bk", weak_target)
+
+        dice_per_class = (2. * intersection + self.smooth) / (denominator + self.smooth)
+        dice_score = dice_per_class.mean()
+
+        loss = 1. - dice_score
+        return loss
+
+
 class GeneralizedDiceLoss:
     def __init__(self, smooth=1e-10):
         self.smooth = smooth
@@ -164,6 +186,36 @@ class ComboLoss1:
         self.alpha = alpha
 
         self.loss1 = CrossEntropy(**kwargs)
+        self.loss2 = DiceLoss()
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape, "Shapes must match"
+        task1 = self.loss1(pred_softmax, weak_target)
+        task2 = self.loss2(pred_softmax, weak_target)
+
+        return self.alpha * task1 + (1 - self.alpha) * task2
+
+
+class ComboLoss2:
+    def __init__(self, alpha=0.5, **kwargs):
+        self.alpha = alpha
+
+        self.loss1 = CrossEntropy(**kwargs)
+        self.loss2 = DiceLoss3()
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape, "Shapes must match"
+        task1 = self.loss1(pred_softmax, weak_target)
+        task2 = self.loss2(pred_softmax, weak_target)
+
+        return self.alpha * task1 + (1 - self.alpha) * task2
+
+
+class ComboLoss3:
+    def __init__(self, alpha=0.5, **kwargs):
+        self.alpha = alpha
+
+        self.loss1 = FocalLoss(**kwargs)
         self.loss2 = DiceLoss()
 
     def __call__(self, pred_softmax, weak_target):

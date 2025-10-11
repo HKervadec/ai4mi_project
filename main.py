@@ -36,6 +36,7 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from functools import partial 
 
@@ -77,7 +78,7 @@ def gt_transform(K, img):
         img = class2one_hot(img, K=K)
         return img[0]
 
-def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+def setup(args) -> tuple[nn.Module, Any, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
@@ -99,7 +100,9 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         case 'SGD':
             optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, nesterov=False)
         case 'SGDm':
-            optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, nesterov=True)
+            optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, nesterov=False)
+
+    scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
@@ -129,12 +132,12 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    return (net, optimizer, scheduler, device, train_loader, val_loader, K)
 
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    net, optimizer, scheduler, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
         loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
@@ -154,7 +157,11 @@ def runTraining(args):
             loss_fn = GeneralizedDiceLoss()
         case 'FOCAL':
             loss_fn = FocalLoss()
-        case 'COMBO1':
+        case 'C1':
+            loss_fn = ComboLoss1(idk=list(range(K)))
+        case 'C2':
+            loss_fn = ComboLoss1(idk=list(range(K)))
+        case 'C3':
             loss_fn = ComboLoss1(idk=list(range(K)))
 
 
@@ -239,6 +246,8 @@ def runTraining(args):
         np.save(args.dest / "dice_val.npy", log_dice_val)
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
+        if args.scheduler:
+            scheduler.step(current_dice)
         if current_dice > best_dice:
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
             print(message)
@@ -272,9 +281,9 @@ def main():
 
     # arguments related to loss functions/optimizers
     parser.add_argument('--lr', default=0.0005, type=float)
-    parser.add_argument('--loss', default='CE', choices=['CE', 'DICE', 'DICE2', 'GENDICE', 'FOCAL'])
-    parser.add_argument('--optimizer', default='Adam', choices=['Adam', 'SGD', 'Adamw', 'SGDm'])
-
+    parser.add_argument('--loss', default='CE', choices=['CE', 'DICE', 'DICE2', 'GENDICE', 'FOCAL', 'C1', 'C2', 'C3'])
+    parser.add_argument('--optimizer', default='Adam', choices=['Adam', 'SGD', 'AdamW', 'SGDm'])
+    parser.add_argument('--scheduler', default=False, type=bool)
     args = parser.parse_args()
 
     pprint(args)
