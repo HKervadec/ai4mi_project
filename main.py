@@ -79,8 +79,13 @@ def gt_transform(K, img):
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
-    gpu: bool = args.gpu and torch.cuda.is_available()
-    device = torch.device("cuda") if gpu else torch.device("cpu")
+    if args.gpu and torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif args.gpu and torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("running on mps macbook")
+    else:
+        device = torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]['K']
