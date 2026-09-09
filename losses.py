@@ -35,6 +35,7 @@ class CrossEntropy():
         print(f"Initialized {self.__class__.__name__} with {kwargs}")
 
     def __call__(self, pred_softmax, weak_target):
+        print(pred_softmax.shape, weak_target.shape)
         assert pred_softmax.shape == weak_target.shape
         assert simplex(pred_softmax)
         assert sset(weak_target, [0, 1])
@@ -51,3 +52,24 @@ class CrossEntropy():
 class PartialCrossEntropy(CrossEntropy):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
+
+
+class CrossEntropy3D():
+    def __init__(self, **kwargs):
+        # Self.idk is used to filter out some classes of the target mask. Use fancy indexing
+        self.idk = kwargs['idk']
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        print(pred_softmax.shape, weak_target.shape)
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        log_p = (pred_softmax[:, self.idk, ...] + 1e-10).log()
+        mask = weak_target[:, self.idk, ...].float()
+
+        loss = -einsum("bkdwh,bkdwh->", mask, log_p)
+        loss /= mask.sum() + 1e-10
+
+        return loss

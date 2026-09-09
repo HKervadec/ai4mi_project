@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.10
 
 # MIT License
 
@@ -22,35 +22,45 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch import Tensor
 
-
-def convBatch(nin, nout, kernel_size=3, stride=1, padding=1, bias=False, layer=nn.Conv2d, dilation=1):
-    return nn.Sequential(
-        layer(nin, nout, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias, dilation=dilation),
-        nn.BatchNorm2d(nout),
-        nn.PReLU()
-    )
-
-
-class shallowCNN(nn.Module):
-    def __init__(self, nin, nout, nG=4, **kwargs): # **kwargs discards unnecessary keywords arguments (kernels, factor)
-        super(shallowCNN, self).__init__()
-        self.conv0 = convBatch(nin, nG * 4)
-        self.conv1 = convBatch(nG * 4, nG * 4)
-        self.conv2 = convBatch(nG * 4, nout)
-
-    def forward(self, input):
-        x0 = self.conv0(input)
-        x1 = self.conv1(x0)
-        x2 = self.conv2(x1)
-
-        return x2
-
-    def init_weights(self, *args, **kwargs):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+def random_weights_init(m):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
                 nn.init.xavier_normal_(m.weight.data)
-            elif isinstance(m, nn.BatchNorm2d):
+        elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.normal_(1.0, 0.02)
                 m.bias.data.fill_(0)
+
+class Test3DSegmenter(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Conv3d(
+                in_channels=1,
+                out_channels=num_classes,
+                kernel_size=1,
+                padding=0,
+            ),
+            # nn.ReLU(),
+            # nn.Conv3d(
+            #     in_channels=16,
+            #     out_channels=32,
+            #     kernel_size=3,
+            #     padding=1,
+            # ),
+            # nn.ReLU(),
+            # nn.Conv3d(  # One output channel per class
+            #     in_channels=32,
+            #     out_channels=num_classes,
+            #     kernel_size=1,
+            # ),
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
+    def init_weights(self, *args, **kwargs):
+            self.apply(random_weights_init)
