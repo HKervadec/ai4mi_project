@@ -302,7 +302,6 @@ def runTraining(args):
                 rmtree(best_folder)
             copytree(args.dest / f"iter{e:03d}", Path(best_folder))
 
-            torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
     # Wait for the background logging thread to finish
