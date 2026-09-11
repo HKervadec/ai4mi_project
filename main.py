@@ -31,6 +31,7 @@ from operator import itemgetter
 from shutil import copytree, rmtree
 
 import torch
+import wandb
 import numpy as np
 import torch.nn.functional as F
 from torch import nn, Tensor
@@ -145,6 +146,14 @@ def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
+    wandb.init(
+        entity="ai-for-medical-imaging", project=f"{args.dataset}", config=vars(args)
+    )
+
+    # Adds histogram of the gradients and parameters
+    # NOTE Does add a lot of info to our project, need to see if we want that
+    wandb.watch(net, log="all", log_freq=100)
+
     if args.mode == "full":
         loss_fn = CrossEntropy(
             idk=list(range(K))
@@ -188,6 +197,8 @@ def runTraining(args):
                 cm()
             ):  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
+                total_correct = 0
+                total_pixels = 0
                 tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
                 for i, data in tq_iter:
                     img = data["images"].to(device)
@@ -211,6 +222,12 @@ def runTraining(args):
                         pred_seg, gt
                     )  # One DSC value per sample and per class
 
+                    # Pixel-wise accuracy
+                    predicted_classes = pred_probs.argmax(dim=1)  # (B, W, H)
+                    gt_classes = gt.argmax(dim=1)  # (B, W, H)
+                    total_correct += (predicted_classes == gt_classes).sum().item()
+                    total_pixels += predicted_classes.numel()
+
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = (
                         loss.item()
@@ -233,9 +250,11 @@ def runTraining(args):
 
                     j += B  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
+                    epoch_acc = total_correct / total_pixels
                     postfix_dict: dict[str, str] = {
                         "Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
                         "Loss": f"{log_loss[e, : i + 1].mean():5.2e}",
+                        "Acc": f"{epoch_acc:05.3f}",
                     }
                     if K > 2:
                         postfix_dict |= {
@@ -243,6 +262,26 @@ def runTraining(args):
                             for k in range(1, K)
                         }
                     tq_iter.set_postfix(postfix_dict)
+
+                if m == "train":
+                    acc_tra = epoch_acc
+                else:
+                    acc_val = epoch_acc
+
+        metrics = {
+            "epoch": e,
+            "train/loss": log_loss_tra[e].mean().item(),
+            "train/dice": log_dice_tra[e, :, 1:].mean().item(),
+            "train/acc": acc_tra,
+            "val/loss": log_loss_val[e].mean().item(),
+            "val/dice": log_dice_val[e, :, 1:].mean().item(),
+            "val/acc": acc_val,
+        }
+        if K > 2:
+            for k in range(1, K):
+                metrics[f"train/dice_{k}"] = log_dice_tra[e, :, k].mean().item()
+                metrics[f"val/dice_{k}"] = log_dice_val[e, :, k].mean().item()
+        wandb.log(metrics)
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
@@ -265,6 +304,9 @@ def runTraining(args):
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
+
+    # Wait for the background logging thread to finish
+    wandb.finish()
 
 
 def main():
