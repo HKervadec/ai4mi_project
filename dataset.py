@@ -31,17 +31,17 @@ from torch.utils.data import Dataset
 
 
 def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
-    assert subset in ['train', 'val', 'test']
+    assert subset in ["train", "val", "test"]
 
     root = Path(root)
     print(f"> {root=}")
 
-    img_path = root / subset / 'img'
-    full_path = root / subset / 'gt'
+    img_path = root / subset / "img"
+    full_path = root / subset / "gt"
 
     images: list[Path] = sorted(img_path.glob("*.png"))
     full_labels: list[Path | None]
-    if subset != 'test':
+    if subset != "test":
         full_labels = sorted(full_path.glob("*.png"))
     else:
         full_labels = [None] * len(images)
@@ -50,15 +50,23 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
 
 
 class SliceDataset(Dataset):
-    def __init__(self, subset, root_dir, img_transform=None,
-                 gt_transform=None, augment=False, equalize=False, debug=False):
+    def __init__(
+        self,
+        subset,
+        root_dir,
+        img_transform,
+        gt_transform,
+        augment=False,
+        equalize=False,
+        debug=False,
+    ):
         self.root_dir: str = root_dir
         self.img_transform: Callable = img_transform
         self.gt_transform: Callable = gt_transform
         self.augmentation: bool = augment
         self.equalize: bool = equalize
 
-        self.test_mode: bool = subset == 'test'
+        self.test_mode: bool = subset == "test"
 
         self.files = make_dataset(root_dir, subset)
         if debug:
@@ -74,8 +82,7 @@ class SliceDataset(Dataset):
 
         img: Tensor = self.img_transform(Image.open(img_path))
 
-        data_dict = {"images": img,
-                     "stems": img_path.stem}
+        data_dict = {"images": img, "stems": img_path.stem}
 
         if not self.test_mode:
             gt: Tensor = self.gt_transform(Image.open(gt_path))

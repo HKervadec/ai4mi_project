@@ -25,16 +25,35 @@
 import torch.nn as nn
 
 
-def convBatch(nin, nout, kernel_size=3, stride=1, padding=1, bias=False, layer=nn.Conv2d, dilation=1):
+def convBatch(
+    nin,
+    nout,
+    kernel_size=3,
+    stride=1,
+    padding=1,
+    bias=False,
+    layer=nn.Conv2d,
+    dilation=1,
+):
     return nn.Sequential(
-        layer(nin, nout, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias, dilation=dilation),
+        layer(
+            nin,
+            nout,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            bias=bias,
+            dilation=dilation,
+        ),
         nn.BatchNorm2d(nout),
-        nn.PReLU()
+        nn.PReLU(),
     )
 
 
 class shallowCNN(nn.Module):
-    def __init__(self, nin, nout, nG=4, **kwargs): # **kwargs discards unnecessary keywords arguments (kernels, factor)
+    def __init__(
+        self, nin, nout, nG=4, **kwargs
+    ):  # **kwargs discards unnecessary keywords arguments (kernels, factor)
         super(shallowCNN, self).__init__()
         self.conv0 = convBatch(nin, nG * 4)
         self.conv1 = convBatch(nG * 4, nG * 4)
