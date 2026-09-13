@@ -195,7 +195,7 @@ def runTraining(args):
                     log_loss = log_loss_val
                     log_dice = log_dice_val
                 case _:
-                    raise
+                    raise  # Should never be reached, but needed to silence ide warn
 
             with (
                 cm()

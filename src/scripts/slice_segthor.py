@@ -191,7 +191,9 @@ def main(args: argparse.Namespace):
     resolution_dict: dict[str, tuple[float, float, float]] = {}
 
     split_ids: list[str]
-    for mode, split_ids in zip(["train", "val"], [training_ids, validation_ids]):
+    for mode, split_ids in zip(
+        ["train", "val", "test"], [training_ids, validation_ids, test_ids]
+    ):
         dest_mode: Path = dest_path / mode
         print(f"Slicing {len(split_ids)} pairs to {dest_mode}")
 
