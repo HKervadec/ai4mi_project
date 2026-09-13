@@ -106,11 +106,8 @@ def main(args) -> None:
         f"Found {len(unique_patients)} unique patients out of {len(images)} images ; regex: {args.grp_regex}"
     )
 
-    idx_map: dict[str, list[int]] = dict(zip(unique_patients, repeat(None)))  # type: ignore
+    idx_map: dict[str, list[int]] = {patient: [] for patient in unique_patients}
     for i, patient in enumerate(patients):
-        if not idx_map[patient]:
-            idx_map[patient] = []
-
         idx_map[patient] += [i]
 
     # print(idx_map)
