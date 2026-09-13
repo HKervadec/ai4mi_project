@@ -50,7 +50,7 @@ def main(args) -> None:
         gen_fn = partial(
             gen_img,
             W=W,
-            H=W,
+            H=H,
             r=r,
             gt_folder=gt_folder,
             img_folder=img_folder,
