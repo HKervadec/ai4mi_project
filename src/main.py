@@ -208,7 +208,7 @@ def runTraining(args):
                     img = data["images"].to(device)
                     gt = data["gts"].to(device)
 
-                    if opt:  # So only for training
+                    if opt is not None:  # So only for training
                         opt.zero_grad()
 
                     # Sanity tests to see we loaded and encoded the data correctly
@@ -237,7 +237,7 @@ def runTraining(args):
                         loss.item()
                     )  # One loss value per batch (averaged in the loss)
 
-                    if opt:  # Only for training
+                    if opt is not None:  # Only for training
                         loss.backward()
                         opt.step()
 
