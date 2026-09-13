@@ -36,14 +36,6 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 
-tqdm_ = partial(
-    tqdm,
-    dynamic_ncols=True,
-    leave=True,
-    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
-)
-
-
 def get_z(image: Path) -> int:
     return int(image.stem.split("_")[-1])
 
@@ -125,7 +117,12 @@ def main(args) -> None:
 
     args.dest_folder.mkdir(parents=True, exist_ok=True)
 
-    for p in tqdm_(unique_patients):
+    for p in tqdm(
+        unique_patients,
+        dynamic_ncols=True,
+        leave=True,
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
+    ):
         merge_patient(
             p,
             args.dest_folder,

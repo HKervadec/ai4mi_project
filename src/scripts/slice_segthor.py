@@ -38,14 +38,6 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 
-tqdm_ = partial(
-    tqdm,
-    dynamic_ncols=True,
-    leave=True,
-    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
-)
-
-
 def norm_arr(img: np.ndarray) -> np.ndarray:
     casted = img.astype(np.float32)
     shifted = casted - casted.min()
@@ -211,7 +203,12 @@ def main(args: argparse.Namespace):
             test_mode=mode == "test",
         )
         resolutions: list[tuple[float, float, float]]
-        iterator = tqdm_(split_ids)
+        iterator = tqdm(
+            split_ids,
+            dynamic_ncols=True,
+            leave=True,
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
+        )
         match args.process:
             case 1:
                 resolutions = list(map(pfun, iterator))
