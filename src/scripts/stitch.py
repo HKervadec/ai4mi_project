@@ -23,11 +23,12 @@
 # SOFTWARE.
 
 import re
+from re import Pattern, Match
 import argparse
 from itertools import repeat
 from functools import partial
 from pathlib import Path
-from typing import Any, Match, Pattern
+from typing import Any
 
 import numpy as np
 import nibabel as nib
