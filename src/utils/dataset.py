@@ -46,6 +46,9 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
     else:
         full_labels = [None] * len(images)
 
+    if len(images) != len(full_labels):
+        raise ValueError("Not the same number of images and labels in dataset")
+
     return list(zip(images, full_labels))
 
 
