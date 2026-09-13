@@ -1,0 +1,27 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+Stitching predictions together in 3D volumes
+Namespace(data_folder=PosixPath('results/segthor/ce/best_epoch/val'), source_scan_pattern='data/segthor_part1/train/{id_}/GT.nii.gz', dest_folder=PosixPath('volumes/segthor/ce'), grp_regex='(Patient_\\d\\d)_\\d\\d\\d\\d', num_classes=255)
+['Patient_01', 'Patient_15', 'Patient_17', 'Patient_11', 'Patient_19']
+Found 5 unique patients out of 915 images ; regex: (Patient_\d\d)_\d\d\d\d
+  0%|          | 0/5 [?it/s] 20%|██        | 1/5 [ 2.04s/it] 40%|████      | 2/5 [ 1.80s/it] 60%|██████    | 3/5 [ 1.60s/it] 80%|████████  | 4/5 [ 1.54s/it]100%|██████████| 5/5 [ 1.55s/it]100%|██████████| 5/5 [ 1.61s/it]
+done
+total 0
+-rw-r-----. 1 scur0049 scur0049 312K Sep 13 21:48 Patient_01.nii.gz
+-rw-r-----. 1 scur0049 scur0049 231K Sep 13 21:48 Patient_11.nii.gz
+-rw-r-----. 1 scur0049 scur0049 240K Sep 13 21:48 Patient_15.nii.gz
+-rw-r-----. 1 scur0049 scur0049 217K Sep 13 21:48 Patient_17.nii.gz
+-rw-r-----. 1 scur0049 scur0049 262K Sep 13 21:48 Patient_19.nii.gz

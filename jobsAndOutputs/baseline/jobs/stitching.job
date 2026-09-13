@@ -1,0 +1,32 @@
+#!/bin/bash
+#SBATCH --job-name=stitch_segthor
+#SBATCH --partition=genoa
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=00:20:00
+#SBATCH --output=jobsAndOutputs/baseline/outputs/stitch_segthor_%j.out
+
+set -euo pipefail
+
+PROJECT_DIR="$HOME/ai4mi_project"
+
+module purge
+module load 2024
+module load Anaconda3/2024.06-1
+
+set +u
+source "${EBROOTANACONDA3:-$CONDA_PREFIX}/etc/profile.d/conda.sh"
+conda activate ai4mi
+set -u
+
+cd "$PROJECT_DIR"
+
+echo "Stitching predictions together in 3D volumes"
+python -O stitch.py --data_folder results/segthor/ce/best_epoch/val \
+    --dest_folder volumes/segthor/ce \
+    --num_classes 255 --grp_regex "(Patient_\d\d)_\d\d\d\d" \
+    --source_scan_pattern "data/segthor_part1/train/{id_}/GT.nii.gz"
+
+echo "done"
+ls -lh volumes/segthor/ce
