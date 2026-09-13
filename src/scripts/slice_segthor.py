@@ -35,8 +35,15 @@ import numpy as np
 import nibabel as nib
 from skimage.io import imsave
 from skimage.transform import resize
+from tqdm import tqdm
 
-from utils import map_, tqdm_
+
+tqdm_ = partial(
+    tqdm,
+    dynamic_ncols=True,
+    leave=True,
+    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
+)
 
 
 def norm_arr(img: np.ndarray) -> np.ndarray:
@@ -150,7 +157,7 @@ def slice_patient(
 def get_splits(
     src_path: Path, retains: int, fold: int
 ) -> tuple[list[str], list[str], list[str]]:
-    ids: list[str] = sorted(map_(lambda p: p.name, (src_path / "train").glob("*")))
+    ids: list[str] = sorted(list(map(lambda p: p.name, (src_path / "train").glob("*"))))
     print(f"Founds {len(ids)} in the id list")
     print(ids[:10])
     assert len(ids) > retains
@@ -166,7 +173,7 @@ def get_splits(
     assert (len(training_ids) + len(validation_ids)) == len(ids)
 
     test_ids: list[str] = sorted(
-        map_(lambda p: Path(p.stem).stem, (src_path / "test").glob("*"))
+        list(map(lambda p: Path(p.stem).stem, (src_path / "test").glob("*")))
     )
     print(f"Founds {len(test_ids)} test ids")
     print(test_ids[:10])

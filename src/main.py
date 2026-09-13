@@ -40,12 +40,13 @@ from torch.utils.data import DataLoader
 
 from functools import partial
 
-from dataset import SliceDataset
-from ShallowNet import shallowCNN
-from ENet import ENet
-from utils import (
+from utils.dataset import SliceDataset
+from models.ShallowNet import shallowCNN
+from models.ENet import ENet
+from utils.utils import (
     Dcm,
     class2one_hot,
+    get_root_dir,
     probs2one_hot,
     probs2class,
     tqdm_,
@@ -53,7 +54,7 @@ from utils import (
     save_images,
 )
 
-from losses import CrossEntropy
+from utils.losses import CrossEntropy
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -117,11 +118,11 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     # Dataset part
     B: int = datasets_params[args.dataset]["B"]
-    root_dir = Path("data") / args.dataset
+    data_root_dir = get_root_dir() / "data" / args.dataset
 
     train_set = SliceDataset(
         "train",
-        root_dir,
+        data_root_dir,
         img_transform=img_transform,
         gt_transform=partial(gt_transform, K),
         debug=args.debug,
@@ -130,7 +131,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     val_set = SliceDataset(
         "val",
-        root_dir,
+        data_root_dir,
         img_transform=img_transform,
         gt_transform=partial(gt_transform, K),
         debug=args.debug,
@@ -147,7 +148,10 @@ def runTraining(args):
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     wandb.init(
-        entity="ai-for-medical-imaging", project=f"{args.dataset}", config=vars(args)
+        entity="ai-for-medical-imaging",
+        project=f"{args.dataset}",
+        config=vars(args),
+        dir=get_root_dir() / "results" / "wandb",
     )
 
     # Adds histogram of the gradients and parameters

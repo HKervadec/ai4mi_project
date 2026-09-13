@@ -25,6 +25,7 @@
 import re
 import argparse
 from itertools import repeat
+from functools import partial
 from pathlib import Path
 from typing import Any, Match, Pattern
 
@@ -32,8 +33,15 @@ import numpy as np
 import nibabel as nib
 from skimage.io import imread
 from skimage.transform import resize
+from tqdm import tqdm
 
-from utils import map_, tqdm_
+
+tqdm_ = partial(
+    tqdm,
+    dynamic_ncols=True,
+    leave=True,
+    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
+)
 
 
 def get_z(image: Path) -> int:
@@ -94,9 +102,9 @@ def main(args) -> None:
     images: list[Path] = list(Path(args.data_folder).glob("*.png"))
     grouping_regex: Pattern = re.compile(args.grp_regex)
 
-    stems: list[str] = map_(lambda p: p.stem, images)
+    stems: list[str] = list(map(lambda p: p.stem, images))
 
-    matches: list[Match] = map_(grouping_regex.match, stems)  # type: ignore
+    matches: list[Match] = list(map(grouping_regex.match, stems))  # type: ignore
     patients: list[str] = [match.group(1) for match in matches]
     unique_patients: list[str] = list(set(patients))
     print(unique_patients)

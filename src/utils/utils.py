@@ -53,6 +53,12 @@ A = TypeVar("A")
 B = TypeVar("B")
 
 
+# This works based on relative path of this utils.py. So if the file that contains this
+# function isn't in src/utils/ , this fails.
+def get_root_dir():
+    return Path(__file__).parent.parent.parent.resolve()
+
+
 # NOTE Do we even want these map functions? Makes things less readable in my opinion
 
 
