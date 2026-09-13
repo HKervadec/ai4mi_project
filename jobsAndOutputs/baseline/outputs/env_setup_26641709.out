@@ -1,0 +1,145 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+--- git submodules ---
+--- creating conda env ---
+python  : /home/scur0049/.conda/envs/ai4mi/bin/python
+version : Python 3.11.16
+Requirement already satisfied: pip in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (26.2.1)
+Requirement already satisfied: wheel in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (0.48.0)
+Requirement already satisfied: setuptools in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (84.0.0)
+Requirement already satisfied: packaging>=24.0 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from wheel) (26.3)
+Requirement already satisfied: torch in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (2.14.0)
+Requirement already satisfied: numpy in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (2.4.6)
+Requirement already satisfied: nibabel in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (5.4.2)
+Requirement already satisfied: torchvision in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (0.29.0)
+Requirement already satisfied: tqdm in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (4.70.1)
+Requirement already satisfied: pillow in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (12.3.0)
+Requirement already satisfied: scikit-image in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (0.26.0)
+Requirement already satisfied: matplotlib in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (3.11.2)
+Requirement already satisfied: filelock in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (3.32.6)
+Requirement already satisfied: typing-extensions>=4.10.0 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (4.16.0)
+Requirement already satisfied: setuptools>=77.0.3 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (84.0.0)
+Requirement already satisfied: sympy>=1.13.3 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (3.6.1)
+Requirement already satisfied: jinja2 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (2026.7.0)
+Requirement already satisfied: cuda-toolkit==13.0.3 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (13.0.3.0)
+Requirement already satisfied: cuda-bindings<14,>=13.0.3 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (13.4.1)
+Requirement already satisfied: nvidia-cudnn-cu13==9.24.0.43 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (9.24.0.43)
+Requirement already satisfied: nvidia-cusparselt-cu13==0.8.1 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (0.8.1)
+Requirement already satisfied: nvidia-nccl-cu13==2.30.7 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (2.30.7)
+Requirement already satisfied: nvidia-nvshmem-cu13==3.4.5 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (3.4.5)
+Requirement already satisfied: triton~=3.8.0 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (3.8.0)
+Requirement already satisfied: nvidia-cublas==13.1.1.3.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (13.1.1.3)
+Requirement already satisfied: nvidia-cuda-nvrtc==13.0.88.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (13.0.88)
+Requirement already satisfied: nvidia-cuda-runtime==13.0.96.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (13.0.96)
+Requirement already satisfied: nvidia-cufft==12.0.0.61.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (12.0.0.61)
+Requirement already satisfied: nvidia-nvjitlink<14,>=13.0.88 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (13.4.52)
+Requirement already satisfied: nvidia-cufile==1.15.1.6.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (1.15.1.6)
+Requirement already satisfied: nvidia-cuda-cupti==13.0.85.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (13.0.85)
+Requirement already satisfied: nvidia-curand==10.4.0.35.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (10.4.0.35)
+Requirement already satisfied: nvidia-cusolver==12.0.4.66.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (12.0.4.66)
+Requirement already satisfied: nvidia-cusparse==12.6.3.3.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (12.6.3.3)
+Requirement already satisfied: nvidia-nvtx==13.0.85.* in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1)) (13.0.85)
+Requirement already satisfied: cuda-pathfinder>=1.4.2 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from cuda-bindings<14,>=13.0.3->torch->-r requirements.txt (line 1)) (1.8.1)
+Requirement already satisfied: importlib-resources>=5.12 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from nibabel->-r requirements.txt (line 3)) (7.1.0)
+Requirement already satisfied: packaging>=20 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from nibabel->-r requirements.txt (line 3)) (26.3)
+Requirement already satisfied: scipy>=1.11.4 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from scikit-image->-r requirements.txt (line 7)) (1.17.1)
+Requirement already satisfied: imageio!=2.35.0,>=2.33 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from scikit-image->-r requirements.txt (line 7)) (2.37.4)
+Requirement already satisfied: tifffile>=2022.8.12 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from scikit-image->-r requirements.txt (line 7)) (2026.3.3)
+Requirement already satisfied: lazy-loader>=0.4 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from scikit-image->-r requirements.txt (line 7)) (0.5)
+Requirement already satisfied: contourpy>=1.0.1 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from matplotlib->-r requirements.txt (line 8)) (1.3.3)
+Requirement already satisfied: cycler>=0.10 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from matplotlib->-r requirements.txt (line 8)) (0.12.1)
+Requirement already satisfied: fonttools>=4.28.2 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from matplotlib->-r requirements.txt (line 8)) (4.65.0)
+Requirement already satisfied: kiwisolver>=1.3.1 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from matplotlib->-r requirements.txt (line 8)) (1.5.1)
+Requirement already satisfied: pyparsing>=3 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from matplotlib->-r requirements.txt (line 8)) (3.3.2)
+Requirement already satisfied: python-dateutil>=2.7 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from matplotlib->-r requirements.txt (line 8)) (2.9.0.post0)
+Requirement already satisfied: six>=1.5 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from python-dateutil>=2.7->matplotlib->-r requirements.txt (line 8)) (1.17.0)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from sympy>=1.13.3->torch->-r requirements.txt (line 1)) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from jinja2->torch->-r requirements.txt (line 1)) (3.0.3)
+--- installed packages ---
+Package                Version
+---------------------- -----------
+contourpy              1.3.3
+cuda-bindings          13.4.1
+cuda-pathfinder        1.8.1
+cuda-toolkit           13.0.3.0
+cycler                 0.12.1
+filelock               3.32.6
+fonttools              4.65.0
+fsspec                 2026.7.0
+ImageIO                2.37.4
+importlib_resources    7.1.0
+Jinja2                 3.1.6
+kiwisolver             1.5.1
+lazy-loader            0.5
+MarkupSafe             3.0.3
+matplotlib             3.11.2
+mpmath                 1.3.0
+networkx               3.6.1
+nibabel                5.4.2
+numpy                  2.4.6
+nvidia-cublas          13.1.1.3
+nvidia-cuda-cupti      13.0.85
+nvidia-cuda-nvrtc      13.0.88
+nvidia-cuda-runtime    13.0.96
+nvidia-cudnn-cu13      9.24.0.43
+nvidia-cufft           12.0.0.61
+nvidia-cufile          1.15.1.6
+nvidia-curand          10.4.0.35
+nvidia-cusolver        12.0.4.66
+nvidia-cusparse        12.6.3.3
+nvidia-cusparselt-cu13 0.8.1
+nvidia-nccl-cu13       2.30.7
+nvidia-nvjitlink       13.4.52
+nvidia-nvshmem-cu13    3.4.5
+nvidia-nvtx            13.0.85
+packaging              26.3
+pillow                 12.3.0
+pip                    26.2.1
+pyparsing              3.3.2
+python-dateutil        2.9.0.post0
+scikit-image           0.26.0
+scipy                  1.17.1
+setuptools             84.0.0
+six                    1.17.0
+sympy                  1.14.0
+tifffile               2026.3.3
+torch                  2.14.0
+torchvision            0.29.0
+tqdm                   4.70.1
+triton                 3.8.0
+typing_extensions      4.16.0
+wheel                  0.48.0
+torch    : 2.14.0+cu130 | built for CUDA 13.0
+numpy    : 2.4.6
+nibabel  : 5.4.2
+cuda ok  : True
+device   : NVIDIA A100-SXM4-40GB
+data/TOY2 already present, skipping.
+--- checksum + unzip segthor_part1.zip ---
+data/segthor_part1.zip: OK
+--- slicing to data/SEGTHOR ---
+Namespace(source_dir='data/segthor_part1', dest_dir='data/SEGTHOR_tmp', shape=[256, 256], retains=5, seed=0, fold=0, process=16)
+Founds 20 in the id list
+['Patient_01', 'Patient_02', 'Patient_03', 'Patient_04', 'Patient_05', 'Patient_06', 'Patient_07', 'Patient_08', 'Patient_09', 'Patient_10']
+Founds 0 test ids
+[]
+Slicing 15 pairs to data/SEGTHOR_tmp/train
+  0%|          | 0/15 [?it/s]  7%|▋         | 1/15 [ 7.59it/s]100%|██████████| 15/15 [113.23it/s]
+Slicing 5 pairs to data/SEGTHOR_tmp/val
+  0%|          | 0/5 [?it/s]100%|██████████| 5/5 [52.93it/s]
+Saved spacing dictionnary to <_io.BufferedWriter name='data/SEGTHOR_tmp/spacing.pkl'>

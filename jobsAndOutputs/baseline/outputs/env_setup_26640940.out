@@ -1,0 +1,402 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+--- git submodules ---
+Submodule 'viewer' (https://github.com/HKervadec/segmentation_viewer.git) registered for path 'viewer'
+Cloning into '/gpfs/home5/scur0049/ai4mi_project/viewer'...
+Submodule path 'viewer': checked out 'd813bd33731ad0c5c5ab80cda9acfa422dbe13c0'
+--- creating conda env ---
+Channels:
+ - defaults
+Platform: linux-64
+Collecting package metadata (repodata.json): ...working... done
+Solving environment: ...working... done
+
+## Package Plan ##
+
+  environment location: /home/scur0049/.conda/envs/ai4mi
+
+  added / updated specs:
+    - pip
+    - python=3.11
+
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    _openmp_mutex-5.1          |           52_gnu           7 KB
+    ca-certificates-2026.8.13  |       h06a4308_0         107 KB
+    ld_impl_linux-64-2.44      |       h9e0c5a2_3         725 KB
+    libexpat-2.8.4             |       h7354ed3_0         128 KB
+    libffi-3.4.8               |       h06d3fd0_3         137 KB
+    libgcc-15.2.0              |       h69a1729_8         803 KB
+    libgcc-ng-15.2.0           |       h166f726_8          28 KB
+    libnsl-2.0.0               |       h5eee18b_0          31 KB
+    libstdcxx-15.2.0           |       h39759b7_8         3.7 MB
+    libxcb-1.17.0              |       h9b100fa_0         430 KB
+    libzlib-1.3.2              |       h47b2149_0          60 KB
+    ncurses-6.6                |       hfaaeb4e_0         893 KB
+    openssl-3.5.8              |       h1b28b03_0         5.5 MB
+    packaging-26.3             |  py311h06a4308_0         380 KB
+    pip-26.2.1                 |     pyhc872135_0         1.1 MB
+    pthread-stubs-0.3          |       h47b2149_2           7 KB
+    python-3.11.16             |       h17756b0_0        29.7 MB
+    readline-8.3               |       hc2a1206_0         471 KB
+    setuptools-83.0.0          |  py311h06a4308_0         1.6 MB
+    sqlite-3.53.4              |       h795bf6d_0         1.2 MB
+    tk-8.6.15                  |       h54e0aa7_0         3.4 MB
+    tzdata-2026c               |       he532380_0         117 KB
+    wheel-0.47.0               |  py311h06a4308_0          75 KB
+    xorg-libx11-1.8.13         |       h65de747_0         817 KB
+    xorg-libxau-1.0.12         |       h9b100fa_0          13 KB
+    xorg-libxdmcp-1.1.5        |       h9b100fa_0          19 KB
+    xorg-xorgproto-2025.1      |       h47b2149_0         555 KB
+    xz-5.8.2                   |       h448239c_0         621 KB
+    zlib-1.3.2                 |       h47b2149_0          92 KB
+    ------------------------------------------------------------
+                                           Total:        52.7 MB
+
+The following NEW packages will be INSTALLED:
+
+  _libgcc_mutex      pkgs/main/linux-64::_libgcc_mutex-0.1-main 
+  _openmp_mutex      pkgs/main/linux-64::_openmp_mutex-5.1-52_gnu 
+  bzip2              pkgs/main/linux-64::bzip2-1.0.8-h5eee18b_6 
+  ca-certificates    pkgs/main/linux-64::ca-certificates-2026.8.13-h06a4308_0 
+  ld_impl_linux-64   pkgs/main/linux-64::ld_impl_linux-64-2.44-h9e0c5a2_3 
+  libexpat           pkgs/main/linux-64::libexpat-2.8.4-h7354ed3_0 
+  libffi             pkgs/main/linux-64::libffi-3.4.8-h06d3fd0_3 
+  libgcc             pkgs/main/linux-64::libgcc-15.2.0-h69a1729_8 
+  libgcc-ng          pkgs/main/linux-64::libgcc-ng-15.2.0-h166f726_8 
+  libnsl             pkgs/main/linux-64::libnsl-2.0.0-h5eee18b_0 
+  libstdcxx          pkgs/main/linux-64::libstdcxx-15.2.0-h39759b7_8 
+  libuuid            pkgs/main/linux-64::libuuid-1.41.5-h5eee18b_0 
+  libxcb             pkgs/main/linux-64::libxcb-1.17.0-h9b100fa_0 
+  libzlib            pkgs/main/linux-64::libzlib-1.3.2-h47b2149_0 
+  ncurses            pkgs/main/linux-64::ncurses-6.6-hfaaeb4e_0 
+  openssl            pkgs/main/linux-64::openssl-3.5.8-h1b28b03_0 
+  packaging          pkgs/main/linux-64::packaging-26.3-py311h06a4308_0 
+  pip                pkgs/main/noarch::pip-26.2.1-pyhc872135_0 
+  pthread-stubs      pkgs/main/linux-64::pthread-stubs-0.3-h47b2149_2 
+  python             pkgs/main/linux-64::python-3.11.16-h17756b0_0 
+  readline           pkgs/main/linux-64::readline-8.3-hc2a1206_0 
+  setuptools         pkgs/main/linux-64::setuptools-83.0.0-py311h06a4308_0 
+  sqlite             pkgs/main/linux-64::sqlite-3.53.4-h795bf6d_0 
+  tk                 pkgs/main/linux-64::tk-8.6.15-h54e0aa7_0 
+  tzdata             pkgs/main/noarch::tzdata-2026c-he532380_0 
+  wheel              pkgs/main/linux-64::wheel-0.47.0-py311h06a4308_0 
+  xorg-libx11        pkgs/main/linux-64::xorg-libx11-1.8.13-h65de747_0 
+  xorg-libxau        pkgs/main/linux-64::xorg-libxau-1.0.12-h9b100fa_0 
+  xorg-libxdmcp      pkgs/main/linux-64::xorg-libxdmcp-1.1.5-h9b100fa_0 
+  xorg-xorgproto     pkgs/main/linux-64::xorg-xorgproto-2025.1-h47b2149_0 
+  xz                 pkgs/main/linux-64::xz-5.8.2-h448239c_0 
+  zlib               pkgs/main/linux-64::zlib-1.3.2-h47b2149_0 
+
+
+
+Downloading and Extracting Packages: ...working... done
+Preparing transaction: ...working... done
+Verifying transaction: ...working... done
+Executing transaction: ...working... done
+#
+# To activate this environment, use
+#
+#     $ conda activate ai4mi
+#
+# To deactivate an active environment, use
+#
+#     $ conda deactivate
+
+python  : /home/scur0049/.conda/envs/ai4mi/bin/python
+version : Python 3.11.16
+Requirement already satisfied: pip in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (26.2.1)
+Requirement already satisfied: wheel in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (0.47.0)
+Collecting wheel
+  Downloading wheel-0.48.0-py3-none-any.whl.metadata (2.3 kB)
+Requirement already satisfied: setuptools in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (83.0.0)
+Collecting setuptools
+  Downloading setuptools-84.0.0-py3-none-any.whl.metadata (6.6 kB)
+Requirement already satisfied: packaging>=24.0 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from wheel) (26.3)
+Downloading wheel-0.48.0-py3-none-any.whl (33 kB)
+Downloading setuptools-84.0.0-py3-none-any.whl (818 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 818.2/818.2 kB 45.0 MB/s  0:00:00
+Installing collected packages: wheel, setuptools
+  Attempting uninstall: wheel
+    Found existing installation: wheel 0.47.0
+    Uninstalling wheel-0.47.0:
+      Successfully uninstalled wheel-0.47.0
+  Attempting uninstall: setuptools
+    Found existing installation: setuptools 83.0.0
+    Uninstalling setuptools-83.0.0:
+      Successfully uninstalled setuptools-83.0.0
+
+Successfully installed setuptools-84.0.0 wheel-0.48.0
+Collecting torch (from -r requirements.txt (line 1))
+  Downloading torch-2.14.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (37 kB)
+Collecting numpy (from -r requirements.txt (line 2))
+  Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting nibabel (from -r requirements.txt (line 3))
+  Downloading nibabel-5.4.2-py3-none-any.whl.metadata (8.9 kB)
+Collecting torchvision (from -r requirements.txt (line 4))
+  Downloading torchvision-0.29.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (5.7 kB)
+Collecting tqdm (from -r requirements.txt (line 5))
+  Downloading tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+Collecting pillow (from -r requirements.txt (line 6))
+  Downloading pillow-12.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (9.1 kB)
+Collecting scikit-image (from -r requirements.txt (line 7))
+  Downloading scikit_image-0.26.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (15 kB)
+Collecting matplotlib (from -r requirements.txt (line 8))
+  Downloading matplotlib-3.11.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (80 kB)
+Collecting filelock (from torch->-r requirements.txt (line 1))
+  Downloading filelock-3.32.6-py3-none-any.whl.metadata (2.0 kB)
+Collecting typing-extensions>=4.10.0 (from torch->-r requirements.txt (line 1))
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Requirement already satisfied: setuptools>=77.0.3 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from torch->-r requirements.txt (line 1)) (84.0.0)
+Collecting sympy>=1.13.3 (from torch->-r requirements.txt (line 1))
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+Collecting networkx>=2.5.1 (from torch->-r requirements.txt (line 1))
+  Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)
+Collecting jinja2 (from torch->-r requirements.txt (line 1))
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting fsspec>=0.8.5 (from torch->-r requirements.txt (line 1))
+  Downloading fsspec-2026.7.0-py3-none-any.whl.metadata (10 kB)
+Collecting cuda-toolkit==13.0.3 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl.metadata (17 kB)
+Collecting cuda-bindings<14,>=13.0.3 (from torch->-r requirements.txt (line 1))
+  Downloading cuda_bindings-13.4.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting nvidia-cudnn-cu13==9.24.0.43 (from torch->-r requirements.txt (line 1))
+  Downloading nvidia_cudnn_cu13-9.24.0.43-py3-none-manylinux_2_27_x86_64.whl.metadata (1.9 kB)
+Collecting nvidia-cusparselt-cu13==0.8.1 (from torch->-r requirements.txt (line 1))
+  Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl.metadata (12 kB)
+Collecting nvidia-nccl-cu13==2.30.7 (from torch->-r requirements.txt (line 1))
+  Downloading nvidia_nccl_cu13-2.30.7-py3-none-manylinux_2_18_x86_64.whl.metadata (2.1 kB)
+Collecting nvidia-nvshmem-cu13==3.4.5 (from torch->-r requirements.txt (line 1))
+  Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.1 kB)
+Collecting triton~=3.8.0 (from torch->-r requirements.txt (line 1))
+  Downloading triton-3.8.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (978 bytes)
+Collecting nvidia-cublas==13.1.1.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-nvjitlink<14,>=13.0.88 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_nvjitlink-13.4.52-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch->-r requirements.txt (line 1))
+  Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (1.8 kB)
+Collecting cuda-pathfinder>=1.4.2 (from cuda-bindings<14,>=13.0.3->torch->-r requirements.txt (line 1))
+  Downloading cuda_pathfinder-1.8.1-py3-none-any.whl.metadata (1.9 kB)
+Collecting importlib-resources>=5.12 (from nibabel->-r requirements.txt (line 3))
+  Downloading importlib_resources-7.1.0-py3-none-any.whl.metadata (4.0 kB)
+Requirement already satisfied: packaging>=20 in /home/scur0049/.conda/envs/ai4mi/lib/python3.11/site-packages (from nibabel->-r requirements.txt (line 3)) (26.3)
+Collecting scipy>=1.11.4 (from scikit-image->-r requirements.txt (line 7))
+  Downloading scipy-1.17.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)
+Collecting imageio!=2.35.0,>=2.33 (from scikit-image->-r requirements.txt (line 7))
+  Downloading imageio-2.37.4-py3-none-any.whl.metadata (9.6 kB)
+Collecting tifffile>=2022.8.12 (from scikit-image->-r requirements.txt (line 7))
+  Downloading tifffile-2026.3.3-py3-none-any.whl.metadata (31 kB)
+Collecting lazy-loader>=0.4 (from scikit-image->-r requirements.txt (line 7))
+  Downloading lazy_loader-0.5-py3-none-any.whl.metadata (5.9 kB)
+Collecting contourpy>=1.0.1 (from matplotlib->-r requirements.txt (line 8))
+  Downloading contourpy-1.3.3-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.5 kB)
+Collecting cycler>=0.10 (from matplotlib->-r requirements.txt (line 8))
+  Downloading cycler-0.12.1-py3-none-any.whl.metadata (3.8 kB)
+Collecting fonttools>=4.28.2 (from matplotlib->-r requirements.txt (line 8))
+  Downloading fonttools-4.65.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (125 kB)
+Collecting kiwisolver>=1.3.1 (from matplotlib->-r requirements.txt (line 8))
+  Downloading kiwisolver-1.5.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (5.2 kB)
+Collecting pyparsing>=3 (from matplotlib->-r requirements.txt (line 8))
+  Downloading pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)
+Collecting python-dateutil>=2.7 (from matplotlib->-r requirements.txt (line 8))
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Collecting six>=1.5 (from python-dateutil>=2.7->matplotlib->-r requirements.txt (line 8))
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch->-r requirements.txt (line 1))
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+Collecting MarkupSafe>=2.0 (from jinja2->torch->-r requirements.txt (line 1))
+  Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Downloading torch-2.14.0-cp311-cp311-manylinux_2_28_x86_64.whl (554.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 554.6/554.6 MB 84.8 MB/s  0:00:04
+Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl (2.5 kB)
+Downloading nvidia_cudnn_cu13-9.24.0.43-py3-none-manylinux_2_27_x86_64.whl (553.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 553.1/553.1 MB 32.2 MB/s  0:00:09
+Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl (170.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 170.1/170.1 MB 137.8 MB/s  0:00:01
+Downloading nvidia_nccl_cu13-2.30.7-py3-none-manylinux_2_18_x86_64.whl (216.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.0/216.0 MB 69.3 MB/s  0:00:03
+Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 100.3 MB/s  0:00:00
+Downloading cuda_bindings-13.4.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (7.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.2/7.2 MB 96.4 MB/s  0:00:00
+Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 36.6 MB/s  0:00:08
+Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 109.6 MB/s  0:00:00
+Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 44.9 MB/s  0:00:02
+Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 116.5 MB/s  0:00:00
+Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 121.9 MB/s  0:00:01
+Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 48.4 MB/s  0:00:00
+Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 69.5 MB/s  0:00:00
+Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 141.6 MB/s  0:00:01
+Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 127.6 MB/s  0:00:01
+Downloading nvidia_nvjitlink-13.4.52-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (42.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.5/42.5 MB 151.2 MB/s  0:00:00
+Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)
+Downloading triton-3.8.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (247.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 247.9/247.9 MB 60.8 MB/s  0:00:04
+Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 46.1 MB/s  0:00:00
+Downloading nibabel-5.4.2-py3-none-any.whl (3.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 81.8 MB/s  0:00:00
+Downloading torchvision-0.29.0-cp311-cp311-manylinux_2_28_x86_64.whl (7.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.4/7.4 MB 87.2 MB/s  0:00:00
+Downloading tqdm-4.70.1-py3-none-any.whl (80 kB)
+Downloading pillow-12.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.9/6.9 MB 131.8 MB/s  0:00:00
+Downloading scikit_image-0.26.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (13.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.7/13.7 MB 76.4 MB/s  0:00:00
+Downloading matplotlib-3.11.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (9.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.9/9.9 MB 114.3 MB/s  0:00:00
+Downloading contourpy-1.3.3-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (355 kB)
+Downloading cuda_pathfinder-1.8.1-py3-none-any.whl (62 kB)
+Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)
+Downloading fonttools-4.65.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 128.8 MB/s  0:00:00
+Downloading fsspec-2026.7.0-py3-none-any.whl (206 kB)
+Downloading imageio-2.37.4-py3-none-any.whl (318 kB)
+Downloading importlib_resources-7.1.0-py3-none-any.whl (37 kB)
+Downloading kiwisolver-1.5.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 108.8 MB/s  0:00:00
+Downloading lazy_loader-0.5-py3-none-any.whl (8.0 kB)
+Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 101.7 MB/s  0:00:00
+Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)
+Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Downloading scipy-1.17.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.3/35.3 MB 61.3 MB/s  0:00:00
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 122.6 MB/s  0:00:00
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 28.6 MB/s  0:00:00
+Downloading tifffile-2026.3.3-py3-none-any.whl (243 kB)
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading filelock-3.32.6-py3-none-any.whl (100 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Installing collected packages: nvidia-cusparselt-cu13, mpmath, cuda-toolkit, typing-extensions, triton, tqdm, sympy, six, pyparsing, pillow, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, numpy, networkx, MarkupSafe, lazy-loader, kiwisolver, importlib-resources, fsspec, fonttools, filelock, cycler, cuda-pathfinder, tifffile, scipy, python-dateutil, nvidia-cusparse, nvidia-cufft, nvidia-cublas, nibabel, jinja2, imageio, cuda-bindings, contourpy, scikit-image, nvidia-cusolver, nvidia-cudnn-cu13, matplotlib, torch, torchvision
+
+Successfully installed MarkupSafe-3.0.3 contourpy-1.3.3 cuda-bindings-13.4.1 cuda-pathfinder-1.8.1 cuda-toolkit-13.0.3.0 cycler-0.12.1 filelock-3.32.6 fonttools-4.65.0 fsspec-2026.7.0 imageio-2.37.4 importlib-resources-7.1.0 jinja2-3.1.6 kiwisolver-1.5.1 lazy-loader-0.5 matplotlib-3.11.2 mpmath-1.3.0 networkx-3.6.1 nibabel-5.4.2 numpy-2.4.6 nvidia-cublas-13.1.1.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.24.0.43 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.1 nvidia-nccl-cu13-2.30.7 nvidia-nvjitlink-13.4.52 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 pillow-12.3.0 pyparsing-3.3.2 python-dateutil-2.9.0.post0 scikit-image-0.26.0 scipy-1.17.1 six-1.17.0 sympy-1.14.0 tifffile-2026.3.3 torch-2.14.0 torchvision-0.29.0 tqdm-4.70.1 triton-3.8.0 typing-extensions-4.16.0
+--- installed packages ---
+Package                Version
+---------------------- -----------
+contourpy              1.3.3
+cuda-bindings          13.4.1
+cuda-pathfinder        1.8.1
+cuda-toolkit           13.0.3.0
+cycler                 0.12.1
+filelock               3.32.6
+fonttools              4.65.0
+fsspec                 2026.7.0
+ImageIO                2.37.4
+importlib_resources    7.1.0
+Jinja2                 3.1.6
+kiwisolver             1.5.1
+lazy-loader            0.5
+MarkupSafe             3.0.3
+matplotlib             3.11.2
+mpmath                 1.3.0
+networkx               3.6.1
+nibabel                5.4.2
+numpy                  2.4.6
+nvidia-cublas          13.1.1.3
+nvidia-cuda-cupti      13.0.85
+nvidia-cuda-nvrtc      13.0.88
+nvidia-cuda-runtime    13.0.96
+nvidia-cudnn-cu13      9.24.0.43
+nvidia-cufft           12.0.0.61
+nvidia-cufile          1.15.1.6
+nvidia-curand          10.4.0.35
+nvidia-cusolver        12.0.4.66
+nvidia-cusparse        12.6.3.3
+nvidia-cusparselt-cu13 0.8.1
+nvidia-nccl-cu13       2.30.7
+nvidia-nvjitlink       13.4.52
+nvidia-nvshmem-cu13    3.4.5
+nvidia-nvtx            13.0.85
+packaging              26.3
+pillow                 12.3.0
+pip                    26.2.1
+pyparsing              3.3.2
+python-dateutil        2.9.0.post0
+scikit-image           0.26.0
+scipy                  1.17.1
+setuptools             84.0.0
+six                    1.17.0
+sympy                  1.14.0
+tifffile               2026.3.3
+torch                  2.14.0
+torchvision            0.29.0
+tqdm                   4.70.1
+triton                 3.8.0
+typing_extensions      4.16.0
+wheel                  0.48.0
+torch    : 2.14.0+cu130 | built for CUDA 13.0
+numpy    : 2.4.6
+nibabel  : 5.4.2
+cuda ok  : True
+device   : NVIDIA A100-SXM4-40GB
+--- building data/TOY2 ---
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+tput: No value for $TERM and no -T specified
+rm -rf data/TOY2_tmp data/TOY2
+python gen_two_circles.py --dest data/TOY2_tmp -n 1000 100 -r 25 -wh 256 256
+Namespace(dest='data/TOY2_tmp', n=[1000, 100], wh=[256, 256], r=25, ellipsis=False, seed=0)
+  0%|          | 0/1000 [00:00<?, ?it/s]  1%|          | 6/1000 [00:00<00:18, 55.20it/s]  1%|▏         | 13/1000 [00:00<00:15, 61.91it/s]  2%|▏         | 20/1000 [00:00<00:16, 60.95it/s]  3%|▎         | 27/1000 [00:00<00:16, 60.29it/s]  3%|▎         | 34/1000 [00:00<00:15, 60.40it/s]  4%|▍         | 41/1000 [00:00<00:15, 60.05it/s]  5%|▍         | 48/1000 [00:00<00:15, 59.74it/s]  6%|▌         | 55/1000 [00:00<00:15, 60.12it/s]  6%|▌         | 62/1000 [00:01<00:15, 61.80it/s]  7%|▋         | 69/1000 [00:01<00:14, 62.23it/s]  8%|▊         | 76/1000 [00:01<00:15, 61.21it/s]  8%|▊         | 83/1000 [00:01<00:15, 60.59it/s]  9%|▉         | 90/1000 [00:01<00:15, 60.60it/s] 10%|▉         | 97/1000 [00:01<00:14, 60.31it/s] 10%|█         | 104/1000 [00:01<00:14, 60.04it/s] 11%|█         | 111/1000 [00:01<00:14, 60.05it/s] 12%|█▏        | 118/1000 [00:01<00:14, 59.05it/s] 12%|█▎        | 125/1000 [00:02<00:14, 59.52it/s] 13%|█▎        | 131/1000 [00:02<00:14, 59.48it/s] 14%|█▍        | 138/1000 [00:02<00:14, 59.92it/s] 14%|█▍        | 144/1000 [00:02<00:14, 59.74it/s] 15%|█▌        | 151/1000 [00:02<00:14, 59.92it/s] 16%|█▌        | 157/1000 [00:02<00:14, 59.73it/s] 16%|█▋        | 163/1000 [00:02<00:14, 59.53it/s] 17%|█▋        | 169/1000 [00:02<00:14, 59.30it/s] 18%|█▊        | 175/1000 [00:02<00:13, 59.34it/s] 18%|█▊        | 181/1000 [00:03<00:13, 59.50it/s] 19%|█▉        | 188/1000 [00:03<00:13, 59.64it/s] 19%|█▉        | 194/1000 [00:03<00:13, 59.50it/s] 20%|██        | 200/1000 [00:03<00:13, 59.57it/s] 21%|██        | 207/1000 [00:03<00:13, 59.76it/s] 21%|██▏       | 214/1000 [00:03<00:13, 60.18it/s] 22%|██▏       | 221/1000 [00:03<00:13, 59.86it/s] 23%|██▎       | 227/1000 [00:03<00:12, 59.74it/s] 23%|██▎       | 233/1000 [00:03<00:12, 59.47it/s] 24%|██▍       | 239/1000 [00:03<00:12, 58.71it/s] 24%|██▍       | 245/1000 [00:04<00:12, 59.01it/s] 25%|██▌       | 251/1000 [00:04<00:12, 59.24it/s] 26%|██▌       | 257/1000 [00:04<00:12, 59.45it/s] 26%|██▋       | 263/1000 [00:04<00:12, 59.57it/s] 27%|██▋       | 269/1000 [00:04<00:12, 59.47it/s] 28%|██▊       | 276/1000 [00:04<00:12, 59.85it/s] 28%|██▊       | 283/1000 [00:04<00:11, 60.11it/s] 29%|██▉       | 290/1000 [00:04<00:11, 60.01it/s] 30%|██▉       | 296/1000 [00:04<00:11, 59.60it/s] 30%|███       | 302/1000 [00:17<06:54,  1.69it/s] 31%|███       | 308/1000 [00:17<04:55,  2.34it/s] 32%|███▏      | 315/1000 [00:17<03:21,  3.41it/s] 32%|███▏      | 322/1000 [00:17<02:19,  4.86it/s] 33%|███▎      | 329/1000 [00:17<01:38,  6.83it/s] 34%|███▎      | 336/1000 [00:17<01:10,  9.42it/s] 34%|███▍      | 343/1000 [00:17<00:51, 12.68it/s] 35%|███▌      | 350/1000 [00:17<00:38, 16.67it/s] 36%|███▌      | 357/1000 [00:18<00:30, 21.32it/s] 36%|███▋      | 364/1000 [00:18<00:24, 26.39it/s] 37%|███▋      | 371/1000 [00:18<00:19, 31.77it/s] 38%|███▊      | 377/1000 [00:18<00:17, 36.33it/s] 38%|███▊      | 383/1000 [00:18<00:15, 40.63it/s] 39%|███▉      | 390/1000 [00:18<00:13, 45.19it/s] 40%|███▉      | 396/1000 [00:18<00:12, 48.25it/s] 40%|████      | 402/1000 [00:18<00:11, 50.55it/s] 41%|████      | 408/1000 [00:18<00:11, 52.51it/s] 41%|████▏     | 414/1000 [00:19<00:10, 54.31it/s] 42%|████▏     | 420/1000 [00:19<00:10, 55.70it/s] 43%|████▎     | 427/1000 [00:19<00:10, 57.29it/s] 43%|████▎     | 434/1000 [00:19<00:09, 58.24it/s] 44%|████▍     | 440/1000 [00:19<00:09, 58.63it/s] 45%|████▍     | 446/1000 [00:19<00:09, 58.79it/s] 45%|████▌     | 452/1000 [00:19<00:09, 58.43it/s] 46%|████▌     | 459/1000 [00:19<00:09, 59.57it/s] 46%|████▋     | 465/1000 [00:19<00:08, 59.67it/s] 47%|████▋     | 472/1000 [00:20<00:08, 59.91it/s] 48%|████▊     | 479/1000 [00:20<00:08, 58.77it/s] 48%|████▊     | 485/1000 [00:20<00:08, 58.97it/s] 49%|████▉     | 491/1000 [00:20<00:08, 59.22it/s] 50%|████▉     | 497/1000 [00:20<00:08, 59.36it/s] 50%|█████     | 504/1000 [00:20<00:08, 59.63it/s] 51%|█████     | 510/1000 [00:20<00:08, 59.61it/s] 52%|█████▏    | 517/1000 [00:20<00:08, 60.18it/s] 52%|█████▏    | 524/1000 [00:20<00:07, 60.13it/s] 53%|█████▎    | 531/1000 [00:21<00:07, 62.17it/s] 54%|█████▍    | 538/1000 [00:21<00:07, 61.20it/s] 55%|█████▍    | 545/1000 [00:21<00:07, 60.68it/s] 55%|█████▌    | 552/1000 [00:21<00:07, 60.02it/s] 56%|█████▌    | 559/1000 [00:21<00:07, 59.98it/s] 57%|█████▋    | 566/1000 [00:21<00:07, 60.13it/s] 57%|█████▋    | 573/1000 [00:21<00:07, 60.83it/s] 58%|█████▊    | 580/1000 [00:21<00:06, 60.41it/s] 59%|█████▊    | 587/1000 [00:21<00:06, 60.00it/s] 59%|█████▉    | 594/1000 [00:22<00:06, 59.79it/s] 60%|██████    | 600/1000 [00:22<00:06, 59.79it/s] 61%|██████    | 606/1000 [00:22<00:06, 59.81it/s] 61%|██████    | 612/1000 [00:22<00:06, 59.27it/s] 62%|██████▏   | 619/1000 [00:22<00:06, 61.40it/s] 63%|██████▎   | 626/1000 [00:22<00:06, 60.70it/s] 63%|██████▎   | 633/1000 [00:22<00:05, 62.42it/s] 64%|██████▍   | 640/1000 [00:22<00:05, 60.92it/s] 65%|██████▍   | 647/1000 [00:22<00:05, 60.19it/s] 65%|██████▌   | 654/1000 [00:23<00:05, 60.35it/s] 66%|██████▌   | 661/1000 [00:23<00:05, 59.83it/s] 67%|██████▋   | 668/1000 [00:23<00:05, 61.38it/s] 68%|██████▊   | 675/1000 [00:23<00:05, 60.85it/s] 68%|██████▊   | 682/1000 [00:23<00:05, 60.67it/s] 69%|██████▉   | 689/1000 [00:23<00:05, 60.19it/s] 70%|██████▉   | 696/1000 [00:23<00:05, 60.27it/s] 70%|███████   | 703/1000 [00:23<00:04, 60.32it/s] 71%|███████   | 710/1000 [00:23<00:04, 60.07it/s] 72%|███████▏  | 717/1000 [00:24<00:04, 59.64it/s] 72%|███████▏  | 724/1000 [00:24<00:04, 59.71it/s] 73%|███████▎  | 730/1000 [00:37<02:39,  1.70it/s] 74%|███████▎  | 737/1000 [00:37<01:48,  2.42it/s] 74%|███████▍  | 744/1000 [00:37<01:14,  3.44it/s] 75%|███████▌  | 751/1000 [00:37<00:51,  4.82it/s] 76%|███████▌  | 758/1000 [00:37<00:36,  6.68it/s] 76%|███████▋  | 765/1000 [00:37<00:25,  9.13it/s] 77%|███████▋  | 772/1000 [00:37<00:18, 12.24it/s] 78%|███████▊  | 778/1000 [00:37<00:14, 15.56it/s] 78%|███████▊  | 785/1000 [00:38<00:10, 20.26it/s] 79%|███████▉  | 792/1000 [00:38<00:08, 25.50it/s] 80%|███████▉  | 799/1000 [00:38<00:06, 30.95it/s] 81%|████████  | 806/1000 [00:38<00:05, 36.16it/s] 81%|████████  | 812/1000 [00:38<00:04, 40.49it/s] 82%|████████▏ | 818/1000 [00:38<00:04, 44.50it/s] 82%|████████▏ | 824/1000 [00:38<00:03, 47.86it/s] 83%|████████▎ | 830/1000 [00:38<00:03, 50.70it/s] 84%|████████▎ | 836/1000 [00:38<00:03, 53.04it/s] 84%|████████▍ | 843/1000 [00:39<00:02, 55.20it/s] 85%|████████▍ | 849/1000 [00:39<00:02, 56.49it/s] 86%|████████▌ | 855/1000 [00:39<00:02, 57.22it/s] 86%|████████▌ | 862/1000 [00:39<00:02, 58.73it/s] 87%|████████▋ | 869/1000 [00:39<00:02, 58.78it/s] 88%|████████▊ | 875/1000 [00:39<00:02, 58.69it/s] 88%|████████▊ | 881/1000 [00:39<00:02, 58.87it/s] 89%|████████▊ | 887/1000 [00:39<00:01, 58.83it/s] 89%|████████▉ | 894/1000 [00:39<00:01, 59.18it/s] 90%|█████████ | 901/1000 [00:39<00:01, 59.50it/s] 91%|█████████ | 907/1000 [00:40<00:01, 59.13it/s] 91%|█████████▏| 913/1000 [00:40<00:01, 58.58it/s] 92%|█████████▏| 919/1000 [00:40<00:01, 58.73it/s] 92%|█████████▎| 925/1000 [00:40<00:01, 58.48it/s] 93%|█████████▎| 931/1000 [00:40<00:01, 58.73it/s] 94%|█████████▎| 937/1000 [00:40<00:01, 58.98it/s] 94%|█████████▍| 943/1000 [00:40<00:00, 59.03it/s] 95%|█████████▌| 950/1000 [00:40<00:00, 59.36it/s] 96%|█████████▌| 957/1000 [00:40<00:00, 59.65it/s] 96%|█████████▋| 963/1000 [00:41<00:00, 58.25it/s] 97%|█████████▋| 970/1000 [00:41<00:00, 59.20it/s] 98%|█████████▊| 976/1000 [00:41<00:00, 59.36it/s] 98%|█████████▊| 982/1000 [00:41<00:00, 59.08it/s] 99%|█████████▉| 988/1000 [00:41<00:00, 59.13it/s] 99%|█████████▉| 994/1000 [00:41<00:00, 59.22it/s]100%|██████████| 1000/1000 [00:41<00:00, 24.00it/s]
+  0%|          | 0/100 [00:00<?, ?it/s]  7%|▋         | 7/100 [00:00<00:01, 60.27it/s] 14%|█▍        | 14/100 [00:00<00:01, 59.37it/s] 20%|██        | 20/100 [00:00<00:01, 58.74it/s] 26%|██▌       | 26/100 [00:00<00:01, 59.19it/s] 32%|███▏      | 32/100 [00:00<00:01, 59.21it/s] 39%|███▉      | 39/100 [00:00<00:01, 59.75it/s] 45%|████▌     | 45/100 [00:00<00:00, 59.21it/s] 52%|█████▏    | 52/100 [00:00<00:00, 59.59it/s] 58%|█████▊    | 58/100 [00:00<00:00, 59.50it/s] 64%|██████▍   | 64/100 [00:01<00:00, 59.41it/s] 70%|███████   | 70/100 [00:01<00:00, 59.14it/s] 76%|███████▌  | 76/100 [00:01<00:00, 59.13it/s] 83%|████████▎ | 83/100 [00:01<00:00, 59.73it/s] 89%|████████▉ | 89/100 [00:01<00:00, 59.48it/s] 95%|█████████▌| 95/100 [00:01<00:00, 59.39it/s]100%|██████████| 100/100 [00:01<00:00, 59.38it/s]
+mv data/TOY2_tmp data/TOY2
+--- checksum + unzip segthor_part1.zip ---
+data/segthor_part1.zip: FAILED
+sha256sum: WARNING: 1 computed checksum did NOT match

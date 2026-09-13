@@ -1,0 +1,42 @@
+#!/bin/bash
+#SBATCH --job-name=train_toy2
+#SBATCH --partition=gpu_a100
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --gpus=1
+#SBATCH --time=00:30:00
+#SBATCH --output=jobsAndOutputs/baseline/outputs/train_toy2_%j.out
+
+set -euo pipefail
+
+PROJECT_DIR="$HOME/ai4mi_project"
+DEST="results/toy2/ce"
+
+module purge
+module load 2024
+module load Anaconda3/2024.06-1
+
+# conda activate needs the shell hook in a non-interactive shell.
+# set +u because conda.sh trips over unbound variables.
+set +u
+source "${EBROOTANACONDA3:-$CONDA_PREFIX}/etc/profile.d/conda.sh"
+conda activate ai4mi
+set -u
+
+cd "$PROJECT_DIR"
+
+echo "python : $(which python)"
+nvidia-smi
+
+[ -d data/TOY2 ] || { echo "data/TOY2 missing"; exit 1; }
+
+echo "Training TOY2 -> $DEST"
+python -O main.py --dataset TOY2 --mode full --epochs 25 --dest "$DEST" --gpu
+
+echo "Plotting"
+python plot.py --metric_file "$DEST/dice_val.npy" --dest "$DEST/dice_val.png" --headless
+python plot.py --metric_file "$DEST/loss_tra.npy" --dest "$DEST/loss_tra.png" --headless
+
+echo "--- done, results in $DEST ---"
+ls -R "$DEST" | head -40
