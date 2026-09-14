@@ -22,21 +22,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import argparse
 import warnings
 from typing import Any
 from pathlib import Path
 from pprint import pprint
-from operator import itemgetter
 from shutil import copytree, rmtree
 
 import torch
 import wandb
 import numpy as np
-import random
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from functools import partial
@@ -175,7 +171,7 @@ def runTraining(args: Args):
     wandb.init(
         entity="ai-for-medical-imaging",
         project=f"{args.dataset}",
-        config=vars(args),
+        config=vars(args) | datasets_params[args.dataset],
         dir=get_root_dir() / "results" / "wandb",
     )
 
@@ -243,7 +239,7 @@ def runTraining(args: Args):
 
                     pred_logits = net(img)
                     pred_probs = F.softmax(
-                        1 * pred_logits, dim=1
+                        args.temperature * pred_logits, dim=1
                     )  # 1 is the temperature parameter
 
                     # Metrics computation, not used for training
