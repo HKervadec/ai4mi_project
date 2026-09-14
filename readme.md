@@ -1,5 +1,12 @@
 # AI for medical imaging — Fall 2026 group project
 
+> **Group pipeline:** experiments are run with the config-driven pipeline in [`src/`](src/)
+> (`python -m src.train --config configs/<experiment>.yaml`, via the Slurm jobs in
+> [`jobsAndOutputs/pipeline/jobs/`](jobsAndOutputs/pipeline/jobs/)). Start with
+> [docs/pipeline.md](docs/pipeline.md); adding models/losses/data: [docs/extending.md](docs/extending.md);
+> metric definitions and result tables: [docs/metrics.md](docs/metrics.md).
+> The course instructions below describe the original `main.py` baseline, which is kept for reference.
+
 <!-- MarkdownTOC autolink="true" autoanchor="true" -->
 
 - [Project overview](#project-overview)
