@@ -24,7 +24,7 @@ data/segthor_part1: data/segthor_part1.zip
 	unzip -q $<
 	rm -f $@/.DS_STORE
 
-data/SEGTHOR:
+data/SEGTHOR: data/segthor_part1
 	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
 	rm -rf $@_tmp $@
 	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1 --dest_dir $@_tmp \
