@@ -28,6 +28,8 @@ from typing import Callable, Union
 from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
+import torchvision.transforms.functional as TF
+import random
 
 
 def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
@@ -74,16 +76,44 @@ class SliceDataset(Dataset):
 
         img: Tensor = self.img_transform(Image.open(img_path))
 
-        data_dict = {"images": img,
-                     "stems": img_path.stem}
-
         if not self.test_mode:
             gt: Tensor = self.gt_transform(Image.open(gt_path))
+        else:
+            gt = None
 
+        # apply augmentations if enabled and not in test mode
+        if self.augmentation and not self.test_mode:
+            # spatial transforms are applied to both image and ground truth
+            if random.random() > 0.5:
+                # rotating and scaling
+                angle = random.uniform(-10, 10)
+                scale = random.uniform(0.9, 1.1)
+
+                img = TF.affine(img, angle = angle, translate = [0, 0], scale = scale, shear = 0, interpolation = TF.InterpolationMode.BILINEAR)
+                gt = TF.affine(gt, angle = angle, translate = [0, 0], scale = scale, shear = 0, interpolation = TF.InterpolationMode.NEAREST)
+
+                # make sure that the ground truth is not empty after the transformation
+                empty_pixels = gt.sum(dim = 0) == 0
+                gt[0, empty_pixels] = 1
+
+            # intensity transforms are applied only to the image
+            if random.random() > 0.5:
+                # adjust brightness
+                brightness_factor = random.uniform(0.8, 1.2)
+                img = TF.adjust_brightness(img, brightness_factor)
+
+            if random.random() > 0.5:
+                # adjust contrast
+                contrast_factor = random.uniform(0.8, 1.2)
+                img = TF.adjust_contrast(img, contrast_factor)
+
+        data_dict = {"images": img,
+                             "stems": img_path.stem}
+
+        if not self.test_mode:
             _, W, H = img.shape
             K, _, _ = gt.shape
             assert gt.shape == (K, W, H)
-
             data_dict["gts"] = gt
-
+        
         return data_dict
