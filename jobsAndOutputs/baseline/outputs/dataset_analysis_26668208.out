@@ -1,0 +1,53 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+Dataset: Patient_01 (val)
+Dataset: Patient_02 (train)
+Dataset: Patient_03 (train)
+Dataset: Patient_04 (train)
+Dataset: Patient_05 (train)
+Dataset: Patient_06 (train)
+Dataset: Patient_07 (train)
+Dataset: Patient_08 (train)
+Dataset: Patient_09 (train)
+Dataset: Patient_10 (train)
+Dataset: Patient_11 (val)
+Dataset: Patient_12 (train)
+Dataset: Patient_13 (train)
+Dataset: Patient_14 (train)
+Dataset: Patient_15 (val)
+Dataset: Patient_16 (train)
+Dataset: Patient_17 (val)
+Dataset: Patient_18 (train)
+Dataset: Patient_19 (val)
+Dataset: Patient_20 (train)
+Dataset complete: 20 patients, 11196 slice-class rows -> /gpfs/home5/scur0049/ai4mi_project/dataset_analysis/results
+Baseline: paired 915 validation slices by exact stem
+3D verified: Patient_01
+3D verified: Patient_11
+3D verified: Patient_15
+3D verified: Patient_17
+3D verified: Patient_19
+Baseline complete -> /gpfs/home5/scur0049/ai4mi_project/dataset_analysis/results
+{
+  "status": "passed",
+  "patients": 20,
+  "patient_class_rows": 60,
+  "slice_class_rows": 11196,
+  "baseline_slice_class_rows": 2745,
+  "baseline_patient_class_rows": 15,
+  "figures": 11,
+  "example_sheets": 3
+}
