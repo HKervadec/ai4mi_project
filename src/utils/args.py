@@ -31,8 +31,10 @@ class Args:
 
     lr: float = 0.0005
     weight_decay: float = 0
+    batch_size: int = 256
     betas: tuple[float, float] = (0.9, 0.999)
     dropout: float = 0.01
+    temperature: float = 1
 
 
 def get_args() -> Args:
