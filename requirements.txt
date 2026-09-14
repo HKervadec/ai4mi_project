@@ -1,8 +1,12 @@
-torch
-numpy
-nibabel
-torchvision
-tqdm
-pillow
-scikit-image
-matplotlib
+# Pinned to the working Snellius env (python 3.11.16, CUDA 13.0 wheels). Update deliberately.
+torch==2.14.0
+numpy==2.4.6
+nibabel==5.4.2
+torchvision==0.29.0
+tqdm==4.70.1
+pillow==12.3.0
+scikit-image==0.26.0
+matplotlib==3.11.2
+scipy==1.17.1  # surface distances in src/metrics_3d.py (also a scikit-image dependency)
+PyYAML==6.0.3  # configs/
+wandb==0.30.0
