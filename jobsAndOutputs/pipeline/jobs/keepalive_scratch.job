@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# /scratch-shared keep-alive (self-resubmitting), from slurm-templates/keepalive_scratch.job.
+# /scratch-shared auto-deletes files not ACCESSED for ~14 days. This job resets the access time of
+# everything under the project's scratch dir (pipeline runs live in runs/ -> .../ai4mi_project/runs),
+# then resubmits itself 10 days out, so the chain runs indefinitely.
+#
+# Submit ONCE per person, from the repo root:  sbatch jobsAndOutputs/pipeline/jobs/keepalive_scratch.job
+# Check the chain is alive with `squeue -u $USER` (a PENDING keepalive_scratch job with reason BeginTime).
+# If data ever vanishes, first suspect a broken resubmission chain, not a fresh purge.
+
+#SBATCH --partition=staging           # I/O partition, no compute allocation needed
+#SBATCH --job-name=keepalive_scratch
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:20:00
+#SBATCH --output=jobsAndOutputs/pipeline/outputs/keepalive_%A.out
+
+# The running script is Slurm's spooled copy, so resubmit the checked-in file by its repo path.
+SCRIPT_PATH="${SLURM_SUBMIT_DIR}/jobsAndOutputs/pipeline/jobs/keepalive_scratch.job"
+TARGET_DIR="/scratch-shared/${USER}/ai4mi_project/"
+
+echo "[$(date -Is)] touching files under ${TARGET_DIR}"
+
+if [ -d "${TARGET_DIR}" ]; then
+    touched=$(find "${TARGET_DIR}" -type f -exec touch -a {} + -print | wc -l)
+    echo "[$(date -Is)] touched ${touched} files"
+else
+    echo "[$(date -Is)] WARNING: ${TARGET_DIR} does not exist, nothing to touch"
+fi
+
+echo "[$(date -Is)] resubmitting ${SCRIPT_PATH} for now+10days"
+cd "${SLURM_SUBMIT_DIR}"   # keeps the relative --output path valid for the next link in the chain
+sbatch --begin=now+10days "${SCRIPT_PATH}"

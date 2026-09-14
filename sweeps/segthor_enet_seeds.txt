@@ -1,0 +1,6 @@
+# Baseline over 3 seeds. One array task per line: <config> [key=value ...]
+# sbatch --array=0-0 --export=ALL,SWEEP=sweeps/segthor_enet_seeds.txt jobsAndOutputs/pipeline/jobs/sweep.job
+# sbatch --array=1-2 --export=ALL,SWEEP=sweeps/segthor_enet_seeds.txt jobsAndOutputs/pipeline/jobs/sweep.job
+configs/segthor_enet_ce.yaml seed=0
+configs/segthor_enet_ce.yaml seed=1
+configs/segthor_enet_ce.yaml seed=2

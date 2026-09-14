@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=pipeline_tests
+#SBATCH --partition=genoa
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=00:30:00
+#SBATCH --output=jobsAndOutputs/pipeline/outputs/%x_%j.out
+
+# Unit + end-to-end tests on CPU (legacy parity, resume, stitching, metric conventions).
+# Usage: sbatch jobsAndOutputs/pipeline/jobs/test.job
+set -euo pipefail
+source jobsAndOutputs/pipeline/jobs/env_setup.sh
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+python -m unittest discover -s tests -v

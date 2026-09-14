@@ -1,0 +1,28 @@
+#!/bin/bash
+#SBATCH --job-name=sweep
+#SBATCH --partition=gpu_a100
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --gpus=1
+#SBATCH --time=02:00:00
+#SBATCH --array=0-0
+#SBATCH --output=jobsAndOutputs/pipeline/outputs/%x_%A_%a.out
+
+# One array task per line of a sweep file; each line is "<config.yaml> [key=value ...]", e.g.
+#     configs/segthor_enet_ce.yaml seed=0
+#     configs/segthor_enet_ce.yaml seed=1
+# Usage (N = number of lines - 1; test with --array=0-0 first):
+#     sbatch --array=0-N --export=ALL,SWEEP=sweeps/seeds.txt jobsAndOutputs/pipeline/jobs/sweep.job
+set -euo pipefail
+SWEEP="${SWEEP:?set SWEEP=<file with one config per line> via --export}"
+LINE=$(grep -v '^\s*\(#\|$\)' "$SWEEP" | sed -n "$((SLURM_ARRAY_TASK_ID + 1))p")
+[ -n "$LINE" ] || { echo "no line $SLURM_ARRAY_TASK_ID in $SWEEP"; exit 1; }
+read -r CONFIG SET <<< "$LINE"
+source jobsAndOutputs/pipeline/jobs/env_setup.sh
+echo "task $SLURM_ARRAY_TASK_ID: $CONFIG ${SET:-}"
+
+python -O -m src.train --config "$CONFIG" --set ${SET:-}
+RUN_DIR=$(python -m src.run --config "$CONFIG" --set ${SET:-})
+[ -f "$RUN_DIR/eval/metrics_3d.csv" ] || python -O -m src.evaluate --run "$RUN_DIR"
+echo "[$(date -Is)] done: $RUN_DIR"

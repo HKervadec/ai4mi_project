@@ -1,0 +1,25 @@
+#!/bin/bash
+#SBATCH --job-name=train
+#SBATCH --partition=gpu_a100
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --gpus=1
+#SBATCH --time=02:00:00
+#SBATCH --output=jobsAndOutputs/pipeline/outputs/%x_%j.out
+
+# Train one config, then evaluate it in 3D. Resubmitting the same command resumes a crashed
+# or timed-out run, and is a no-op for a finished one.
+# Usage: sbatch --job-name=segthor_enet_ce --export=ALL,CONFIG=configs/segthor_enet_ce.yaml \
+#               jobsAndOutputs/pipeline/jobs/train.job
+#        add SET="seed=1 optim.kwargs.lr=0.001" to --export for overrides
+set -euo pipefail
+CONFIG="${CONFIG:?set CONFIG=configs/<experiment>.yaml via --export}"
+SET="${SET:-}"
+source jobsAndOutputs/pipeline/jobs/env_setup.sh
+nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv
+
+python -O -m src.train --config "$CONFIG" --set $SET
+RUN_DIR=$(python -m src.run --config "$CONFIG" --set $SET)
+[ -f "$RUN_DIR/eval/metrics_3d.csv" ] || python -O -m src.evaluate --run "$RUN_DIR"
+echo "[$(date -Is)] done: $RUN_DIR"

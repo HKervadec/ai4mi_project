@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH --job-name=smoke
+#SBATCH --partition=gpu_mig
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --gpus=1
+#SBATCH --time=00:30:00
+#SBATCH --output=jobsAndOutputs/pipeline/outputs/%x_%j.out
+
+# 2 epochs on 16 slices + full 3D evaluation, on the cheapest GPU. Run before any real training.
+# Usage: sbatch --export=ALL,CONFIG=configs/my_experiment.yaml jobsAndOutputs/pipeline/jobs/smoke.job
+set -euo pipefail
+CONFIG="${CONFIG:-configs/segthor_enet_ce.yaml}"
+SET="${SET:-}"   # optional overrides, e.g. SET="model.kwargs.kernels=16"
+source jobsAndOutputs/pipeline/jobs/env_setup.sh
+nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv
+
+python -m src.train --config "$CONFIG" --smoke --set $SET
+RUN_DIR=$(python -m src.run --config "$CONFIG" --smoke --set $SET)
+python -m src.evaluate --run "$RUN_DIR"
+echo "--- smoke OK: $RUN_DIR"

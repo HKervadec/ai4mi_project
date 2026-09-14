@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH --job-name=eval3d
+#SBATCH --partition=genoa
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=00:30:00
+#SBATCH --output=jobsAndOutputs/pipeline/outputs/%x_%j.out
+
+# (Re-)run 3D evaluation of an existing run on CPU, e.g. after changing the metrics code.
+# Usage: sbatch --export=ALL,RUN=runs/segthor_enet_ce/seed0 jobsAndOutputs/pipeline/jobs/eval.job
+set -euo pipefail
+RUN="${RUN:?set RUN=runs/<experiment>/seed<seed> via --export}"
+source jobsAndOutputs/pipeline/jobs/env_setup.sh
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+python -O -m src.evaluate --run "$RUN" --device cpu
