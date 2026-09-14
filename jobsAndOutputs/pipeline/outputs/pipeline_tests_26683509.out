@@ -1,0 +1,130 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+[2026-09-14T15:17:44+02:00] job 26683509 on tcn855.local.snellius.surf.nl, python /home/scur0049/.conda/envs/ai4mi/bin/python, commit 63235a8
+test_cli_overrides_are_typed (test_config.ConfigTests.test_cli_overrides_are_typed) ... ok
+test_experiment_overrides_base (test_config.ConfigTests.test_experiment_overrides_base) ... ok
+test_hash_ignores_notes_and_wandb (test_config.ConfigTests.test_hash_ignores_notes_and_wandb) ... ok
+test_smoke_layer_then_overrides (test_config.ConfigTests.test_smoke_layer_then_overrides) ... ok
+test_unknown_key_rejected_but_kwargs_free_form (test_config.ConfigTests.test_unknown_key_rejected_but_kwargs_free_form) ... ok
+test_dice_matches_dataset_analysis_convention (test_metrics.SliceMetricTests.test_dice_matches_dataset_analysis_convention) ... ok
+test_legacy_dice_matches_course_code (test_metrics.SliceMetricTests.test_legacy_dice_matches_course_code) ... ok
+test_patient_level_aggregation (test_metrics.SliceMetricTests.test_patient_level_aggregation) ... ok
+test_identical_and_empty (test_metrics.VolumeMetricTests.test_identical_and_empty) ... ok
+test_shift_uses_physical_spacing (test_metrics.VolumeMetricTests.test_shift_uses_physical_spacing) ... ok
+test_matches_legacy_stitch (test_stitch.StitchTests.test_matches_legacy_stitch) ... ok
+test_missing_slice_is_an_error (test_stitch.StitchTests.test_missing_slice_is_an_error) ... ok
+test_changed_config_refuses_existing_run (test_training.TrainingTests.test_changed_config_refuses_existing_run) ... 2026-09-14 15:18:15 INFO starting segthor_enet_ce -> /scratch-local/scur0049.26683509/tmpfa6_nqy2/runs/segthor_enet_ce/seed0 on cpu
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created train dataset with 2817 images...
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created val dataset with 915 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+2026-09-14 15:18:17 INFO model enet: 0.28M parameters | train 10 slices, val 10 slices
+2026-09-14 15:18:19 INFO epoch   0 | train loss 1.6919 | val loss 1.7070 | val dice fg 0.0000 (legacy 0.0000)  *best* | 2s
+2026-09-14 15:18:20 INFO done: best epoch 0, val dice fg 0.0000; results in /scratch-local/scur0049.26683509/tmpfa6_nqy2/runs/segthor_enet_ce/seed0, copied to /scratch-local/scur0049.26683509/tmpfa6_nqy2/metrics/segthor_enet_ce/seed0
+ok
+test_interrupted_run_resumes_to_identical_result (test_training.TrainingTests.test_interrupted_run_resumes_to_identical_result) ... /gpfs/home5/scur0049/ai4mi_project/src/run.py:64: ResourceWarning: unclosed file <_io.TextIOWrapper name='/scratch-local/scur0049.26683509/tmpfa6_nqy2/runs/segthor_enet_ce/seed0/train.log' mode='a' encoding='UTF-8'>
+  LOG.handlers.clear()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+2026-09-14 15:18:20 INFO starting segthor_enet_ce -> /scratch-local/scur0049.26683509/tmpwq_hfliw/runs/segthor_enet_ce/seed0 on cpu
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created train dataset with 2817 images...
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created val dataset with 915 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+2026-09-14 15:18:20 INFO model enet: 0.28M parameters | train 10 slices, val 10 slices
+2026-09-14 15:18:21 INFO epoch   0 | train loss 1.6919 | val loss 1.7070 | val dice fg 0.0000 (legacy 0.0000)  *best* | 1s
+2026-09-14 15:18:23 INFO epoch   1 | train loss 1.6715 | val loss 1.6680 | val dice fg 0.0000 (legacy 0.0000) | 1s
+2026-09-14 15:18:24 INFO epoch   2 | train loss 1.6530 | val loss 1.6317 | val dice fg 0.0000 (legacy 0.0000) | 1s
+2026-09-14 15:18:24 INFO done: best epoch 0, val dice fg 0.0000; results in /scratch-local/scur0049.26683509/tmpwq_hfliw/runs/segthor_enet_ce/seed0, copied to /scratch-local/scur0049.26683509/tmpwq_hfliw/metrics/segthor_enet_ce/seed0
+/gpfs/home5/scur0049/ai4mi_project/src/run.py:64: ResourceWarning: unclosed file <_io.TextIOWrapper name='/scratch-local/scur0049.26683509/tmpwq_hfliw/runs/segthor_enet_ce/seed0/train.log' mode='a' encoding='UTF-8'>
+  LOG.handlers.clear()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+2026-09-14 15:18:24 INFO starting segthor_enet_ce -> /scratch-local/scur0049.26683509/tmpb2p19gok/runs/segthor_enet_ce/seed0 on cpu
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created train dataset with 2817 images...
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created val dataset with 915 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+2026-09-14 15:18:24 INFO model enet: 0.28M parameters | train 10 slices, val 10 slices
+2026-09-14 15:18:25 INFO epoch   0 | train loss 1.6919 | val loss 1.7070 | val dice fg 0.0000 (legacy 0.0000)  *best* | 1s
+2026-09-14 15:18:25 ERROR run failed:
+Traceback (most recent call last):
+  File "/gpfs/home5/scur0049/ai4mi_project/src/train.py", line 72, in main
+    best_epoch = fit(cfg, run_dir, device, resume, wb)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home5/scur0049/ai4mi_project/src/engine.py", line 128, in fit
+    loss, counts, stems = run_epoch(split, net, loaders[split], loss_fn, opt, device, cfg,
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home5/scur0049/ai4mi_project/tests/test_training.py", line 59, in crash_in_second_epoch
+    raise KeyboardInterrupt  # stands in for scancel / node failure
+    ^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+
+/gpfs/home5/scur0049/ai4mi_project/src/run.py:64: ResourceWarning: unclosed file <_io.TextIOWrapper name='/scratch-local/scur0049.26683509/tmpb2p19gok/runs/segthor_enet_ce/seed0/train.log' mode='a' encoding='UTF-8'>
+  LOG.handlers.clear()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+2026-09-14 15:18:25 INFO resuming segthor_enet_ce -> /scratch-local/scur0049.26683509/tmpb2p19gok/runs/segthor_enet_ce/seed0 on cpu
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created train dataset with 2817 images...
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created val dataset with 915 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+2026-09-14 15:18:26 INFO model enet: 0.28M parameters | train 10 slices, val 10 slices
+2026-09-14 15:18:26 INFO resumed after epoch 0 (best val_dice_fg=0.0000 at epoch 0)
+2026-09-14 15:18:27 INFO epoch   1 | train loss 1.6715 | val loss 1.6680 | val dice fg 0.0000 (legacy 0.0000) | 1s
+2026-09-14 15:18:28 INFO epoch   2 | train loss 1.6530 | val loss 1.6317 | val dice fg 0.0000 (legacy 0.0000) | 1s
+2026-09-14 15:18:28 INFO done: best epoch 0, val dice fg 0.0000; results in /scratch-local/scur0049.26683509/tmpb2p19gok/runs/segthor_enet_ce/seed0, copied to /scratch-local/scur0049.26683509/tmpb2p19gok/metrics/segthor_enet_ce/seed0
+ok
+test_parity_with_legacy_main (test_training.TrainingTests.test_parity_with_legacy_main)
+Seeded, the new loop reproduces main.py's losses and Dice exactly. ... segthor_enet_ce seed 0 already finished; use --force to re-run
+>>> Setting up to train on SEGTHOR with full
+>> Picked cpu to run experiments
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('data/SEGTHOR')
+>> Created train dataset with 10 images...
+> root=PosixPath('data/SEGTHOR')
+>> Created val dataset with 10 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+>> Training   (   0):   0%|          | 0/2 [?it/s]>> Training   (   0):   0%|          | 0/2 [?it/s, Dice=0.000, Loss=1.70e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   0):  50%|█████     | 1/2 [ 1.22s/it, Dice=0.000, Loss=1.70e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   0):  50%|█████     | 1/2 [ 1.22s/it, Dice=0.000, Loss=1.69e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   0): 100%|██████████| 2/2 [ 1.49it/s, Dice=0.000, Loss=1.69e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   0): 100%|██████████| 2/2 [ 1.29it/s, Dice=0.000, Loss=1.69e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]
+>> Validation (   0):   0%|          | 0/2 [?it/s]>> Validation (   0):   0%|          | 0/2 [?it/s, Dice=0.000, Loss=1.71e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   0):  50%|█████     | 1/2 [ 1.55it/s, Dice=0.000, Loss=1.71e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   0):  50%|█████     | 1/2 [ 1.55it/s, Dice=0.000, Loss=1.71e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   0): 100%|██████████| 2/2 [ 2.88it/s, Dice=0.000, Loss=1.71e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   0): 100%|██████████| 2/2 [ 2.42it/s, Dice=0.000, Loss=1.71e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]
+>>> Improved dice at epoch 0: 0.000->0.000 DSC
+>> Training   (   1):   0%|          | 0/2 [?it/s]>> Training   (   1):   0%|          | 0/2 [?it/s, Dice=0.000, Loss=1.68e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   1):  50%|█████     | 1/2 [ 1.22s/it, Dice=0.000, Loss=1.68e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   1):  50%|█████     | 1/2 [ 1.22s/it, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   1): 100%|██████████| 2/2 [ 1.50it/s, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Training   (   1): 100%|██████████| 2/2 [ 1.29it/s, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]
+>> Validation (   1):   0%|          | 0/2 [?it/s]>> Validation (   1):   0%|          | 0/2 [?it/s, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   1):  50%|█████     | 1/2 [ 1.43it/s, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   1):  50%|█████     | 1/2 [ 1.43it/s, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   1): 100%|██████████| 2/2 [ 2.65it/s, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]>> Validation (   1): 100%|██████████| 2/2 [ 2.23it/s, Dice=0.000, Loss=1.67e+00, Dice-1=0.000, Dice-2=0.000, Dice-3=0.000, Dice-4=0.000]
+/gpfs/home5/scur0049/ai4mi_project/src/run.py:64: ResourceWarning: unclosed file <_io.TextIOWrapper name='/scratch-local/scur0049.26683509/tmpb2p19gok/runs/segthor_enet_ce/seed0/train.log' mode='a' encoding='UTF-8'>
+  LOG.handlers.clear()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+2026-09-14 15:18:34 INFO starting segthor_enet_ce -> /scratch-local/scur0049.26683509/tmpcsoohzet/runs/segthor_enet_ce/seed0 on cpu
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created train dataset with 2817 images...
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created val dataset with 915 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+2026-09-14 15:18:34 INFO model enet: 0.28M parameters | train 10 slices, val 10 slices
+2026-09-14 15:18:39 INFO epoch   0 | train loss 1.6919 | val loss 1.7070 | val dice fg 0.0000 (legacy 0.0000)  *best* | 5s
+2026-09-14 15:18:42 INFO epoch   1 | train loss 1.6715 | val loss 1.6680 | val dice fg 0.0000 (legacy 0.0000) | 2s
+2026-09-14 15:18:42 INFO done: best epoch 0, val dice fg 0.0000; results in /scratch-local/scur0049.26683509/tmpcsoohzet/runs/segthor_enet_ce/seed0, copied to /scratch-local/scur0049.26683509/tmpcsoohzet/metrics/segthor_enet_ce/seed0
+ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 53.094s
+
+OK

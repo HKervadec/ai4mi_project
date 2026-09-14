@@ -1,0 +1,89 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+[2026-09-14T15:40:57+02:00] job 26683770 on gcn3.local.snellius.surf.nl, python /home/scur0049/.conda/envs/ai4mi/bin/python, commit 63235a8
+name, driver_version, memory.total [MiB]
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+2026-09-14 15:41:02 INFO starting toy2_shallow_ce -> /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0 on cuda
+wandb: WARNING `resume` will be ignored since W&B syncing is set to `offline`. Starting a new run with run id ws68sifm.
+wandb: Tracking run with wandb version 0.30.0
+wandb: W&B syncing is set to `offline` in this directory. Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+wandb: Run data is saved locally in /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0/wandb/offline-run-20260914_154104-ws68sifm
+wandb: View this run in the terminal with `wandb leet`
+wandb: WARNING URL not available in offline run
+2026-09-14 15:41:04 INFO W&B run: offline (ws68sifm)
+wandb: WARNING URL not available in offline run
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/TOY2')
+>> Created train dataset with 1000 images...
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/TOY2')
+>> Created val dataset with 100 images...
+Initialized CrossEntropy with {'idk': [0, 1]}
+2026-09-14 15:41:06 INFO model shallow_cnn: 0.00M parameters | train 16 slices, val 16 slices
+2026-09-14 15:41:09 INFO epoch   0 | train loss 0.7350 | val loss 0.5377 | val dice fg 0.0958 (legacy 0.0958)  *best* | 2s
+2026-09-14 15:41:10 INFO epoch   1 | train loss 0.7091 | val loss 0.4959 | val dice fg 0.5159 (legacy 0.5159)  *best* | 1s
+wandb: 
+wandb: Run history:
+wandb:                 epoch ▁█
+wandb:                    lr ▁▁
+wandb:               seconds █▁
+wandb:         train_dice_fg ▁█
+wandb: train_dice_foreground ▁█
+wandb:  train_dice_legacy_fg ▁█
+wandb:            train_loss █▁
+wandb:           val_dice_fg ▁█
+wandb:   val_dice_foreground ▁█
+wandb:    val_dice_legacy_fg ▁█
+wandb:                    +1 ...
+wandb: 
+wandb: Run summary:
+wandb:         best/train_dice_fg 0.27257
+wandb: best/train_dice_foreground 0.27257
+wandb:  best/train_dice_legacy_fg 0.27257
+wandb:            best/train_loss 0.70905
+wandb:           best/val_dice_fg 0.5159
+wandb:   best/val_dice_foreground 0.5159
+wandb:    best/val_dice_legacy_fg 0.5159
+wandb:              best/val_loss 0.49586
+wandb:                 best_epoch 1
+wandb:                      epoch 1
+wandb:                        +11 ...
+wandb: 
+wandb: You can sync this run to the cloud by running:
+wandb: wandb sync /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0/wandb/offline-run-20260914_154104-ws68sifm
+wandb: Find logs at: ./runs/_smoke/toy2_shallow_ce/seed0/wandb/offline-run-20260914_154104-ws68sifm/logs
+2026-09-14 15:41:11 INFO done: best epoch 1, val dice fg 0.5159; results in /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0
+2026-09-14 15:41:18 INFO evaluating /gpfs/scratch1/shared/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0, best epoch 1, on cuda
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/TOY2')
+>> Created val dataset with 100 images...
+2026-09-14 15:41:47 INFO val: predicted 100 slices -> /gpfs/scratch1/shared/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0/predictions/val
+2026-09-14 15:41:47 INFO 3D 
+wandb: WARNING `resume` will be ignored since W&B syncing is set to `offline`. Starting a new run with run id ws68sifm.
+wandb: Tracking run with wandb version 0.30.0
+wandb: W&B syncing is set to `offline` in this directory. Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+wandb: Run data is saved locally in /gpfs/scratch1/shared/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0/wandb/offline-run-20260914_154149-ws68sifm
+wandb: View this run in the terminal with `wandb leet`
+wandb: WARNING URL not available in offline run
+2026-09-14 15:41:49 INFO W&B run: offline (ws68sifm)
+wandb: 
+wandb: Run summary:
+wandb: eval3d/best_epoch 1
+wandb: 
+wandb: You can sync this run to the cloud by running:
+wandb: wandb sync /gpfs/scratch1/shared/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0/wandb/offline-run-20260914_154149-ws68sifm
+wandb: Find logs at: /gpfs/scratch1/shared/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0/wandb/offline-run-20260914_154149-ws68sifm/logs
+--- smoke OK: /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/toy2_shallow_ce/seed0

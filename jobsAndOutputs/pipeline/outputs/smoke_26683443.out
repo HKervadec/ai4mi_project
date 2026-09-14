@@ -1,0 +1,45 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+[2026-09-14T15:17:44+02:00] job 26683443 on gcn2.local.snellius.surf.nl, python /home/scur0049/.conda/envs/ai4mi/bin/python, commit 63235a8
+name, driver_version, memory.total [MiB]
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+NVIDIA A100-SXM4-40GB, 595.91.07, 40960 MiB
+--force: moved previous run to /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/segthor_enet_ce/seed0.old-20260914-151748
+2026-09-14 15:17:48 INFO starting segthor_enet_ce -> /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/segthor_enet_ce/seed0 on cuda
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created train dataset with 2817 images...
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created val dataset with 915 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+2026-09-14 15:17:51 INFO model enet: 0.28M parameters | train 16 slices, val 16 slices
+2026-09-14 15:17:54 INFO epoch   0 | train loss 1.6899 | val loss 1.7083 | val dice fg 0.0000 (legacy 0.0000)  *best* | 3s
+2026-09-14 15:17:55 INFO epoch   1 | train loss 1.6684 | val loss 1.6701 | val dice fg 0.0000 (legacy 0.0000) | 1s
+2026-09-14 15:17:56 INFO done: best epoch 0, val dice fg 0.0000; results in /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/segthor_enet_ce/seed0
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+2026-09-14 15:18:02 INFO evaluating /gpfs/scratch1/shared/scur0049/ai4mi_project/runs/_smoke/segthor_enet_ce/seed0, best epoch 0, on cuda
+> root=PosixPath('/gpfs/home5/scur0049/ai4mi_project/data/SEGTHOR')
+>> Created val dataset with 915 images...
+2026-09-14 15:19:29 INFO val: predicted 915 slices -> /gpfs/scratch1/shared/scur0049/ai4mi_project/runs/_smoke/segthor_enet_ce/seed0/predictions/val
+2026-09-14 15:19:29 INFO val Patient_01: shape (512, 512, 229), spacing [0.977, 0.977, 2.0] mm, orientation LPS
+2026-09-14 15:20:29 INFO val Patient_11: shape (512, 512, 180), spacing [1.27, 1.27, 2.5] mm, orientation LPS
+2026-09-14 15:21:15 INFO val Patient_15: shape (512, 512, 150), spacing [0.896, 0.896, 2.5] mm, orientation LPS
+2026-09-14 15:21:55 INFO val Patient_17: shape (512, 512, 166), spacing [0.977, 0.977, 2.5] mm, orientation LPS
+2026-09-14 15:22:37 INFO val Patient_19: shape (512, 512, 190), spacing [0.977, 0.977, 2.5] mm, orientation LPS
+2026-09-14 15:23:34 INFO 3D val_dice_fg 0.0075 | val_hd95_fg 299.7556 | val_assd_fg 183.3745
+--- smoke OK: /gpfs/home5/scur0049/ai4mi_project/runs/_smoke/segthor_enet_ce/seed0
