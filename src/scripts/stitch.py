@@ -36,6 +36,8 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
+from scripts.utils import store_args
+
 
 def get_z(image: Path) -> int:
     return int(image.stem.split("_")[-1])
@@ -130,6 +132,8 @@ def main(args) -> None:
             args.source_scan_pattern,
         )
     # mmap_(lambda p: merge_patient(p, args.dest_folder, images, idx_map[p], K=args.num_classes), patients)
+
+    store_args("stitch", args, args.dest_folder)
 
 
 def get_args() -> argparse.Namespace:

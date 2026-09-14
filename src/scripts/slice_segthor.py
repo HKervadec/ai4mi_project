@@ -37,6 +37,8 @@ from skimage.io import imsave
 from skimage.transform import resize
 from tqdm import tqdm
 
+from scripts.utils import store_args
+
 
 def norm_arr(img: np.ndarray) -> np.ndarray:
     casted = img.astype(np.float32)
@@ -225,6 +227,8 @@ def main(args: argparse.Namespace):
     with open(dest_path / "spacing.pkl", "wb") as f:
         pickle.dump(resolution_dict, f, pickle.HIGHEST_PROTOCOL)
         print(f"Saved spacing dictionnary to {f}")
+
+    store_args("slice_segthor", args, args.dest_dir)
 
 
 def get_args() -> argparse.Namespace:
