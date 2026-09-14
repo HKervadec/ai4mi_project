@@ -1,0 +1,58 @@
+# Every configurable key and its default. Experiment configs override only what they change;
+# a key that is not defined here is rejected (typo protection), except inside `kwargs` blocks.
+# Override from the command line with: --set train.epochs=50 optim.kwargs.lr=0.001
+
+experiment: ""            # required; names the run directory runs/<experiment>/seed<seed>/
+seed: 0
+device: cuda              # falls back to cpu when no GPU is visible
+notes: ""                 # free text, copied to the manifest and W&B
+
+data:
+  root: data/SEGTHOR      # sliced dataset: <root>/{train,val[,test]}/{img,gt}/*.png
+                          # "switching preprocessing" = pointing this at a differently sliced copy
+  num_classes: 5
+  class_names: [background, esophagus, heart, trachea, aorta]
+  label_scale: 63         # grey value per class index in the gt PNGs (63 for SEGTHOR, 255 for TOY2)
+  patient_regex: "(Patient_\\d+)_\\d{4}"   # group 1 = patient id; groups slices into volumes
+  in_channels: 1
+  batch_size: 8
+  num_workers: 5
+  augment: []             # EXTENSION POINT: list of {name: <registered augment>, kwargs: {...}}, train only
+  source_pattern: data/segthor_part1/train/{patient}/GT.nii.gz   # val GT volumes: grid + labels for 3D eval; null = skip
+  test_source_pattern: null   # test CT volumes (grid only), e.g. data/<test_dir>/{patient}.nii.gz; null = skip
+
+model:
+  name: enet
+  kwargs: {}
+
+loss:
+  name: cross_entropy
+  kwargs: {}              # cross_entropy: idk = supervised class indices (default: all)
+
+optim:
+  name: adam
+  kwargs: {lr: 0.0005, betas: [0.9, 0.999]}
+
+scheduler:
+  name: none              # none | cosine | step
+  kwargs: {}
+
+train:
+  epochs: 25
+  select_metric: val_dice_fg        # checkpoint selection; val_dice_fg or val_dice_legacy_fg
+  max_failed_batches: 5             # per epoch; a failing batch is logged and skipped up to this many
+  debug_samples: 0                  # >0 keeps only the first N slices per split (smoke tests)
+
+eval:
+  classes: [1, 2, 3]      # classes averaged into *_fg metrics; aorta (4) has no GT in segthor_part1
+
+wandb:
+  mode: online            # online | offline | disabled; failures always degrade to local-only
+  entity: ""              # team entity; "" = your personal account
+  project: ai4mi-segthor
+  tags: []
+  image_every: 5          # log val overlays every N epochs (0 = never)
+
+paths:
+  run_root: runs          # symlink to /scratch-shared/$USER/ai4mi_project/runs (docs/pipeline.md)
+  metrics_dir: metrics    # git-tracked copy of small per-run results, shared with the team

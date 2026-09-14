@@ -1,0 +1,11 @@
+# Port of the course baseline: `python main.py --dataset SEGTHOR --mode full --epochs 25`.
+experiment: segthor_enet_ce
+notes: ENet + cross-entropy, course baseline settings
+
+model:
+  name: enet
+  kwargs: {kernels: 8, factor: 2}
+
+loss:
+  name: cross_entropy
+  kwargs: {idk: [0, 1, 2, 3, 4]}   # --mode full; --mode partial was idk: [0, 1, 3, 4]

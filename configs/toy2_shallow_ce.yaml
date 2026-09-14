@@ -1,0 +1,21 @@
+# Port of `python main.py --dataset TOY2 --mode full`: synthetic two-circles data, shallowCNN.
+experiment: toy2_shallow_ce
+
+data:
+  root: data/TOY2
+  num_classes: 2
+  class_names: [background, foreground]
+  label_scale: 255
+  patient_regex: "(\\d+)"   # no patients: every image is its own "volume"
+  batch_size: 2
+  source_pattern: null      # 2D only, no 3D evaluation
+
+model:
+  name: shallow_cnn
+  kwargs: {n_filters: 4}
+
+eval:
+  classes: [1]
+
+wandb:
+  project: ai4mi-toy2
