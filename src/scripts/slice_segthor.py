@@ -28,7 +28,7 @@ import argparse
 import warnings
 from pathlib import Path
 from functools import partial
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from typing import Any, Callable
 
 import numpy as np
@@ -249,7 +249,7 @@ def get_args() -> argparse.Namespace:
         "--process",
         "-p",
         type=int,
-        default=1,
+        default=cpu_count(),
         help="The number of cores to use for processing",
     )
     args = parser.parse_args()
