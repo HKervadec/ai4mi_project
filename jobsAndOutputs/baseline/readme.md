@@ -1,9 +1,8 @@
 # Baseline from original repo
 
-1. Create environment and setup data: `jobs/env.job`.
-2.1 Training TOY2 dataset: `jobs/train_TOY2.job`.
-2.2  Training SEGTHOR dataset: `jobs/train_segthor.job`.
-3. Stitching back to 3D: `jobs/stitching.job`.
+1. Create `ai4mi` environment and setup data: `jobs/env.job`.
+2. Training TOY2 dataset: `jobs/train_TOY2.job` and training SEGTHOR dataset: `jobs/train_segthor.job` for 25 epochs each.
+3. Stitching back to 3D: `jobs/stitching.job` for the SEGTHOR dataset.
 
 ## Viusalize 2D results from the terminal 
 
