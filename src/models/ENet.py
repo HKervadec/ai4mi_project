@@ -106,7 +106,7 @@ class BottleNeck(nn.Module):
 
 
 class BottleNeckDownSampling(nn.Module):
-    def __init__(self, in_dim, out_dim, projectionFactor):
+    def __init__(self, in_dim, out_dim, projectionFactor, dropoutRate=0.01):
         super().__init__()
         mid_dim: int = in_dim // projectionFactor
 
@@ -119,7 +119,7 @@ class BottleNeckDownSampling(nn.Module):
         self.block2 = conv_block(mid_dim, out_dim, kernel_size=1)
 
         # Regularizer
-        self.do = nn.Dropout(p=0.01)
+        self.do = nn.Dropout(p=dropoutRate)
         self.PReLU = nn.PReLU()
 
         # Out
@@ -144,7 +144,7 @@ class BottleNeckDownSampling(nn.Module):
 
 
 class BottleNeckUpSampling(nn.Module):
-    def __init__(self, in_dim, out_dim, projectionFactor):
+    def __init__(self, in_dim, out_dim, projectionFactor, dropoutRate=0.01):
         super().__init__()
         mid_dim: int = in_dim // projectionFactor
 
@@ -157,7 +157,7 @@ class BottleNeckUpSampling(nn.Module):
         self.block2 = conv_block(mid_dim, out_dim, kernel_size=1)
 
         # Regularizer
-        self.do = nn.Dropout(p=0.01)
+        self.do = nn.Dropout(p=dropoutRate)
         self.PReLU = nn.PReLU()
 
         # Out
@@ -181,29 +181,30 @@ class BottleNeckUpSampling(nn.Module):
 
 
 class ENet(nn.Module):
-    def __init__(self, in_dim: int, out_dim: int, **kwargs):
+    def __init__(self, in_dim: int, out_dim: int, dropoutRate: float = 0.01, **kwargs):
+        # Need to look with dropout rate here, bc some BottleNecks are created with dropout 0.1
+        # but default param is 0.01
         super().__init__()
         F: int = kwargs["factor"] if "factor" in kwargs else 4  # Projecting factor
         K: int = kwargs["kernels"] if "kernels" in kwargs else 16  # n_kernels
-
-        # from models.enet import (BottleNeck,
-        #                          BottleNeckDownSampling,
-        #                          BottleNeckUpSampling,
-        #                          conv_block)
 
         # Initial operations
         self.conv0 = nn.Conv2d(in_dim, K - 1, kernel_size=3, stride=2, padding=1)
         self.maxpool0 = nn.MaxPool2d(2, return_indices=False, ceil_mode=False)
 
         # Downsampling half
-        self.bottleneck1_0 = BottleNeckDownSampling(K, K * 4, F)
+        self.bottleneck1_0 = BottleNeckDownSampling(
+            K, K * 4, F, dropoutRate=dropoutRate
+        )
         self.bottleneck1_1 = nn.Sequential(
             BottleNeck(K * 4, K * 4, F),
             BottleNeck(K * 4, K * 4, F),
             BottleNeck(K * 4, K * 4, F),
             BottleNeck(K * 4, K * 4, F),
         )
-        self.bottleneck2_0 = BottleNeckDownSampling(K * 4, K * 8, F)
+        self.bottleneck2_0 = BottleNeckDownSampling(
+            K * 4, K * 8, F, dropoutRate=dropoutRate
+        )
         self.bottleneck2_1 = nn.Sequential(
             BottleNeck(K * 8, K * 8, F, dropoutRate=0.1),
             BottleNeck(K * 8, K * 8, F, dilation=2),
@@ -234,7 +235,8 @@ class ENet(nn.Module):
             BottleNeck(K * 4, K, F, dropoutRate=0.1),
         )
         self.bottleneck5 = nn.Sequential(
-            BottleNeckUpSampling(K * 2, K, F), BottleNeck(K, K, F, dropoutRate=0.1)
+            BottleNeckUpSampling(K * 2, K, F, dropoutRate=dropoutRate),
+            BottleNeck(K, K, F, dropoutRate=0.1),
         )
 
         # Final upsampling and covolutions

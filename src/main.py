@@ -33,6 +33,7 @@ from shutil import copytree, rmtree
 import torch
 import wandb
 import numpy as np
+import random
 import torch.nn.functional as F
 from torch import nn, Tensor
 from torchvision import transforms
@@ -40,6 +41,8 @@ from torch.utils.data import DataLoader
 
 from functools import partial
 
+from models import ShallowNet
+from utils.args import Args, get_args
 from utils.dataset import SliceDataset
 from models.ShallowNet import shallowCNN
 from models.ENet import ENet
@@ -49,6 +52,7 @@ from utils.utils import (
     get_root_dir,
     probs2one_hot,
     probs2class,
+    seed_all,
     tqdm_,
     dice_coef,
     save_images,
@@ -92,7 +96,7 @@ def gt_transform(K, img):
     return img[0]
 
 
-def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
@@ -109,12 +113,18 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         if "factor" in datasets_params[args.dataset]
         else 2
     )
-    net = datasets_params[args.dataset]["net"](1, K, kernels=kernels, factor=factor)
+
+    # dropoutRate might not be in class, probably want more robust type checking here
+    net: ENet | ShallowNet.shallowCNN = datasets_params[args.dataset]["net"](
+        1, K, kernels=kernels, factor=factor, dropoutRate=args.dropout
+    )
     net.init_weights()
     net.to(device)
 
-    lr = 0.0005
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+    lr = args.lr
+    optimizer = torch.optim.Adam(
+        net.parameters(), lr=lr, weight_decay=args.weight_decay, betas=args.betas
+    )
 
     # Dataset part
     B: int = datasets_params[args.dataset]["B"]
@@ -127,7 +137,15 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         gt_transform=partial(gt_transform, K),
         debug=args.debug,
     )
-    train_loader = DataLoader(train_set, batch_size=B, num_workers=5, shuffle=True)
+    train_loader = DataLoader(
+        train_set,
+        batch_size=B,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        persistent_workers=True,
+        generator=torch.Generator().manual_seed(args.seed),
+        shuffle=True,
+    )
 
     val_set = SliceDataset(
         "val",
@@ -136,14 +154,21 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         gt_transform=partial(gt_transform, K),
         debug=args.debug,
     )
-    val_loader = DataLoader(val_set, batch_size=B, num_workers=5, shuffle=False)
+    val_loader = DataLoader(
+        val_set,
+        batch_size=B,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        persistent_workers=True,
+        shuffle=False,
+    )
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
     return (net, optimizer, device, train_loader, val_loader, K)
 
 
-def runTraining(args):
+def runTraining(args: Args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
@@ -156,7 +181,8 @@ def runTraining(args):
 
     # Adds histogram of the gradients and parameters
     # NOTE Does add a lot of info to our project, need to see if we want that
-    wandb.watch(net, log="all", log_freq=100)
+    if args.wandb_watch:
+        wandb.watch(net, log="all", log_freq=100)
 
     if args.mode == "full":
         loss_fn = CrossEntropy(
@@ -313,27 +339,10 @@ def runTraining(args):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    args = get_args()
 
-    parser.add_argument("--epochs", default=20, type=int)
-    parser.add_argument("--dataset", default="TOY2", choices=datasets_params.keys())
-    parser.add_argument("--mode", default="full", choices=["partial", "full"])
-    parser.add_argument(
-        "--dest",
-        type=Path,
-        required=True,
-        help="Destination directory to save the results (predictions and weights).",
-    )
-
-    parser.add_argument("--gpu", action="store_true")
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Keep only a fraction (10 samples) of the datasets, "
-        "to test the logics around epochs and logging easily.",
-    )
-
-    args = parser.parse_args()
+    # Seed everything right at the beginning
+    seed_all(args.seed, args.gpu)
 
     pprint(args)
 

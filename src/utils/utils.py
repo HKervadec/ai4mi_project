@@ -30,9 +30,11 @@ from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 
 import torch
 import numpy as np
+import random
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
+
 
 tqdm_ = partial(
     tqdm,
@@ -57,6 +59,17 @@ B = TypeVar("B")
 # function isn't in src/utils/ , this fails.
 def get_root_dir():
     return Path(__file__).parent.parent.parent.resolve()
+
+
+def seed_all(seed: int, gpu: bool = False):
+    torch.manual_seed(seed)
+    if gpu:
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    random.seed(seed)
+    np.random.seed(seed)
 
 
 # NOTE Do we even want these map functions? Makes things less readable in my opinion
