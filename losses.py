@@ -48,6 +48,37 @@ class CrossEntropy():
         return loss
 
 
+class SoftDiceLoss():
+    def __init__(self, **kwargs):
+        # self.idk is used to filter out some classes of the target mask. Use fancy indexing
+        self.idk = kwargs['idk']
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        pred = pred_softmax[:, self.idk, ...].float()
+        target = weak_target[:, self.idk, ...].float()
+
+        spatial_dims = tuple(range(2, pred.ndim))
+        intersection = (pred * target).sum(dim=spatial_dims)
+        pred_sq = (pred ** 2).sum(dim=spatial_dims)
+        target_sq = (target ** 2).sum(dim=spatial_dims)
+
+        epsilon = 1e-10
+        dice_per_class = (2 * intersection + epsilon) / (pred_sq + target_sq + epsilon)
+
+        class_dice = dice_per_class.mean(dim=0)
+        return 1 - class_dice.mean()
+
+
 class PartialCrossEntropy(CrossEntropy):
+    def __init__(self, **kwargs):
+        super().__init__(idk=[1], **kwargs)
+
+
+class PartialSoftDiceLoss(SoftDiceLoss):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
