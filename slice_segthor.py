@@ -38,17 +38,27 @@ from skimage.transform import resize
 
 from utils import map_, tqdm_
 
-
 def norm_arr(img: np.ndarray) -> np.ndarray:
     casted = img.astype(np.float32)
-    shifted = casted - casted.min()
-    norm = shifted / shifted.max()
-    res = 255 * norm
+    
+    # Soft-tissue windowing (Center: 40 HU, Width: 400 HU)
+    vmin, vmax = -160.0, 240.0
+    windowed = np.clip(casted, vmin, vmax)
+    
+    # Scale linearly to [0, 255]
+    norm = (windowed - vmin) / (vmax - vmin) * 255.0
+    return norm.astype(np.uint8)
 
-    assert 0 == res.min(), res.min()
-    assert res.max() == 255, res.max()
+# def norm_arr(img: np.ndarray) -> np.ndarray:
+#     casted = img.astype(np.float32)
+#     shifted = casted - casted.min()
+#     norm = shifted / shifted.max()
+#     res = 255 * norm
 
-    return res.astype(np.uint8)
+#     assert 0 == res.min(), res.min()
+#     assert res.max() == 255, res.max()
+
+#     return res.astype(np.uint8)
 
 
 def sanity_ct(ct, x, y, z, dx, dy, dz) -> bool:
