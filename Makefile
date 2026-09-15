@@ -31,35 +31,48 @@ data/SEGTHOR: data/segthor_part1
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
 
-## Corrected GT (see fix_gt.py) -- shared source for the measurement experiments.
-## No prerequisite on data/segthor_part1 on purpose: the source dirs are expected
-## to be already extracted, and depending on data/segthor_part1 would drag in its
-## .zip rule (which fails when the zip is absent). slice_segthor.py / fix_gt.py
-## assert their source exists and error clearly if it is missing.
-data/segthor_fixed:
-	$(info $(yellow)python fix_gt.py$(reset))
-	python fix_gt.py --source_dir data/segthor_part1/train --dest data/segthor_fixed/train
+## Corrected-GT variants, one folder per fix method, grouped under data/gt/.
+## No prerequisite on data/segthor_part1 on purpose: it is expected to be already
+## extracted, and depending on it would drag in its .zip rule (which fails when
+## the zip is absent). The fixers assert their source exists and error clearly.
+## The two fixers take slightly different CLIs -- this is where that is absorbed.
+data/gt/watershed:
+	$(info $(yellow)python fix_gt.py -> $@$(reset))
+	rm -rf $@_tmp $@
+	python fix_gt.py --source_dir data/segthor_part1/train --dest $@_tmp/train
+	mv $@_tmp $@
 
-## Per-experiment sliced datasets (options come from experiments.py).
-## All grouped under data/experiments/<name> to keep data/ uncluttered; add a
-## new one by registering an experiment and copying a rule. The dataset dir is
-## the switch: train on it with `python main.py --experiment <name>`.
-## Prerequisite: data/segthor_part1 (original) or data/segthor_fixed (baseline,
-## hu_window) must exist first -- run `make data/segthor_fixed` if needed.
+data/gt/watershed_refined:
+	$(info $(yellow)python fix_segthor_gt.py -> $@$(reset))
+	rm -rf $@_tmp $@
+	python fix_segthor_gt.py --source_dir data/segthor_part1 --dest_dir $@_tmp
+	mv $@_tmp $@
+
+## Per-experiment sliced datasets (options come from experiments.py), named
+## <gtfix>_<intensity> and grouped under data/experiments/<name>. The dataset dir
+## is the switch: train on it with `python main.py --experiment <name>`. GT-fix
+## sources are order-only prereqs (|), so a missing one is built and an existing
+## one is used as-is. `original` slices from data/segthor_part1 (must exist).
 data/experiments/original:
 	rm -rf $@_tmp $@
 	python $(CFLAGS) slice_segthor.py --experiment original --dest_dir $@_tmp
 	mv $@_tmp $@
 
-data/experiments/baseline:
+data/experiments/watershed_minmax: | data/gt/watershed
 	rm -rf $@_tmp $@
-	python $(CFLAGS) slice_segthor.py --experiment baseline --dest_dir $@_tmp
+	python $(CFLAGS) slice_segthor.py --experiment watershed_minmax --dest_dir $@_tmp
 	mv $@_tmp $@
 
-data/experiments/hu_window:
+data/experiments/watershed_window: | data/gt/watershed
 	rm -rf $@_tmp $@
-	python $(CFLAGS) slice_segthor.py --experiment hu_window --dest_dir $@_tmp
+	python $(CFLAGS) slice_segthor.py --experiment watershed_window --dest_dir $@_tmp
+	mv $@_tmp $@
+
+data/experiments/refined_window: | data/gt/watershed_refined
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --experiment refined_window --dest_dir $@_tmp
 	mv $@_tmp $@
 
 .PHONY: data-experiments
-data-experiments: data/experiments/original data/experiments/baseline data/experiments/hu_window
+data-experiments: data/experiments/original data/experiments/watershed_minmax \
+                  data/experiments/watershed_window data/experiments/refined_window
