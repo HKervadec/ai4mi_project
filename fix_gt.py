@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# we implemented a 3D geometric (distance-transform + watershed) recovery, not atlas propagation and not a 2D per-slice heuristic.
 
 """
 Repair the corrupted SegTHOR ground truth into a consistent 5-class dataset.
@@ -62,6 +63,7 @@ def largest_cc(mask: np.ndarray) -> np.ndarray:
 def split_aorta_esophagus(merged: np.ndarray, spacing: tuple[float, float, float]) -> np.ndarray:
     """Split a boolean 'esophagus+aorta' mask into a labelled volume:
     2 = aorta, 1 = esophagus, 0 = background. Reasoning inline."""
+    # runs on the entire 3D mask at once, with the full (dx, dy, dz) spacing — not slice by slice.
     out = np.zeros(merged.shape, dtype=np.uint8)
     if merged.sum() == 0:
         return out
