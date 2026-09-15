@@ -25,6 +25,7 @@
 from pathlib import Path
 from typing import Callable, Union
 
+import torch
 from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
@@ -95,6 +96,19 @@ class SliceDataset(Dataset):
                 # make sure that the ground truth is not empty after the transformation
                 empty_pixels = gt.sum(dim = 0) == 0
                 gt[0, empty_pixels] = 1
+
+            # adding SULBA (Stepwise Upper and Lowe Boundaries Augmentation)
+            if random.random() > 0.5:
+                # get image dimensions
+                _, W, H = img.shape
+
+                # pick a random shift amount (up to 25% of the image size)
+                shift_w = random.randint(-W // 4, W // 4)
+                shift_h = random.randint(-H // 4, H // 4)
+
+                # roll the image and ground truth
+                img = torch.roll(img, shifts=(shift_w, shift_h), dims=(1, 2))
+                gt = torch.roll(gt, shifts=(shift_w, shift_h), dims=(1, 2))
 
             # intensity transforms are applied only to the image
             if random.random() > 0.5:
