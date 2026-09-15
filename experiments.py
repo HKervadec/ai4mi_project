@@ -35,7 +35,10 @@ from preprocessing import MEDIASTINAL
 class SliceConfig:
     """Options for slice_segthor.py (the 2D dataset build)."""
     source_dir: str = "data/gt/watershed"               # which GT-fix variant to slice from
-    window: tuple[float, float] | None = MEDIASTINAL    # None -> legacy per-volume min-max
+    # Default None = legacy per-volume min-max, so a bare `slice_segthor.py` /
+    # `make data/SEGTHOR` reproduces the original master behavior. Experiments opt
+    # into windowing by setting this explicitly (see watershed_window etc.).
+    window: tuple[float, float] | None = None
     shape: tuple[int, int] = (256, 256)
     retains: int = 5                                     # patients held out for validation
 
