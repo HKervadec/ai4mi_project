@@ -164,6 +164,17 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
     return (net, optimizer, device, train_loader, val_loader, K)
 
 
+def get_loss_func(args: Args, K: int):
+    if args.mode == "full":
+        return CrossEntropy(
+            idk=list(range(K))
+        )  # Supervise both background and foreground
+    elif args.mode in ["partial"] and args.dataset == "SEGTHOR":
+        return CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+    else:
+        raise ValueError(args.mode, args.dataset)
+
+
 def runTraining(args: Args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
@@ -180,14 +191,7 @@ def runTraining(args: Args):
     if args.wandb_watch:
         wandb.watch(net, log="all", log_freq=100)
 
-    if args.mode == "full":
-        loss_fn = CrossEntropy(
-            idk=list(range(K))
-        )  # Supervise both background and foreground
-    elif args.mode in ["partial"] and args.dataset == "SEGTHOR":
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
-    else:
-        raise ValueError(args.mode, args.dataset)
+    loss_fn = get_loss_func(args, K)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -197,6 +201,8 @@ def runTraining(args: Args):
 
     best_dice: float = 0
 
+    # NOTE Just need a total rewrite of this, split it up into functions
+    # Also not handy bc train and val are in this same loop
     for e in range(args.epochs):
         for m in ["train", "val"]:
             match m:
@@ -237,27 +243,28 @@ def runTraining(args: Args):
                     assert 0 <= img.min() and img.max() <= 1
                     B, _, W, H = img.shape
 
-                    pred_logits = net(img)
-                    pred_probs = F.softmax(
-                        args.temperature * pred_logits, dim=1
-                    )  # 1 is the temperature parameter
+                    with torch.autocast(device_type="cuda" if args.gpu else "cpu"):
+                        pred_logits = net(img)
+                        pred_probs = F.softmax(
+                            args.temperature * pred_logits, dim=1
+                        )  # 1 is the temperature parameter
 
-                    # Metrics computation, not used for training
-                    pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j : j + B, :] = dice_coef(
-                        pred_seg, gt
-                    )  # One DSC value per sample and per class
+                        # Metrics computation, not used for training
+                        pred_seg = probs2one_hot(pred_probs)
+                        log_dice[e, j : j + B, :] = dice_coef(
+                            pred_seg, gt
+                        )  # One DSC value per sample and per class
 
-                    # Pixel-wise accuracy
-                    predicted_classes = pred_probs.argmax(dim=1)  # (B, W, H)
-                    gt_classes = gt.argmax(dim=1)  # (B, W, H)
-                    total_correct += (predicted_classes == gt_classes).sum().item()
-                    total_pixels += predicted_classes.numel()
+                        # Pixel-wise accuracy
+                        predicted_classes = pred_probs.argmax(dim=1)  # (B, W, H)
+                        gt_classes = gt.argmax(dim=1)  # (B, W, H)
+                        total_correct += (predicted_classes == gt_classes).sum().item()
+                        total_pixels += predicted_classes.numel()
 
-                    loss = loss_fn(pred_probs, gt)
-                    log_loss[e, i] = (
-                        loss.item()
-                    )  # One loss value per batch (averaged in the loss)
+                        loss = loss_fn(pred_probs, gt)
+                        log_loss[e, i] = (
+                            loss.item()
+                        )  # One loss value per batch (averaged in the loss)
 
                     if opt is not None:  # Only for training
                         loss.backward()
