@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import random
 import argparse
 import warnings
 from typing import Any
@@ -40,6 +41,7 @@ from torch.utils.data import DataLoader
 from functools import partial 
 
 from dataset import SliceDataset
+from experiments import EXPERIMENTS, get as get_experiment
 from ShallowNet import shallowCNN
 from ENet import ENet
 from utils import (Dcm,
@@ -59,6 +61,27 @@ datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'fac
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 
+def seed_everything(seed: int) -> None:
+    """Seed every RNG so a run is reproducible and A/B differences reflect the
+    technique, not run-to-run noise (weight init, shuffle order, future
+    augmentation). Call before building the network and the dataloaders."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # Determinism over speed: reproducible convolutions for fair comparisons.
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+def seed_worker(worker_id: int) -> None:
+    """Give each DataLoader worker a deterministic, distinct seed. Module-level
+    (not a lambda/closure) so it stays picklable under the 'spawn' start method."""
+    worker_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
 def img_transform(img):
         img = img.convert('L')
         img = np.array(img)[np.newaxis, ...]
@@ -77,6 +100,21 @@ def gt_transform(K, img):
         img = class2one_hot(img, K=K)
         return img[0]
 
+def build_loss(name: str, K: int, mode: str):
+    """Loss factory -- the single place to add new losses later (dice, focal, ...).
+
+    Keeping this here means a new loss is one branch, and every existing
+    experiment keeps using exactly the loss it used before.
+    """
+    if name != "ce":
+        raise NotImplementedError(f"loss '{name}' is not implemented yet; add it in build_loss")
+    if mode == "full":
+        return CrossEntropy(idk=list(range(K)))       # supervise all classes
+    if mode == "partial":
+        return CrossEntropy(idk=[0, 1, 3, 4])         # skip heart (class 2); SEGTHOR-specific
+    raise ValueError(f"unknown mode: {mode}")
+
+
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     if args.gpu and torch.cuda.is_available():
@@ -88,10 +126,16 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         device = torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
-    K: int = datasets_params[args.dataset]['K']
-    kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
-    factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
-    net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
+    # An experiment (if given) supplies the data directory and the network params
+    # key; otherwise fall back to the plain --dataset path (unchanged behavior).
+    exp = get_experiment(args.experiment) if args.experiment else None
+    params_key: str = exp.base_dataset if exp else args.dataset
+    params = datasets_params[params_key]
+
+    K: int = params['K']
+    kernels: int = params.get('kernels', 8)
+    factor: int = params.get('factor', 2)
+    net = params['net'](1, K, kernels=kernels, factor=factor)
     net.init_weights()
     net.to(device)
 
@@ -99,20 +143,28 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
-    B: int = datasets_params[args.dataset]['B']
-    root_dir = Path("data") / args.dataset
-
-
+    B: int = params['B']
+    root_dir = Path(exp.data_dir) if exp else Path("data") / args.dataset
+    augment: bool = exp.train.augment if exp else False
+    print(f">> Using data from {root_dir} (augment={augment})")
 
     train_set = SliceDataset('train',
                              root_dir,
                              img_transform=img_transform,
                              gt_transform= partial(gt_transform, K),
+                             augment=augment,
                              debug=args.debug)
+    # Deterministic shuffling: a seeded generator fixes the batch order and
+    # seed_worker makes each worker's RNG reproducible (matters once augmentation
+    # is added). Both keep A/B comparisons fair across runs of the same seed.
+    loader_gen = torch.Generator()
+    loader_gen.manual_seed(args.seed)
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=5,
-                              shuffle=True)
+                              shuffle=True,
+                              worker_init_fn=seed_worker,
+                              generator=loader_gen)
 
     val_set = SliceDataset('val',
                            root_dir,
@@ -130,15 +182,16 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
 
 def runTraining(args):
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
+    exp = get_experiment(args.experiment) if args.experiment else None
+    mode: str = exp.train.mode if exp else args.mode
+    loss_name: str = exp.train.loss if exp else "ce"
+    label: str = args.experiment if exp else args.dataset
+    print(f">>> Setting up to train on {label} with mode={mode}, loss={loss_name}, seed={args.seed}")
+
+    seed_everything(args.seed)  # before net init + dataloader construction
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
-    if args.mode == "full":
-        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
-    elif args.mode in ["partial"] and args.dataset == 'SEGTHOR':
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
-    else:
-        raise ValueError(args.mode, args.dataset)
+    loss_fn = build_loss(loss_name, K, mode)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -243,15 +296,30 @@ def main():
     parser.add_argument('--epochs', default=20, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
-    parser.add_argument('--dest', type=Path, required=True,
-                        help="Destination directory to save the results (predictions and weights).")
+    parser.add_argument('--experiment', default=None, choices=list(EXPERIMENTS),
+                        help="Named config from experiments.py: selects the data directory, loss, "
+                             "augmentation, etc. Takes precedence over --dataset/--mode.")
+    parser.add_argument('--dest', type=Path, default=None,
+                        help="Destination directory for results (predictions and weights). "
+                             "Defaults to results/<experiment> when --experiment is given.")
 
+    parser.add_argument('--seed', default=42, type=int,
+                        help="RNG seed for reproducible runs. Vary it (e.g. 42, 43, 44) to "
+                             "measure run-to-run variance and average results across seeds.")
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logics around epochs and logging easily.")
 
     args = parser.parse_args()
+
+    if args.dest is None:
+        if args.experiment:
+            # Keep each experiment self-contained: results live next to the
+            # sliced data, under data/experiments/<name>/results.
+            args.dest = Path(get_experiment(args.experiment).data_dir) / "results"
+        else:
+            parser.error("--dest is required unless --experiment is given")
 
     pprint(args)
 
