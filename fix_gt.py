@@ -27,7 +27,7 @@ Output: a fixed copy of the dataset under --dest, with corrected GT.nii.gz files
 (5 classes, CT affine) and the CT linked in, ready for slice_segthor.py. The raw
 data is never modified. Re-run audit_data.py on the result to confirm it is clean.
 
-    python fix_gt.py --source_dir data/segthor_part1/train --dest data/segthor_fixed/train
+    python fix_gt.py --source_dir data/segthor_part1/train --dest data/gt/watershed/train
 """
 
 import os
@@ -219,7 +219,7 @@ def main() -> None:
     parser.add_argument("--source_dir", type=Path, required=True,
                         help="raw per-patient folders, e.g. data/segthor_part1/train")
     parser.add_argument("--dest", type=Path, required=True,
-                        help="output folder for the fixed dataset, e.g. data/segthor_fixed/train")
+                        help="output folder for the fixed dataset, e.g. data/gt/watershed/train")
     parser.add_argument("--copy_ct", action="store_true",
                         help="copy CT volumes instead of symlinking (use on filesystems without symlinks)")
     args = parser.parse_args()

@@ -1,13 +1,13 @@
 # `fix-data` branch — handoff notes
 
 This branch makes the SegTHOR data trainable and sets up an **experiment
-framework** so we can measure, technique by technique, whether a change actually
+framework** so we can measure, one technique at a time, whether a change actually
 improves organ segmentation. Nothing from the original pipeline was deleted — the
-old behavior is preserved as a named experiment and behind flags.
+old behavior is preserved as the `original` experiment and behind flags.
 
 It contains three things:
 
-1. **Aorta/esophagus GT split** — repairs the corrupted ground truth.
+1. **Aorta/esophagus GT split** — repairs the corrupted ground truth. Two methods.
 2. **Experiment pipeline** — one registry + `--experiment` flag to switch and A/B techniques.
 3. **First preprocessing experiment** — HU windowing (vs the original min-max), plus reproducible **seeding**.
 
@@ -19,12 +19,12 @@ It contains three things:
 git submodule update --init                 # pull the viewer submodule
 python -m pip install -r requirements.txt   # (in your venv; scipy is new)
 
-make data-experiments                        # build all 3 sliced datasets
-python main.py --experiment hu_window --epochs 25 --gpu
+make data-experiments                        # build all GT-fix variants + sliced datasets
+python main.py --experiment watershed_window --epochs 25 --gpu
 ```
 
-Results land in `data/experiments/hu_window/results/`. Swap `hu_window` for
-`baseline` or `original` to run the other points of the comparison.
+Results land in `data/experiments/watershed_window/results/`. Swap the experiment
+name for any of the four (see §3) to run the other points of the comparison.
 
 ---
 
@@ -32,36 +32,45 @@ Results land in `data/experiments/hu_window/results/`. Swap `hu_window` for
 
 | File | What it is |
 |------|------------|
-| `fix_gt.py` | Repairs GT: splits aorta out of esophagus + restamps the CT affine. **New.** |
-| `audit_data.py` | Read-only data integrity check (raw 3D + sliced 2D). **New.** |
-| `preprocessing.py` | HU windowing (fixed clinical window → uint8). **New.** |
-| `experiments.py` | The experiment registry — single source of truth for technique configs. **New.** |
-| `slice_segthor.py` | Now applies HU windowing and takes `--experiment`. **Modified.** |
-| `main.py` | Now takes `--experiment` and `--seed`; loss factory; self-contained results dir. **Modified.** |
-| `Makefile` | Targets to build the corrected GT and per-experiment datasets. **Modified.** |
-| `requirements.txt` | Added `scipy` (used by `fix_gt.py`). **Modified.** |
+| `fix_gt.py` | GT fix method #1 (**watershed**): splits aorta out of esophagus + restamps the CT affine. |
+| `fix_segthor_gt.py` | GT fix method #2 (**watershed_refined**): same idea + per-slice crumb cleanup, higher-quality split. |
+| `audit_data.py` | Read-only data integrity check (raw 3D + sliced 2D). |
+| `preprocessing.py` | HU windowing (fixed clinical window → uint8). |
+| `experiments.py` | The experiment registry — single source of truth for technique configs. |
+| `slice_segthor.py` | Applies HU windowing; takes `--experiment`. |
+| `main.py` | Takes `--experiment` and `--seed`; loss factory; self-contained results dir. |
+| `Makefile` | Targets to build each GT-fix variant and each experiment dataset. |
+| `requirements.txt` | Added `scipy`. |
 
 ### Data layout
+
+The layout has **two axes** and is named so the folders read as the ablation:
 
 ```
 data/
 ├── segthor_part1/          raw source — CORRUPTED GT (aorta merged, affine stripped)
-├── segthor_fixed/          corrected GT (output of fix_gt.py) — shared source for experiments
-└── experiments/            all our runs, grouped (keeps data/ tidy)
-    ├── original/           {train,val,results}   (sliced from part1)
-    ├── baseline/           {train,val,results}   (sliced from segthor_fixed)
-    └── hu_window/          {train,val,results}   (sliced from segthor_fixed)
+│
+├── gt/                     corrected-GT variants, one folder per FIX METHOD
+│   ├── watershed/          <- fix_gt.py           (self-test aorta 0.95 / eso 0.79)
+│   └── watershed_refined/  <- fix_segthor_gt.py   (self-test aorta 0.9995 / eso 0.998)
+│
+└── experiments/            sliced datasets, named <gtfix>_<intensity>
+    ├── original/           corrupted GT   + min-max        (the literal "before")
+    ├── watershed_minmax/   watershed fix  + min-max
+    ├── watershed_window/   watershed fix  + HU window
+    └── refined_window/     refined fix    + HU window
+        └── each holds  {train, val, results}
 ```
 
-Everything under `data/` is gitignored — teammates **rebuild datasets locally**
-with `make`; only code is pushed.
+Everything under `data/` is gitignored — teammates **rebuild locally** with
+`make`; only code is pushed.
 
 **Label convention** (everywhere): `0=background, 1=esophagus, 2=heart, 3=trachea, 4=aorta`.
 In the sliced PNGs each class `k` is stored as `k*63` (i.e. `{0,63,126,189,252}`).
 
 ---
 
-## 2. Aorta/esophagus split (`fix_gt.py`)
+## 2. Aorta/esophagus GT fix (`fix_gt.py`, `fix_segthor_gt.py`)
 
 ### The problem
 The raw part-1 ground truth has two defects (both caught by `audit_data.py`):
@@ -70,96 +79,104 @@ The raw part-1 ground truth has two defects (both caught by `audit_data.py`):
 2. Every `GT.nii.gz` has its **affine stripped to identity** → it no longer shares
    the CT's world geometry, which breaks 3D metrics and stitching.
 
-### The fix
-- **Patient_07** ships a second, correct label (`GT2.nii.gz`) with the aorta
-  separated and the right affine. We use it directly for Patient_07, and as a
-  **held-out self-test** to measure recovery quality every run.
-- For the other patients we can't use intensity (non-contrast scan: aortic blood
-  ≈ soft tissue) and the organs touch, so connected components can't split them.
-  Instead we use **caliber**: the aorta is a fat tube (~10–14 mm), the esophagus a
-  thin one (~4 mm). A **3D distance transform** (anisotropy-aware, uses real mm)
-  turns that into a scalar, and a **watershed** floods from an aortic-core seed and
-  an esophagus seed, cutting at the thin neck between them.
-- The corrected GT is re-stamped with the **CT affine**.
+### The two fix methods
+Both use the same idea — the aorta is a fat tube (~10–14 mm), the esophagus a thin
+one (~4 mm), so a 3D **distance transform** turns caliber into a scalar and a
+seeded **watershed** cuts at the thin neck between them (CT intensity can't help:
+non-contrast scans). Both re-stamp the CT affine. **Patient_07** ships a gold
+`GT2.nii.gz`; it's used directly for that patient and as an honest self-test.
 
-### Quality (self-test on the gold Patient_07)
-```
-aorta Dice ≈ 0.95   esophagus Dice ≈ 0.79
-```
+| method | folder | script | Patient_07 self-test | notes |
+|--------|--------|--------|----------------------|-------|
+| watershed | `data/gt/watershed` | `fix_gt.py` | aorta 0.95 / eso 0.79 | first version; also flags aorta-fraction outliers |
+| watershed_refined | `data/gt/watershed_refined` | `fix_segthor_gt.py` | aorta 0.9995 / eso 0.998 | + padded bbox, per-slice crumb reassignment |
 
-### Run it
+### Run them
 ```bash
-python fix_gt.py --source_dir data/segthor_part1/train --dest data/segthor_fixed/train
-python audit_data.py --raw_dir data/segthor_fixed/train      # should report: all checks passed
+make data/gt/watershed            # fix_gt.py
+make data/gt/watershed_refined    # fix_segthor_gt.py
+# audit either:
+python audit_data.py --raw_dir data/gt/watershed_refined/train
 ```
-`--copy_ct` copies CTs instead of symlinking (use on filesystems without symlinks).
+(The two scripts have slightly different CLIs; the Makefile absorbs that.)
 
-### ⚠️ Important caveat
-For **19 of 20 patients the aorta/esophagus labels are geometrically *recovered***
-(approximate), not manual truth — only Patient_07 is gold. This includes all 5
-validation patients. `fix_gt.py` prints an **aorta-fraction outlier list**
-(`<-- INSPECT`); someone should open those in ITK-SNAP and hand-correct if wrong.
-Because the recovered GT is held **constant** across experiments, relative A/B
-comparisons are still valid — but remember absolute Dice is measured against
-approximate labels.
+### ⚠️ Important caveats
+- **Recovered GT is approximate for 19/20 patients** — only Patient_07 is gold.
+  This includes all 5 validation patients. Comparisons stay valid because the GT
+  is held constant within a comparison, but absolute Dice is against approximate
+  labels.
+- **Inspect flagged patients in ITK-SNAP.** `audit_data.py` flags e.g.
+  `Patient_05` on the refined fix (esophagus 2.2× cohort median → possible
+  incomplete aorta split). `fix_gt.py` prints its own outlier list too.
+
+### Which fix is "better"?
+Two different questions:
+- **More correct?** → the **Patient_07 self-test** answers it directly; refined
+  wins decisively (0.998 vs 0.79 esophagus).
+- **Better downstream Dice?** → run `watershed_window` vs `refined_window`, **but**
+  each is scored against its *own* fix's recovered val labels, which is circular.
+  For a fair downstream comparison, score both models against **one common
+  reference val GT** (the better fix's, or a hand-corrected val set).
 
 ---
 
 ## 3. Experiment pipeline
 
-### The idea
 `experiments.py` is the **single source of truth**. Each experiment bundles its
-slice-stage options (`SliceConfig`) and train-stage options (`TrainConfig`). Both
-`slice_segthor.py` and `main.py` take `--experiment <name>` and read from it.
+slice-stage options (`SliceConfig`: `source_dir`, `window`, `shape`, `retains`)
+and train-stage options (`TrainConfig`: `mode`, `loss`, `augment`). Both
+`slice_segthor.py` and `main.py` take `--experiment <name>`.
 **Design rule: never delete an old code path — branch on config instead.**
+Precedence: **explicit CLI flag > experiment config > built-in default.**
 
-Precedence everywhere: **explicit CLI flag > experiment config > built-in default.**
+### The four experiments (a two-axis ablation)
+Named `<gtfix>_<intensity>`; each adjacent pair changes exactly one variable:
 
-### The three experiments (an ablation ladder)
-Each step changes exactly one thing vs the step above, so the Dice difference is attributable:
+| experiment | GT fix (`source_dir`) | intensity (`window`) |
+|------------|-----------------------|----------------------|
+| `original`         | `data/segthor_part1` (corrupted) | min-max |
+| `watershed_minmax` | `data/gt/watershed`              | min-max |
+| `watershed_window` | `data/gt/watershed`              | HU mediastinal window |
+| `refined_window`   | `data/gt/watershed_refined`      | HU mediastinal window |
 
-| name | GT source | intensity norm | isolates |
-|------|-----------|----------------|----------|
-| `original`  | `segthor_part1` (corrupted) | per-volume min-max | the literal old pipeline |
-| `baseline`  | `segthor_fixed` (corrected) | per-volume min-max | `original → baseline` = the **GT fix** |
-| `hu_window` | `segthor_fixed` (corrected) | mediastinal HU window | `baseline → hu_window` = the **windowing** |
+| Compare | Isolates |
+|---|---|
+| `original` → `watershed_minmax` | the **GT fix** (does splitting the aorta help) |
+| `watershed_minmax` → `watershed_window` | the **HU windowing** |
+| `watershed_window` → `refined_window` | the **fix method** (basic vs refined split) |
 
-The **validation split is identical** across all three (patients
-`01, 11, 15, 17, 19`; 15 train / 5 val), so comparisons are fair.
+The **validation split is identical** across all four (patients `01,11,15,17,19`;
+15 train / 5 val), so comparisons are fair.
 
 ### Build & train
 ```bash
-make data-experiments                                   # build all three, OR:
-make data/experiments/hu_window                         # just one
+make data-experiments                                     # build all four, OR:
+make data/experiments/refined_window                      # just one (builds its GT fix first)
 
-python main.py --experiment baseline  --epochs 25 --gpu
-python main.py --experiment hu_window --epochs 25 --gpu
+python main.py --experiment watershed_window --epochs 25 --gpu
+python main.py --experiment refined_window  --epochs 25 --gpu
 ```
-`--dest` defaults to `data/experiments/<name>/results/` (each experiment is
-self-contained). Pass `--dest <path>` to override.
-
-> Rebuilding a dataset: `make` treats an existing `data/experiments/<name>/` as
-> done. To force a rebuild, delete it first: `rm -rf data/experiments/hu_window`.
+`--dest` defaults to `data/experiments/<name>/results/`. To force a dataset
+rebuild, delete it first: `rm -rf data/experiments/refined_window`.
 
 ### How to add your own experiment
 1. **Register it** in `experiments.py`:
    ```python
    register(Experiment(
-       name="my_technique",
-       description="what it changes vs baseline",
-       slice=SliceConfig(window=MEDIASTINAL),          # or window=None for min-max
-       train=TrainConfig(augment=True, loss="ce"),     # your knobs
+       name="refined_augment",                             # <gtfix>_<technique>
+       description="what it changes vs its neighbour",
+       slice=SliceConfig(source_dir="data/gt/watershed_refined", window=MEDIASTINAL),
+       train=TrainConfig(augment=True, loss="ce"),
    ))
    ```
-2. **Copy a Makefile rule** (→ builds into `data/experiments/my_technique/`).
-3. `make data/experiments/my_technique`
-4. `python main.py --experiment my_technique --gpu`
+2. **Copy a Makefile rule** (→ builds into `data/experiments/refined_augment/`).
+   Add `| data/gt/<method>` as an order-only prereq so its GT source auto-builds.
+3. `make data/experiments/refined_augment`
+4. `python main.py --experiment refined_augment --gpu`
 
-Extension points already wired for you:
-- **`SliceConfig`**: `source_dir`, `window`, `shape`, `retains`.
-- **`TrainConfig`**: `mode` (`full`/`partial`), `loss`, `augment`.
-- **`build_loss(name, K, mode)`** in `main.py`: add `dice`/`focal` here (currently
-  only `"ce"`; anything else raises a clear `NotImplementedError`).
+Extension points already wired: `SliceConfig` / `TrainConfig` fields, and
+`build_loss(name, K, mode)` in `main.py` (add `dice`/`focal` there; anything but
+`"ce"` currently raises a clear `NotImplementedError`).
 
 ---
 
@@ -172,57 +189,50 @@ not**: one high-attenuation outlier (metal, contrast, artifact) blows up the ran
 and crushes soft tissue into a few grey levels. In our data this is real — e.g.
 Patient_02 reaches ~26,600 HU while its 99th percentile is ~370 HU, so under
 min-max the mediastinal soft tissue that separates esophagus/aorta/heart collapses
-to ~2–4 grey levels (worst for the **esophagus**, our hardest class).
+to ~2–4 grey levels (worst for the **esophagus**, our hardest class). Measured on
+that slice: min-max → `max=18, std=4`; HU window → full `0–255, std=66`.
 
-Measured effect on the same Patient_02 slice: min-max → `max=18, std=4`; HU window
-→ full `0–255, std=66`. Same tissue, ~15× more contrast, and now **consistent
-across patients**.
-
-Research basis: fixed windowing is standard clinical CT reading; nnU-Net likewise
-clips CT intensities before normalization (Isensee et al., *Nature Methods* 2021).
+Research basis: fixed windowing is standard clinical CT reading; nnU-Net clips CT
+intensities before normalization (Isensee et al., *Nature Methods* 2021).
 
 ### What it does
 `apply_hu_window(volume, level, width)` clips to `[level-width/2, level+width/2]`
 and scales to uint8 anchored to those **fixed** bounds. Default is the clinical
 **mediastinal / soft-tissue window** (`level=40, width=400` → clip `[-160, 240]`).
 
-### Trade-off
+### Trade-off / knobs
 A soft-tissue window maps the air-filled **trachea lumen to 0** (like external
-air), so the trachea is learned from its wall/shape. If trachea recall suffers, try
-the lung window — it's already defined (`CT_WINDOWS["lung"]`), e.g.:
+air), so the trachea is learned from wall/shape. If trachea recall suffers, try the
+lung window (already defined as `CT_WINDOWS["lung"]`):
 ```bash
-python slice_segthor.py --experiment hu_window --window_level -600 --window_width 1500 --dest_dir data/experiments/lung_window
+python slice_segthor.py --experiment watershed_window \
+    --window_level -600 --window_width 1500 --dest_dir data/experiments/lung_window
 ```
-
-### A/B it against the baseline
-`baseline` (min-max) vs `hu_window` (windowed) on the same corrected GT and same
-val split — that difference is the windowing effect. To go back to min-max ad-hoc:
-`slice_segthor.py ... --legacy_norm`.
+Ad-hoc back to min-max: `slice_segthor.py ... --legacy_norm`.
 
 ---
 
 ## 5. Seeding / reproducibility (`main.py`)
 
-Training is now **reproducible** so an A/B difference reflects the technique, not
+Training is **reproducible** so an A/B difference reflects the technique, not
 run-to-run noise.
 
 - `--seed` (default **42**) → `seed_everything()` seeds `random`, `numpy`, `torch`
-  (+CUDA) and sets cuDNN deterministic. The train `DataLoader` uses a seeded
-  generator + `seed_worker` so shuffle order (and future augmentation) is fixed.
-- Verified: same seed → identical Dice; different seed → different Dice.
+  (+CUDA), cuDNN deterministic; the train `DataLoader` uses a seeded generator +
+  `seed_worker`. Verified: same seed → identical Dice; different seed → different.
 
 **Two different seeds — don't confuse them:**
-- `slice_segthor.py --seed` (default **0**) chooses the **validation split** at
-  slice time. Leave it at 0 so all experiments share the same split.
-- `main.py --seed` (default **42**) controls the **training** RNG.
+- `slice_segthor.py --seed` (default **0**) → the **validation split** at slice
+  time. Leave at 0 so all experiments share the same split.
+- `main.py --seed` (default **42**) → the **training** RNG.
 
-**To measure variance:** run each experiment with a few seeds and average:
+**Measure variance** — run a few seeds and average:
 ```bash
-for s in 42 43 44; do python main.py --experiment hu_window --seed $s --epochs 25 --gpu \
-  --dest data/experiments/hu_window/results_seed$s; done
+for s in 42 43 44; do python main.py --experiment watershed_window --seed $s \
+  --epochs 25 --gpu --dest data/experiments/watershed_window/results_seed$s; done
 ```
 Same-machine reproducibility is guaranteed; exact numbers can differ across
-GPU/CPU hardware (normal — it doesn't affect within-machine comparisons).
+GPU/CPU hardware (normal; doesn't affect within-machine comparisons).
 
 ---
 
@@ -236,20 +246,20 @@ python -m venv ai4mi && source ai4mi/bin/activate
 python -m pip install -r requirements.txt
 
 # 2. data  (data/segthor_part1 must already be present — see readme.md "Getting the data")
-make data/segthor_fixed          # corrected GT (skip if data/segthor_fixed exists)
-make data-experiments            # build original / baseline / hu_window
+make data-experiments            # builds data/gt/* and data/experiments/*
 
-# 3. sanity check the data before spending GPU time
-python audit_data.py --raw_dir data/segthor_fixed/train --sliced_dir data/experiments/baseline
+# 3. sanity check before spending GPU time
+python audit_data.py --raw_dir data/gt/watershed/train --sliced_dir data/experiments/watershed_window
 
 # 4. train (results -> data/experiments/<name>/results/)
-python main.py --experiment baseline  --epochs 25 --gpu
-python main.py --experiment hu_window --epochs 25 --gpu
+python main.py --experiment watershed_minmax --epochs 25 --gpu
+python main.py --experiment watershed_window --epochs 25 --gpu
+python main.py --experiment refined_window   --epochs 25 --gpu
 ```
 
 `--gpu` uses CUDA if available, else Apple MPS, else CPU. If you hit a
-"cannot pickle" DataLoader error, run with `num_workers=0` (see `readme.md` known
-issues) — it's set to 5 in `main.py:setup`.
+"cannot pickle" DataLoader error, set `num_workers=0` (see `readme.md` known
+issues); it's `5` in `main.py:setup`.
 
 ---
 
@@ -258,34 +268,35 @@ issues) — it's set to 5 in `main.py:setup`.
 1. **Data augmentation is NOT wired yet.** The `augment` flag flows from
    `TrainConfig` → `SliceDataset`, but `SliceDataset.__getitem__` applies no
    transforms, and the image and GT transforms are applied **independently** — so
-   a coupled spatial augmentation (rotate/flip/elastic must apply the *same*
-   geometry to image and mask) can't be expressed yet. **Needs a `__getitem__`
-   refactor**: apply a joint spatial transform, train-split only (never on val).
-   Same story for the unused `equalize` flag.
-2. **3D metrics** (rubric requires 3D). The in-loop Dice is 2D per-slice. Build a
-   metrics step that consumes `data/experiments/*/results/best_epoch/val/`, stitches
-   with `stitch.py`, and writes an `.npz` per experiment (Assignment-3 format).
-3. **More losses** (Dice / focal / combos): add a branch in `build_loss` and set
+   coupled spatial augmentation (rotate/flip/elastic must use the *same* geometry
+   on image and mask) can't be expressed. **Needs a `__getitem__` refactor**:
+   joint spatial transform, train-split only. Same for the unused `equalize` flag.
+   *(Branch `Testing-data-augmentation` is on this.)*
+2. **3D metrics** (rubric requires 3D). In-loop Dice is 2D per-slice. Build a step
+   that consumes `data/experiments/*/results/best_epoch/val/`, stitches with
+   `stitch.py`, writes an `.npz` per experiment. *(Branch `3D-Metrics`.)*
+3. **More losses** (Dice / focal / combos): add a branch in `build_loss`, set
    `TrainConfig.loss`.
-4. **Inspect the flagged patients** from `fix_gt.py` in ITK-SNAP and hand-correct
-   any bad aorta recoveries.
-5. **`num_workers`** is hardcoded to 5 — parametrize if it causes issues on some
-   machines.
+4. **Inspect flagged patients** in ITK-SNAP (`Patient_05` on the refined fix, plus
+   whatever `fix_gt.py` flags) and hand-correct bad splits.
+5. **Fix-method comparison** should be scored against a common val GT (see §2).
+6. **`num_workers`** is hardcoded to 5 — parametrize if it causes issues.
 
 ---
 
 ## 8. Quick reference
 
 ```bash
-# repair GT
-python fix_gt.py --source_dir data/segthor_part1/train --dest data/segthor_fixed/train
+# build a GT-fix variant
+make data/gt/watershed            # fix_gt.py
+make data/gt/watershed_refined    # fix_segthor_gt.py
 # audit (read-only)
-python audit_data.py --raw_dir data/segthor_fixed/train --sliced_dir data/experiments/<name>
-# build a dataset
+python audit_data.py --raw_dir data/gt/<method>/train --sliced_dir data/experiments/<name>
+# build a sliced dataset (auto-builds its GT source)
 make data/experiments/<name>
 # train
 python main.py --experiment <name> --epochs 25 --seed 42 --gpu
 # ad-hoc slicing overrides (bypass a config)
-python slice_segthor.py --experiment hu_window --window_level 40 --window_width 400 --dest_dir <dir>
-python slice_segthor.py --experiment baseline  --legacy_norm --dest_dir <dir>
+python slice_segthor.py --experiment watershed_window --window_level 40 --window_width 400 --dest_dir <dir>
+python slice_segthor.py --experiment watershed_minmax --legacy_norm --dest_dir <dir>
 ```
