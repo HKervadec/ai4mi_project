@@ -38,11 +38,11 @@ from skimage.transform import resize
 
 from utils import map_, tqdm_
 
-def norm_arr(img: np.ndarray) -> np.ndarray:
+def norm_arr(img: np.ndarray, min_val=-160.0, max_val=240.0) -> np.ndarray:
     casted = img.astype(np.float32)
     
     # Soft-tissue windowing (Center: 40 HU, Width: 400 HU)
-    vmin, vmax = -160.0, 240.0
+    vmin, vmax = min_val, max_val
     windowed = np.clip(casted, vmin, vmax)
     
     # Scale linearly to [0, 255]
