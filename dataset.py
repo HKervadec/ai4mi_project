@@ -30,6 +30,7 @@ from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as TF
+import torchvision.transforms as T
 import random
 
 
@@ -109,6 +110,25 @@ class SliceDataset(Dataset):
                 # roll the image and ground truth
                 img = torch.roll(img, shifts=(shift_w, shift_h), dims=(1, 2))
                 gt = torch.roll(gt, shifts=(shift_w, shift_h), dims=(1, 2))
+
+            # adding elastic deformation
+            if random.random() > 0.5:
+                # generate a random seed to ensure the same deformation for image and GT
+                seed = random.randint(0, 10000)
+
+                # apply to image
+                torch.manual_seed(seed)
+                elastic_transform = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.BILINEAR)
+                img = elastic_transform(img)
+
+                # apply to ground truth 
+                torch.manual_seed(seed)
+                elastic_transform_gt = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.NEAREST)
+                gt = elastic_transform_gt(gt)
+
+                # make sure that the ground truth is not empty after the transformation
+                empty_pixels = gt.sum(dim = 0) == 0
+                gt[0, empty_pixels] = 1
 
             # intensity transforms are applied only to the image
             if random.random() > 0.5:
