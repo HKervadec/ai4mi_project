@@ -76,3 +76,9 @@ data/experiments/refined_window: | data/gt/watershed_refined
 .PHONY: data-experiments
 data-experiments: data/experiments/original data/experiments/watershed_minmax \
                   data/experiments/watershed_window data/experiments/refined_window
+
+## Modular pipeline (see PIPELINE_PLAN.md): all patients sliced once for run.py.
+## run.py builds it automatically when missing; this target only does it ahead of time.
+.PHONY: data-cache
+data-cache: | data/gt/watershed_refined
+	python -m segpipe.data --config configs/current.yaml
