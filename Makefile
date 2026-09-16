@@ -30,3 +30,10 @@ data/SEGTHOR:
 	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1 --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
+
+data/SEGTHOR_CLEAN:
+	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1_cleaned --dest_dir $@_tmp \
+		--shape 256 256 --retain 5
+	mv $@_tmp $@
