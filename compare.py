@@ -44,29 +44,41 @@ def build_report(runs: list[dict]) -> str:
     for s in runs:
         groups[(s["experiment"], s["split"])].append(s)
 
-    def mean_dice(key):
-        return np.mean([s["val_dice_2d"] for s in groups[key]]) if key in groups else None
+    def dice_3d(s, organ=None):
+        m = s.get("metrics_3d", {}).get("dice")
+        if m is None:
+            return None
+        return m["mean"] if organ is None else m["per_class"][organ]
 
-    header = ["Experiment", "Split", "Runs", "Owner", "2D val Dice", "Δ vs current"] + ORGANS + ["Idea"]
-    lines += ["2D validation Dice at the best epoch, mean over the 4 organs (± std over runs).", "",
+    def delta(key, value):
+        reference = [value(s) for s in groups.get(("current", key[1]), [])]
+        own = [value(s) for s in groups[key]]
+        reference, own = [v for v in reference if v is not None], [v for v in own if v is not None]
+        if key[0] == "current" or not reference or not own:
+            return ""
+        return f"{np.mean(own) - np.mean(reference):+.3f}"
+
+    header = ["Experiment", "Split", "Runs", "Owner", "2D val Dice", "Δ 2D", "3D Dice", "Δ 3D"] \
+        + [f"3D {o}" for o in ORGANS] + ["Idea"]
+    lines += ["Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std over runs). "
+              "Δ is against `current` on the same split.", "",
               "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     for key in sorted(groups):
         experiment, split = key
         members = groups[key]
-        reference = mean_dice(("current", split))
-        delta = f"{mean_dice(key) - reference:+.3f}" if reference is not None and experiment != "current" else ""
         cells = [experiment, split, str(len(members)), members[0].get("owner") or "",
-                 fmt([s["val_dice_2d"] for s in members]), delta]
-        cells += [fmt([s["val_dice_2d_per_class"][o] for s in members]) for o in ORGANS]
+                 fmt([s["val_dice_2d"] for s in members]), delta(key, lambda s: s["val_dice_2d"]),
+                 fmt([dice_3d(s) for s in members]), delta(key, dice_3d)]
+        cells += [fmt([dice_3d(s, o) for s in members]) for o in ORGANS]
         cells += [members[0].get("idea") or ""]
         lines.append("| " + " | ".join(cells) + " |")
 
-    header = ["Experiment", "Run", "2D val Dice", "Best epoch", "Minutes", "Commit", "Device"]
+    header = ["Experiment", "Run", "2D val Dice", "3D Dice", "Best epoch", "Minutes", "Commit", "Device"]
     lines += ["", "## Runs", "", "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     for s in sorted(runs, key=lambda r: (r["experiment"], r["run"])):
         git = s.get("git") or {}
         commit = f"{git.get('commit')}{'*' if git.get('dirty') else ''}"
-        lines.append("| " + " | ".join([s["experiment"], s["run"], fmt([s["val_dice_2d"]]),
+        lines.append("| " + " | ".join([s["experiment"], s["run"], fmt([s["val_dice_2d"]]), fmt([dice_3d(s)]),
                                         f"{s['best_epoch']} / {s['epochs']}", str(s["train_minutes"]),
                                         commit, s["device"]]) + " |")
     lines += ["", "`*` = run made with uncommitted changes.", ""]

@@ -23,3 +23,4 @@ scheduler: {name: none}
 augment: []
 
 train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5}
+eval: {metrics_3d: [dice]}     # computed after training; the best epoch is still chosen on 2D val Dice

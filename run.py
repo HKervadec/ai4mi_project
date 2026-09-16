@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train one experiment.
+"""Train one experiment and evaluate it (2D val Dice, 3D metrics).
 
     python run.py --config configs/experiments/<name>.yaml [--set key=value ...]
 """
@@ -18,6 +18,7 @@ from segpipe.models import build_model
 from segpipe.losses import build_loss
 from segpipe.optim import build_optimizer, build_scheduler
 from segpipe.train import pick_device, seed_everything, train
+from segpipe.evaluate import evaluate_3d
 
 
 def git_info() -> dict:
@@ -76,8 +77,18 @@ def main() -> None:
         "debug": args.debug, "device": str(device), "git": run_info["git"],
         **train_summary,
     }
+
+    metrics_3d = cfg.get("eval", {}).get("metrics_3d") or []
+    if args.debug or train_summary["best_epoch"] < 0 or not metrics_3d:
+        print(">> Skipping 3D evaluation (debug run, no best epoch, or no eval.metrics_3d)")
+    else:
+        print(f">> 3D evaluation ({', '.join(metrics_3d)}) of best_epoch/val")
+        summary["metrics_3d"] = evaluate_3d(run_dir, cfg, val_ids, metrics_3d)
+
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     print(f">>> Best 2D val Dice {summary['val_dice_2d']} at epoch {summary['best_epoch']}")
+    for name, m in summary.get("metrics_3d", {}).items():
+        print(f">>> 3D {name}: {m['mean']}")
     print(f">>> Done: {run_dir / 'summary.json'}  (then: python compare.py)")
 
 

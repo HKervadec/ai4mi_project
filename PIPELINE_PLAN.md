@@ -20,8 +20,9 @@ configs/current.yaml          <- the group's current choices (editable)
 configs/experiments/*.yaml    <- one small file per experiment: only what it changes
 
 python run.py --config configs/experiments/<name>.yaml
-        └─ train       (components picked by name from the config)
-                       -> results/<experiment>/<run>/summary.json (2D val Dice at the best epoch)
+        ├─ train       (components picked by name from the config; best epoch chosen on 2D val Dice)
+        └─ evaluate    best_epoch/val stitched into 3D volumes (stitch.py) -> 3D Dice
+                       -> results/<experiment>/<run>/summary.json (2D val Dice and 3D Dice)
 
 python compare.py             <- RESULTS.md
 DECISIONS.md                  <- what we chose, why, when to revisit
@@ -63,7 +64,7 @@ segpipe/
   losses.py                    LOSSES, REGULARIZERS
   optim.py                     OPTIMIZERS, SCHEDULERS
   postprocess.py               POSTPROCESS (not wired in yet)
-  evaluate.py                  METRICS for 3D evaluation (not wired in yet)
+  evaluate.py                  METRICS, 3D evaluation of best_epoch/val
   train.py                     training loop (from main.py)
   pretrain.py                  empty
 run.py                         one experiment end-to-end
@@ -103,6 +104,7 @@ python compare.py                       # update RESULTS.md
 A run writes to `results/<experiment>/<split>-f<fold>-s<seed>/`:
 - `config.yaml`, `summary.json` (committed)
 - `log.csv`, `*.npy`, `bestweights.pt`, `bestmodel.pkl`, `best_epoch.txt`, `iter###/val`, `best_epoch/val` (not committed; same files as `main.py`)
+- `volumes/val/*.nii.gz`, `metrics_3d/<metric>.npz` (not committed; 3D evaluation, skipped for `--debug` runs)
 
 The slice cache (`data/cache/<gt>_<window>_<H>x<W>/`) holds all patients, sliced once with
 `slice_segthor.slice_patient`. A split only selects patients, so changing splits never requires
@@ -117,14 +119,14 @@ re-slicing. A different window or shape gets its own cache folder.
    signature is in the comment above the dictionary.
 3. Use its name in an experiment config.
 
-`run.py` and the training loop don't change. 3D evaluation and post-processing have their files
-(`evaluate.py`, `postprocess.py`) but are not wired into `run.py` yet.
+`run.py` and the training loop don't change. A new 3D metric goes into `METRICS` in `evaluate.py`
+and `eval.metrics_3d` in the config. Post-processing has its file but is not wired into `run.py` yet.
 
 ---
 
 ## 7. Making choices
 
-- `compare.py` shows every experiment against `current`: 2D val Dice, mean ± std over runs, per organ.
+- `compare.py` shows every experiment against `current`: 2D val Dice and 3D Dice (mean ± std over runs), 3D Dice per organ.
 - Guideline: run a promising idea with 3 seeds before adopting it; use `cv4` for close calls.
 - Adopting or undoing a choice: edit the line in `current.yaml` and add an entry to `DECISIONS.md`.
 - Old results keep their own saved `config.yaml`, so they stay readable after `current.yaml` changes.
