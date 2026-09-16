@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --job-name=test-gpu
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --time=00:01:00
+#SBATCH --output=slurm_logs/%x_%j.out # wordt job-name (hierboven) + job-id
+#SBATCH --error=slurm_logs/%x_%j.err
+    
+module purge
+module load 2025
+
+set -euo pipefail
+
+echo "Host: $(hostname)"
+echo "CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-unset}" # 0 betekent dat er 1 is gevonden
