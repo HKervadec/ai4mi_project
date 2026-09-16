@@ -89,6 +89,9 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
     net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
     net.init_weights()
+    if args.load_weights:
+        net.load_state_dict(torch.load(args.load_weights, map_location='cpu'))
+        print(f">> Loaded weights from {args.load_weights}")
     net.to(device)
 
     lr = 0.0005
@@ -243,6 +246,8 @@ def main():
                         help="Destination directory to save the results (predictions and weights).")
 
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--load_weights', type=Path, default=None,
+                        help="bestweights.pt to initialize the network with, instead of a random init")
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logics around epochs and logging easily.")

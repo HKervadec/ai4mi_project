@@ -4,9 +4,11 @@ import subprocess
 import os
 import shutil
 import glob
+from scipy.ndimage import distance_transform_edt
 
-base_data_dir = "/home/scur0174/ai4mi_project/data/segthor_part1/train"
-cleaned_data_dir = "/home/scur0174/ai4mi_project/data/segthor_part1_cleaned/train"
+base_data_dir = "data/segthor_part1/train"
+cleaned_data_dir = "data/segthor_part1_cleaned/train"
+
 
 os.makedirs(cleaned_data_dir, exist_ok=True)
 
@@ -63,13 +65,18 @@ for patient_dir in patient_dirs:
             aorta_mask = nib.load(aorta_mask_path).get_fdata()
             esophagus_mask = nib.load(esophagus_mask_path).get_fdata()
 
-            # 4. Erase the merged label entirely from the original ground truth
-            gt_data[gt_data == merged_label_id] = 0
+            # 4. Only relabel voxels that carry the merged label in the original ground truth
+            merged = gt_data == merged_label_id
+            if not aorta_mask.any() or not esophagus_mask.any():
+                raise ValueError("TotalSegmentator returned an empty aorta or esophagus mask")
 
-            # 5. Insert the separated labels into the cleared space
-            gt_data[aorta_mask > 0] = new_aorta_id
-            gt_data[esophagus_mask > 0] = new_esophagus_id
-
+            # 5. Assign each merged voxel to the nearest predicted structure (distance in mm)
+            spacing = gt_img.header.get_zooms()[:3]
+            dist_aorta = distance_transform_edt(aorta_mask == 0, sampling=spacing)
+            dist_esophagus = distance_transform_edt(esophagus_mask == 0, sampling=spacing)
+            gt_data[merged & (dist_aorta <= dist_esophagus)] = new_aorta_id
+            gt_data[merged & (dist_esophagus < dist_aorta)] = new_esophagus_id
+            
             # 6. Save the corrected ground truth with the original affine and header
             fixed_img = nib.Nifti1Image(gt_data.astype(np.uint8), gt_img.affine, gt_img.header)
             nib.save(fixed_img, cleaned_gt_path)
