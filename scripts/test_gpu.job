@@ -1,15 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=test-gpu
-#SBATCH --partition=gpu_a100
+#SBATCH --partition=gpu_mig
 #SBATCH --gpus=1
-#SBATCH --time=00:01:00
-#SBATCH --output=slurm_logs/%x_%j.out # wordt job-name (hierboven) + job-id
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=01:00:00
+#SBATCH --output=slurm_logs/%x_%j.out # wordt job-file-name + job-id
 #SBATCH --error=slurm_logs/%x_%j.err
-    
-module purge
-module load 2025
 
-set -euo pipefail
+#SBATCH --job-name=install_env # doesn't have to be the same as file name
 
-echo "Host: $(hostname)"
+set -euo pipefail # make the script exit on any error, and treat unset variables as errors
+
 echo "CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-unset}" # 0 betekent dat er 1 is gevonden
