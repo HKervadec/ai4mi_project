@@ -37,6 +37,7 @@ suffers.
 """
 
 import numpy as np
+from scipy.ndimage import zoom
 
 # Named clinical CT windows as (level, width) in HU. `level` is the window
 # center, `width` the total window span; the clip range is level +/- width/2.
@@ -86,3 +87,88 @@ def apply_hu_window(volume: np.ndarray, level: float, width: float) -> np.ndarra
     assert res.max() <= 255, res.max()
 
     return res.astype(np.uint8)
+
+
+# --------------------------------------------------------------------------- #
+# Spatial preprocessing: voxel-spacing resampling                              #
+# --------------------------------------------------------------------------- #
+#
+# Why resampling
+# --------------
+# CT voxel spacing (mm/pixel) is set by the acquisition protocol -- field of
+# view, reconstruction matrix, slice thickness -- not by anatomy. In SegTHOR the
+# in-plane spacing varies 0.896..1.367 mm (1.53x) and slice thickness 2.0..2.5 mm
+# across patients, so the *same* physical organ lands on a different pixel grid in
+# different scans. That is a non-anatomical confound the network should not have
+# to untangle (true anatomical size variation is preserved -- only the sampling
+# grid is harmonized). Resampling every volume to one fixed spacing removes it;
+# this is the first step of the nnU-Net preprocessing pipeline (Isensee et al.,
+# Nature Methods 2021).
+#
+# Note the interaction with the downstream fixed-size (256x256) output: resizing
+# every slice to a fixed *pixel* count re-normalizes the grid to each patient's
+# field of view, which would cancel the in-plane harmonization. So resampling is
+# paired with center crop/pad (constant mm/pixel) instead of resize -- see
+# ``center_crop_pad`` and ``slice_segthor.slice_patient``.
+
+
+def resample_volume(volume: np.ndarray,
+                    src_spacing: tuple[float, float, float],
+                    dst_spacing: tuple[float, float, float],
+                    order: int) -> np.ndarray:
+    """Resample a 3D volume from ``src_spacing`` to ``dst_spacing`` (mm/voxel).
+
+    The zoom factor per axis is ``src / dst``: a source voxel that is coarser than
+    the target (src > dst) is upsampled (factor > 1), a finer one downsampled.
+
+    Parameters
+    ----------
+    volume : np.ndarray
+        3D array indexed ``[x, y, z]`` (matching ``nib.dataobj`` order here).
+    src_spacing, dst_spacing : (float, float, float)
+        Physical spacing (mm) along each axis, same axis order as ``volume``.
+    order : int
+        Spline interpolation order. Use ``1`` (linear) for CT intensities and
+        ``0`` (nearest) for integer label maps so no fractional labels appear.
+    """
+    assert volume.ndim == 3, volume.shape
+    assert all(s > 0 for s in src_spacing), src_spacing
+    assert all(s > 0 for s in dst_spacing), dst_spacing
+
+    factors = tuple(src / dst for src, dst in zip(src_spacing, dst_spacing))
+    # grid_mode=False keeps zoom's default sampling; matches the modest factors
+    # here and the baseline (non-anti-aliased) resize it is A/B'd against.
+    return zoom(volume, factors, order=order)
+
+
+def center_crop_pad(slice2d: np.ndarray, shape: tuple[int, int],
+                    pad_value: int = 0) -> np.ndarray:
+    """Center-crop or symmetrically pad a 2D slice to exactly ``shape``.
+
+    Used instead of ``resize`` after resampling: crop/pad changes the pixel count
+    without touching mm/pixel, so the spacing set by ``resample_volume`` is
+    preserved (a resize would re-scale it back to the per-patient field of view).
+    Target organs are central mediastinal structures, so center cropping trims
+    only outer body on wide field-of-view scans. ``pad_value=0`` is background/air
+    for both the windowed CT and the label map.
+    """
+    out = np.full(shape, pad_value, dtype=slice2d.dtype)
+    for axis, target in enumerate(shape):
+        src = slice2d.shape[axis]
+        if src > target:  # crop centered
+            start = (src - target) // 2
+            slice2d = np.take(slice2d, range(start, start + target), axis=axis)
+    # slice2d is now <= target on every axis; place it centered into `out`.
+    offsets = [(t - s) // 2 for t, s in zip(shape, slice2d.shape)]
+    out[offsets[0]:offsets[0] + slice2d.shape[0],
+        offsets[1]:offsets[1] + slice2d.shape[1]] = slice2d
+    return out
+
+
+
+# --------------------------------------------------------------------------- #
+# Ideas left to implement
+
+# Multi-window channels (mediastinal + lung). Directly fixes the trade-off you documented: the mediastinal window maps the trachea lumen to 0. Stacking the two windows as input channels is well-established for CT organ seg and is cheap. Requires a 1→2 channel change on the net's first conv.
+# Foreground/body crop + drop empty slices. Attacks the core difficulty (class imbalance — esophagus is tiny, most axial slices have no organ). Pure SliceConfig work.
+# Z-score normalization after clipping (the nnU-Net normalization, vs your current linear→[0,255]). One A/B; windowing already does most of the work, so expect small.
