@@ -1,7 +1,19 @@
 """Data augmentation for the training slices."""
 
+from dataset import augment_pair
+
+
+class Combined:
+    # affine, roll, elastic, brightness, contrast (from branch Testing-data-augmentation);
+    # uses the python/torch RNGs seeded per worker instead of rng
+    def __call__(self, img, gt, rng):
+        return augment_pair(img, gt)
+
+
 # name -> class with __call__(img, gt, rng) -> (img, gt)
-AUGMENTS: dict = {}
+AUGMENTS: dict = {
+    "combined": Combined,
+}
 
 
 class Compose:
