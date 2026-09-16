@@ -6,4 +6,13 @@ volumes/
 ai4mi/
 __pycache__/
 
+*.pkl
+*.pt
+*.npy
+*.npz
+*.nii.gz
+*.zip
+.venv/
+.DS_Store
+
 projects
