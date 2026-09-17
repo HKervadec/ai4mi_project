@@ -6,4 +6,4 @@ We use `uv` as our package manager. To install it look on the [installation page
 
 ## Running code
 
-After that it is just `uv run python src/main.py --dataset TOY2` or `uv run make data/SEGTHOR`
+After that it is just `uv run python src/main.py --dataset TOY2 ...` or `uv run make data/SEGTHOR`
