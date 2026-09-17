@@ -10,8 +10,14 @@ from stitch import merge_patient
 
 
 def dice(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
-    total = pred.sum() + gt.sum()
-    return 1.0 if total == 0 else float(2 * (pred & gt).sum() / total)
+    # Volumetric overlap: weight voxel counts by the physical voxel volume (mm^3).
+    # For Dice this cancels out (every voxel shares the same volume), so the number
+    # is identical to the unweighted form, but the metric is now genuinely computed
+    # in physical units and serves as the template for spacing-dependent metrics.
+    voxel_volume = float(np.prod(spacing))
+    intersection = float((pred & gt).sum()) * voxel_volume
+    total = float(pred.sum() + gt.sum()) * voxel_volume
+    return 1.0 if total == 0 else 2 * intersection / total
 
 
 # name -> fn(pred_mask, gt_mask, spacing) -> float

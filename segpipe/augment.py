@@ -4,10 +4,11 @@ from dataset import augment_pair
 
 
 class Combined:
-    # affine, roll, elastic, brightness, contrast (from branch Testing-data-augmentation);
-    # uses the python/torch RNGs seeded per worker instead of rng
+    # affine, roll, elastic, brightness, contrast (from branch Testing-data-augmentation).
+    # Draws all randomness from the per-worker `rng` seeded in run.py, so augmentation
+    # is reproducible for a given train.seed.
     def __call__(self, img, gt, rng):
-        return augment_pair(img, gt)
+        return augment_pair(img, gt, rng)
 
 
 # name -> class with __call__(img, gt, rng) -> (img, gt)

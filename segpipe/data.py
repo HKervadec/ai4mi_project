@@ -1,7 +1,6 @@
 """Splits, the slice cache and the slice dataset."""
 
 import json
-import pickle
 import shutil
 import argparse
 from pathlib import Path
@@ -52,10 +51,10 @@ def build_cache(cfg) -> Path:
     print(f"> Building cache {dest} from {src}")
 
     patients = sorted(p.name for p in (src / "train").iterdir() if p.is_dir())
-    spacing = {pid: slice_patient(pid, dest_path=tmp, source_path=src, shape=tuple(cfg.data.shape), window=window)
-               for pid in tqdm_(patients)}
-    with open(tmp / "spacing.pkl", "wb") as f:
-        pickle.dump(spacing, f, pickle.HIGHEST_PROTOCOL)
+    for pid in tqdm_(patients):
+        # slice_patient returns the voxel spacing; evaluate_3d re-reads it from each
+        # GT header when scoring, so there's nothing to persist here.
+        slice_patient(pid, dest_path=tmp, source_path=src, shape=tuple(cfg.data.shape), window=window)
     (tmp / "done.json").write_text(json.dumps({"gt": str(cfg.data.gt), "window": window,
                                                 "shape": list(cfg.data.shape), "patients": patients}, indent=2))
     shutil.rmtree(dest, ignore_errors=True)

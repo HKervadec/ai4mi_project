@@ -15,12 +15,17 @@ It contains three things:
 
 ## 0. TL;DR — get training in 4 commands
 
-```bash
+```bash 
+source ai4mi/bin/activate # activate venv
+
 git submodule update --init                 # pull the viewer submodule
 python -m pip install -r requirements.txt   # (in your venv; scipy is new)
 
 make data-experiments                        # build all GT-fix variants + sliced datasets
-python main.py --experiment watershed_window --epochs 25 --gpu
+OR
+make data/experiments/refined_window         # for example if you only want to build one version
+
+python main.py --experiment watershed_window --epochs 25 --gpu # train a certain experiment
 ```
 
 Results land in `data/experiments/watershed_window/results/`. Swap the experiment
