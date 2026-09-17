@@ -98,8 +98,7 @@ def setup(
     args: Args,
 ) -> tuple[nn.Module, Any, LRScheduler, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
-    gpu: bool = args.gpu and torch.cuda.is_available()
-    device = torch.device("cuda") if gpu else torch.device("cpu")
+    device = torch.device("cuda") if args.gpu else torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]["K"]
@@ -187,6 +186,8 @@ def runTraining(args: Args):
     net, optimizer, scheduler, device, train_loader, val_loader, num_classes = setup(
         args
     )
+
+    scaler = torch.amp.GradScaler("cuda", enabled=args.gpu)
 
     wandb.init(
         entity="ai-for-medical-imaging",
@@ -280,8 +281,9 @@ def runTraining(args: Args):
                         )  # One loss value per batch (averaged in the loss)
 
                     if opt is not None:  # Only for training
-                        loss.backward()
-                        opt.step()
+                        scaler.scale(loss).backward()
+                        scaler.step(opt)
+                        scaler.update()
 
                     if m == "val":
                         with warnings.catch_warnings():

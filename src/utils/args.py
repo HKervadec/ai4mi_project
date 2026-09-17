@@ -3,6 +3,7 @@ from typing import Literal
 
 from dataclasses import dataclass
 
+from torch import torch
 import tyro
 
 
@@ -38,4 +39,9 @@ class Args:
 
 
 def get_args() -> Args:
-    return tyro.cli(Args)
+    args = tyro.cli(Args)
+
+    # Make sure a gpu is available if configured to use
+    args.gpu = args.gpu and torch.cuda.is_available()
+
+    return args
