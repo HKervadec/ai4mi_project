@@ -35,7 +35,12 @@ def cache_dir(cfg) -> Path:
     h, w = cfg.data.shape
     window = cfg.data.get("window")
     intensity = "minmax" if window is None else f"window{window[0]:g}_{window[1]:g}"
-    return Path(cfg.data.get("cache_root", "data/cache")) / f"{Path(cfg.data.gt).name}_{intensity}_{h}x{w}"
+    # target_spacing changes the pixels (resample + crop/pad instead of resize), so it
+    # must be part of the cache key -- otherwise a resampled and a non-resampled run
+    # with the same gt/window/shape would share a folder and reuse the wrong slices.
+    spacing = cfg.data.get("target_spacing")
+    spatial = f"{h}x{w}" if spacing is None else f"sp{spacing[0]:g}_{spacing[1]:g}_{spacing[2]:g}_{h}x{w}"
+    return Path(cfg.data.get("cache_root", "data/cache")) / f"{Path(cfg.data.gt).name}_{intensity}_{spatial}"
 
 
 def build_cache(cfg) -> Path:
@@ -46,6 +51,7 @@ def build_cache(cfg) -> Path:
     src = Path(cfg.data.gt)
     assert (src / "train").exists(), f"{src}/train not found. Build the GT first, e.g.: make {cfg.data.gt}"
     window = tuple(cfg.data.window) if cfg.data.get("window") is not None else None
+    target_spacing = tuple(cfg.data.target_spacing) if cfg.data.get("target_spacing") is not None else None
     tmp = dest.with_name(dest.name + "_tmp")
     shutil.rmtree(tmp, ignore_errors=True)
     print(f"> Building cache {dest} from {src}")
@@ -54,8 +60,10 @@ def build_cache(cfg) -> Path:
     for pid in tqdm_(patients):
         # slice_patient returns the voxel spacing; evaluate_3d re-reads it from each
         # GT header when scoring, so there's nothing to persist here.
-        slice_patient(pid, dest_path=tmp, source_path=src, shape=tuple(cfg.data.shape), window=window)
+        slice_patient(pid, dest_path=tmp, source_path=src, shape=tuple(cfg.data.shape),
+                      window=window, target_spacing=target_spacing)
     (tmp / "done.json").write_text(json.dumps({"gt": str(cfg.data.gt), "window": window,
+                                                "target_spacing": target_spacing,
                                                 "shape": list(cfg.data.shape), "patients": patients}, indent=2))
     shutil.rmtree(dest, ignore_errors=True)
     tmp.rename(dest)

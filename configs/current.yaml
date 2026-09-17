@@ -4,6 +4,7 @@
 data:
   gt: data/gt/watershed_refined
   window: [40, 400]     # HU [level, width] used when slicing; null = per-volume min-max
+  target_spacing: null  # [sx, sy, sz] mm to resample every volume + center crop/pad; null = resize each slice (original)
   shape: [256, 256]
   split: holdout        # holdout | cv4
   fold: 0
