@@ -1,5 +1,20 @@
 # `fix-data` branch — handoff notes
 
+> **Update (pipeline_redesign branch).** The experiment framework described below
+> (`experiments.py` + `main.py --experiment`) has since been replaced by a
+> config-driven pipeline in `segpipe/`, driven by `run.py` and YAML configs. See
+> [`PIPELINE_PLAN.md`](PIPELINE_PLAN.md) for the current workflow; use it for all
+> new experiments. This document is still the reference for **why the data needed
+> fixing** (aorta/esophagus GT split, HU windowing) and how those fixes were made —
+> the new pipeline consumes the same corrected GT (`data/gt/watershed_refined`).
+> The old `main.py --experiment` path still runs but is not the way forward.
+>
+> **3D metrics status:** `segpipe/evaluate.py` wires in a 3D-Dice evaluation
+> (`evaluate_3d`, stitch → per-organ 3D Dice), but it is **not yet validated on a
+> full run** — a group member is finalizing it, so treat the 3D numbers as
+> provisional until then. The training / 2D-Dice / best-epoch path is confirmed
+> working end-to-end.
+
 This branch makes the SegTHOR data trainable and sets up an **experiment
 framework** so we can measure, one technique at a time, whether a change actually
 improves organ segmentation. Nothing from the original pipeline was deleted — the
@@ -15,12 +30,17 @@ It contains three things:
 
 ## 0. TL;DR — get training in 4 commands
 
-```bash
+```bash 
+source ai4mi/bin/activate # activate venv
+
 git submodule update --init                 # pull the viewer submodule
 python -m pip install -r requirements.txt   # (in your venv; scipy is new)
 
 make data-experiments                        # build all GT-fix variants + sliced datasets
-python main.py --experiment watershed_window --epochs 25 --gpu
+OR
+make data/experiments/refined_window         # for example if you only want to build one version
+
+python main.py --experiment watershed_window --epochs 25 --gpu # train a certain experiment
 ```
 
 Results land in `data/experiments/watershed_window/results/`. Swap the experiment

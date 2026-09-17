@@ -24,10 +24,15 @@ data/segthor_part1: data/segthor_part1.zip
 	unzip -q $<
 	rm -f $@/.DS_STORE
 
-data/SEGTHOR: data/segthor_part1
+## Legacy single-dataset slice for `main.py --dataset SEGTHOR`. Slices from the
+## corrected GT (data/gt/watershed_refined, built as an order-only prereq), which
+## holds both the CT and the repaired GT. The modular pipeline does NOT use this
+## target -- it slices once via `make data-cache` (see below). For per-technique
+## experiments use run.py with a config (PIPELINE_PLAN.md), not main.py.
+data/SEGTHOR: | data/gt/watershed_refined
 	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
 	rm -rf $@_tmp $@
-	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1 --dest_dir $@_tmp \
+	python $(CFLAGS) slice_segthor.py --source_dir data/gt/watershed_refined --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
 
@@ -76,3 +81,9 @@ data/experiments/refined_window: | data/gt/watershed_refined
 .PHONY: data-experiments
 data-experiments: data/experiments/original data/experiments/watershed_minmax \
                   data/experiments/watershed_window data/experiments/refined_window
+
+## Modular pipeline (see PIPELINE_PLAN.md): all patients sliced once for run.py.
+## run.py builds it automatically when missing; this target only does it ahead of time.
+.PHONY: data-cache
+data-cache: | data/gt/watershed_refined
+	python -m segpipe.data --config configs/current.yaml

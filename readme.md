@@ -29,6 +29,21 @@
 ## Project overview
 The project is based around the SegTHOR challenge data, which was kindly allowed by Caroline Petitjean (challenge organizer) to use for the course. The challenge was originally on the segmentation of different organs: heart, aorta, esophagus and trachea.
 
+> **Group 28 — our pipeline.** This README documents the original starter codebase
+> (the `main.py` / `make data/SEGTHOR` workflow), which still works. For our own
+> experiments we use a config-driven pipeline on top of it:
+>
+> ```bash
+> python run.py --config configs/current.yaml            # one experiment end-to-end
+> python compare.py                                       # collect runs -> RESULTS.md
+> ```
+>
+> Each technique (loss, model, optimizer, augmentation, ...) is a small entry in a
+> `segpipe/` registry plus a short YAML in `configs/experiments/`. Start here:
+> - [`PIPELINE_PLAN.md`](PIPELINE_PLAN.md) — how the pipeline works and how to add an experiment
+> - [`DECISIONS.md`](DECISIONS.md) — current choices and why
+> - [`HANDOFF.md`](HANDOFF.md) — data fixes (aorta/esophagus GT, HU windowing) and history
+
 
 <a id="codebase-features"></a>
 ## Codebase features

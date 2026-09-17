@@ -175,6 +175,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                            root_dir,
                            img_transform=img_transform,
                            gt_transform=partial(gt_transform, K),
+                           augment=False,
                            debug=args.debug)
     val_loader = DataLoader(val_set,
                             batch_size=B,

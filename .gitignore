@@ -1,7 +1,10 @@
 data/*
 !data/*.b3sum
 !data/*.sha256
-results/
+results/**
+!results/**/
+!results/**/summary.json
+!results/**/config.yaml
 volumes/
 ai4mi/
 __pycache__/
