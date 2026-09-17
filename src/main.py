@@ -37,13 +37,14 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 
 from functools import partial
+import autorootcwd  # noqa
 
-from models import ShallowNet
-from utils.args import Args, get_args
-from utils.dataset import SliceDataset
-from models.ShallowNet import shallowCNN
-from models.ENet import ENet
-from utils.utils import (
+from src.models import ShallowNet
+from src.utils.args import Args, get_args
+from src.utils.dataset import SliceDataset
+from src.models.ShallowNet import shallowCNN
+from src.models.ENet import ENet
+from src.utils.utils import (
     Dcm,
     class2one_hot,
     get_root_dir,
@@ -55,7 +56,7 @@ from utils.utils import (
     save_images,
 )
 
-from utils.losses import CrossEntropy
+from src.utils.losses import CrossEntropy
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -128,7 +129,7 @@ def setup(
 
     # Dataset part
     batch_size: int = datasets_params[args.dataset]["B"]
-    data_root_dir = get_root_dir() / "data" / args.dataset
+    data_root_dir = autorootcwd.root / "data" / args.dataset
 
     train_set = SliceDataset(
         "train",
