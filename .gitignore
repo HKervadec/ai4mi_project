@@ -4,6 +4,7 @@ data/*
 results/
 volumes/
 ai4mi/
+personal/
 __pycache__/
 
 projects

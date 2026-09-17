@@ -123,7 +123,7 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
     )
 
     # Dataset part
-    B: int = datasets_params[args.dataset]["B"]
+    batch_size: int = datasets_params[args.dataset]["B"]
     data_root_dir = get_root_dir() / "data" / args.dataset
 
     train_set = SliceDataset(
@@ -135,7 +135,7 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
     )
     train_loader = DataLoader(
         train_set,
-        batch_size=B,
+        batch_size=batch_size,
         num_workers=args.num_workers,
         pin_memory=True,
         persistent_workers=True,
@@ -152,7 +152,7 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
     )
     val_loader = DataLoader(
         val_set,
-        batch_size=B,
+        batch_size=batch_size,
         num_workers=args.num_workers,
         pin_memory=True,
         persistent_workers=True,
@@ -164,10 +164,10 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
     return (net, optimizer, device, train_loader, val_loader, K)
 
 
-def get_loss_func(args: Args, K: int):
+def get_loss_func(args: Args, num_classes: int):
     if args.mode == "full":
         return CrossEntropy(
-            idk=list(range(K))
+            idk=list(range(num_classes))
         )  # Supervise both background and foreground
     elif args.mode in ["partial"] and args.dataset == "SEGTHOR":
         return CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
@@ -177,7 +177,7 @@ def get_loss_func(args: Args, K: int):
 
 def runTraining(args: Args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    net, optimizer, device, train_loader, val_loader, num_classes = setup(args)
 
     wandb.init(
         entity="ai-for-medical-imaging",
@@ -191,13 +191,17 @@ def runTraining(args: Args):
     if args.wandb_watch:
         wandb.watch(net, log="all", log_freq=100)
 
-    loss_fn = get_loss_func(args, K)
+    loss_fn = get_loss_func(args, num_classes)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
-    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))  # type: ignore
+    log_dice_tra: Tensor = torch.zeros(
+        (args.epochs, len(train_loader.dataset), num_classes)  # type: ignore
+    )
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
-    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))  # type: ignore
+    log_dice_val: Tensor = torch.zeros(
+        (args.epochs, len(val_loader.dataset), num_classes)  # type: ignore
+    )
 
     best_dice: float = 0
 
@@ -241,7 +245,7 @@ def runTraining(args: Args):
 
                     # Sanity tests to see we loaded and encoded the data correctly
                     assert 0 <= img.min() and img.max() <= 1
-                    B, _, W, H = img.shape
+                    batch_size, _, W, H = img.shape
 
                     with torch.autocast(device_type="cuda" if args.gpu else "cpu"):
                         pred_logits = net(img)
@@ -251,7 +255,7 @@ def runTraining(args: Args):
 
                         # Metrics computation, not used for training
                         pred_seg = probs2one_hot(pred_probs)
-                        log_dice[e, j : j + B, :] = dice_coef(
+                        log_dice[e, j : j + batch_size, :] = dice_coef(
                             pred_seg, gt
                         )  # One DSC value per sample and per class
 
@@ -274,14 +278,16 @@ def runTraining(args: Args):
                         with warnings.catch_warnings():
                             warnings.filterwarnings("ignore", category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
-                            mult: int = 63 if K == 5 else int(255 / (K - 1))
+                            mult: int = (
+                                63 if num_classes == 5 else int(255 / (num_classes - 1))
+                            )
                             save_images(
                                 predicted_class * mult,
                                 data["stems"],
                                 args.dest / f"iter{e:03d}" / m,
                             )
 
-                    j += B  # Keep in mind that _in theory_, each batch might have a different size
+                    j += batch_size  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
                     epoch_acc = total_correct / total_pixels
                     postfix_dict: dict[str, str] = {
@@ -289,10 +295,10 @@ def runTraining(args: Args):
                         "Loss": f"{log_loss[e, : i + 1].mean():5.2e}",
                         "Acc": f"{epoch_acc:05.3f}",
                     }
-                    if K > 2:
+                    if num_classes > 2:
                         postfix_dict |= {
                             f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
-                            for k in range(1, K)
+                            for k in range(1, num_classes)
                         }
                     tq_iter.set_postfix(postfix_dict)
 
@@ -310,8 +316,8 @@ def runTraining(args: Args):
             "val/dice": log_dice_val[e, :, 1:].mean().item(),
             "val/acc": acc_val,
         }
-        if K > 2:
-            for k in range(1, K):
+        if num_classes > 2:
+            for k in range(1, num_classes):
                 metrics[f"train/dice_{k}"] = log_dice_tra[e, :, k].mean().item()
                 metrics[f"val/dice_{k}"] = log_dice_val[e, :, k].mean().item()
         wandb.log(metrics)
