@@ -130,7 +130,7 @@ def setup(
 
     # Dataset part
     batch_size: int = datasets_params[args.dataset]["B"]
-    data_root_dir = get_root_dir() / "data" / args.dataset
+    data_root_dir = autorootcwd.root / "data" / args.dataset
 
     train_set = SliceDataset(
         "train",
