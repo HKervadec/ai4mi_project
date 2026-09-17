@@ -37,13 +37,16 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 
 from functools import partial
+import rootutils
 
-from models import ShallowNet
-from utils.args import Args, get_args
-from utils.dataset import SliceDataset
-from models.ShallowNet import shallowCNN
-from models.ENet import ENet
-from utils.utils import (
+rootutils.setup_root(__file__, pythonpath=True, cwd=True)
+
+from src.models import ShallowNet
+from src.utils.args import Args, get_args
+from src.utils.dataset import SliceDataset
+from src.models.ShallowNet import shallowCNN
+from src.models.ENet import ENet
+from src.utils.utils import (
     Dcm,
     class2one_hot,
     get_root_dir,
@@ -55,7 +58,7 @@ from utils.utils import (
     save_images,
 )
 
-from utils.losses import CrossEntropy
+from src.utils.losses import CrossEntropy
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -183,8 +186,9 @@ def get_loss_func(args: Args, num_classes: int):
 def runTraining(args: Args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
 
-    net, optimizer, scheduler, device, train_loader, val_loader, num_classes = setup(args)
-
+    net, optimizer, scheduler, device, train_loader, val_loader, num_classes = setup(
+        args
+    )
 
     wandb.init(
         entity="ai-for-medical-imaging",

@@ -22,6 +22,11 @@ dev = ["ruff>=0.16.7"]
 [tool.ruff]
 line-length = 88
 
+exclude = ['src/viewer']
+
+[tool.ruff.lint]
+ignore = ["E402"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
