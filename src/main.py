@@ -29,6 +29,7 @@ from pprint import pprint
 from shutil import copytree, rmtree
 
 import torch
+from torch.optim.lr_scheduler import LRScheduler
 import wandb
 import numpy as np
 import torch.nn.functional as F
@@ -92,7 +93,9 @@ def gt_transform(K, img):
     return img[0]
 
 
-def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+def setup(
+    args: Args,
+) -> tuple[nn.Module, Any, LRScheduler, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
@@ -118,9 +121,11 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
     net.to(device)
 
     lr = args.lr
-    optimizer = torch.optim.Adam(
+    optimizer = torch.optim.AdamW(
         net.parameters(), lr=lr, weight_decay=args.weight_decay, betas=args.betas
     )
+
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # Dataset part
     batch_size: int = datasets_params[args.dataset]["B"]
@@ -161,7 +166,7 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
 
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    return (net, optimizer, scheduler, device, train_loader, val_loader, K)
 
 
 def get_loss_func(args: Args, num_classes: int):
@@ -177,7 +182,9 @@ def get_loss_func(args: Args, num_classes: int):
 
 def runTraining(args: Args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, num_classes = setup(args)
+
+    net, optimizer, scheduler, device, train_loader, val_loader, num_classes = setup(args)
+
 
     wandb.init(
         entity="ai-for-medical-imaging",
@@ -321,6 +328,9 @@ def runTraining(args: Args):
                 metrics[f"train/dice_{k}"] = log_dice_tra[e, :, k].mean().item()
                 metrics[f"val/dice_{k}"] = log_dice_val[e, :, k].mean().item()
         wandb.log(metrics)
+
+        # Scheduler at the end of each epoch
+        scheduler.step()
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
