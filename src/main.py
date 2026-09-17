@@ -182,8 +182,11 @@ def get_loss_func(args: Args, num_classes: int):
 def runTraining(args: Args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
 
-    net, optimizer, scheduler, device, train_loader, val_loader, num_classes = setup(args)
+    net, optimizer, scheduler, device, train_loader, val_loader, num_classes = setup(
+        args
+    )
 
+    scaler = torch.amp.GradScaler("cuda", enabled=args.gpu)
 
     wandb.init(
         entity="ai-for-medical-imaging",
@@ -277,8 +280,9 @@ def runTraining(args: Args):
                         )  # One loss value per batch (averaged in the loss)
 
                     if opt is not None:  # Only for training
-                        loss.backward()
-                        opt.step()
+                        scaler.scale(loss).backward()
+                        scaler.step(opt)
+                        scaler.update()
 
                     if m == "val":
                         with warnings.catch_warnings():
