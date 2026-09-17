@@ -33,6 +33,7 @@ from skimage.measure import label, regionprops
 from skimage.segmentation import watershed
 
 from fix_patient15 import make_patient15_split
+from fix_patient19 import make_patient19_split
 
 
 @dataclass
@@ -205,11 +206,14 @@ def correct_patient(
     original = np.asanyarray(gt_image.dataobj).astype(np.uint8)
     merged_mask = original == split_label
 
-    if patient == "Patient_15":
-        # Patient 15's annotations remain joined under progressive 3-D erosion.
-        # Track its visible axial esophagus components instead, then use them
-        # as dense watershed markers only where the two organs touch.
-        split, candidate_count = make_patient15_split(merged_mask)
+    if patient in {"Patient_15", "Patient_19"}:
+        # These patients need axial tracking for different anatomical failure
+        # modes. Patient 15 remains joined under progressive erosion, while
+        # Patient 19's branching aorta is mistaken for a second organ.
+        if patient == "Patient_15":
+            split, candidate_count = make_patient15_split(merged_mask)
+        else:
+            split, candidate_count = make_patient19_split(merged_mask)
         erosion_iterations = 0
         esophagus_component = 1
         aorta_component = 2
