@@ -39,6 +39,12 @@ class SliceConfig:
     # `make data/SEGTHOR` reproduces the original master behavior. Experiments opt
     # into windowing by setting this explicitly (see watershed_window etc.).
     window: tuple[float, float] | None = None
+    # Default None = slice raw axial planes and resize each to `shape` (the
+    # original behavior, in-plane grid re-normalized per patient, z-spacing
+    # ignored). Set to (sx, sy, sz) mm to resample every volume to a common
+    # spacing before slicing, paired with center crop/pad to `shape` so the
+    # harmonized mm/pixel is preserved. See preprocessing.resample_volume.
+    target_spacing: tuple[float, float, float] | None = None
     shape: tuple[int, int] = (256, 256)
     retains: int = 5                                     # patients held out for validation
 
@@ -101,6 +107,7 @@ def get(name: str) -> Experiment:
 #   watershed_window    -> refined_window   : the fix method (basic vs refined)#
 # --------------------------------------------------------------------------- #
 
+# 1 
 # The literal original pipeline, kept so the pre-change number stays
 # reproducible: uncorrected GT + per-volume min-max.
 register(Experiment(
@@ -110,6 +117,8 @@ register(Experiment(
     train=TrainConfig(mode="full", loss="ce", augment=False),
 ))
 
+""" Split aorta and esophagus in the GT (fix_segthor_gt.py) and slice the corrected volumes. """
+# 2
 # Watershed GT fix (fix_gt.py) + min-max. vs original -> isolates the GT fix;
 # this is the reference the preprocessing experiments are compared against.
 register(Experiment(
@@ -118,7 +127,11 @@ register(Experiment(
     slice=SliceConfig(source_dir="data/gt/watershed", window=None),
     train=TrainConfig(mode="full", loss="ce", augment=False),
 ))
+# zelfde met refined doen?????
 
+
+""" Preprocessing experiments: HU windowing , per data """
+# 3
 # Watershed GT fix + HU mediastinal window. vs watershed_minmax -> isolates
 # the windowing effect.
 register(Experiment(
@@ -128,11 +141,39 @@ register(Experiment(
     train=TrainConfig(mode="full", loss="ce", augment=False),
 ))
 
+# 4
 # Refined GT fix (fix_segthor_gt.py) + HU window. vs watershed_window ->
 # isolates the fix method (basic vs refined aorta/esophagus split).
 register(Experiment(
     name="refined_window",
     description="Refined GT fix (fix_segthor_gt.py) + HU mediastinal windowing.",
     slice=SliceConfig(source_dir="data/gt/watershed_refined", window=MEDIASTINAL),
+    train=TrainConfig(mode="full", loss="ce", augment=False),
+))
+
+""" Preprocessing experiments: HU windowing + voxel-spacing resampling. Per data """
+# 5 
+# Watershed GT fix + HU window + voxel-spacing resampling. vs watershed_window
+# -> isolates the resampling (spatial harmonization). The target in-plane spacing
+# 1.95 mm is 2x the cohort median native spacing (0.977 mm), i.e. the *effective*
+# in-plane spacing the baseline already produces when it resizes 512 -> 256; z is
+# the cohort median (2.5 mm). Chosen so the A/B isolates cross-patient spatial
+# *consistency* rather than a change in overall resolution.
+register(Experiment(
+    name="watershed_window_resampled",
+    description="Watershed GT fix + HU windowing + resampling to 1.95/1.95/2.5 mm (crop/pad).",
+    slice=SliceConfig(source_dir="data/gt/watershed", window=MEDIASTINAL,
+                      target_spacing=(1.95, 1.95, 2.5)),
+    train=TrainConfig(mode="full", loss="ce", augment=False),
+))
+
+# 6 (same as 5 but with refined data)
+# Refined GT fix + HU window + voxel-spacing resampling. vs refined_window
+# Similar to 4, isolates the resampling (spatial harmonization) for the refined GT fix.
+register(Experiment(
+    name="refined_window_resampled",
+    description="Refined GT fix + HU windowing + resampling to 1.95/1.95/2.5 mm (crop/pad).",
+    slice=SliceConfig(source_dir="data/gt/watershed_refined", window=MEDIASTINAL,
+                      target_spacing=(1.95, 1.95, 2.5)),
     train=TrainConfig(mode="full", loss="ce", augment=False),
 ))
