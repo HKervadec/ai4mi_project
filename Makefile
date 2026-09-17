@@ -24,10 +24,15 @@ data/segthor_part1: data/segthor_part1.zip
 	unzip -q $<
 	rm -f $@/.DS_STORE
 
-data/SEGTHOR: data/segthor_fixed
+## Legacy single-dataset slice for `main.py --dataset SEGTHOR`. Slices from the
+## corrected GT (data/gt/watershed_refined, built as an order-only prereq), which
+## holds both the CT and the repaired GT. The modular pipeline does NOT use this
+## target -- it slices once via `make data-cache` (see below). For per-technique
+## experiments use run.py with a config (PIPELINE_PLAN.md), not main.py.
+data/SEGTHOR: | data/gt/watershed_refined
 	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
 	rm -rf $@_tmp $@
-	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_fixed --dest_dir $@_tmp \
+	python $(CFLAGS) slice_segthor.py --source_dir data/gt/watershed_refined --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
 
