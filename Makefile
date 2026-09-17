@@ -30,3 +30,25 @@ data/SEGTHOR:
 	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1 --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
+
+data/SEGTHOR_CLEAN:
+	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1_cleaned --dest_dir $@_tmp \
+		--shape 256 256 --retain 5
+	mv $@_tmp $@
+
+PROC ?= -1
+
+data/totalseg_part1/.done:
+	$(info $(green)python prepare_totalseg.py$(reset))
+	python prepare_totalseg.py --source_dir data/Totalsegmentator_dataset_small_v201 \
+		--dest_dir $(@D) -p $(PROC)
+	touch $@
+
+data/TOTALSEG: data/totalseg_part1/.done
+	$(info $(green)python -O slice_segthor.py$(reset))
+	rm -rf $@_tmp $@
+	python -O slice_segthor.py --source_dir $(<D) --dest_dir $@_tmp \
+		--shape 256 256 --retain 10
+	mv $@_tmp $@
