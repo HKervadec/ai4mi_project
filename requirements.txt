@@ -8,5 +8,5 @@ scikit-image
 matplotlib
 wandb
 tyro
-rootutils
+autorootcwd
 

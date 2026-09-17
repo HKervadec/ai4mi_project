@@ -37,9 +37,7 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 
 from functools import partial
-import rootutils
-
-rootutils.setup_root(__file__, pythonpath=True, cwd=True)
+import autorootcwd  # noqa
 
 from src.models import ShallowNet
 from src.utils.args import Args, get_args
