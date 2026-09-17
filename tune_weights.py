@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Per-class decision weights.
+Per class decision weights.
 
 idea explained:
 At the end, the network gives each pixel a score for every class, and we pick
@@ -48,7 +48,7 @@ def dice_per_class(probs, gts, patients, weights, K):
             pk, tk = (pred[sel] == k), (gts[sel] == k)
             overlap = (pk & tk).sum().item()
             total = pk.sum().item() + tk.sum().item()
-            # organ not in this scan at all -> call it perfect and move on
+            # organ not in this scan at all -> call it good and move on
             row.append(1.0 if total == 0 else 2 * overlap / total)
         scores.append(row)
 
@@ -56,7 +56,7 @@ def dice_per_class(probs, gts, patients, weights, K):
 
 
 def search(probs, gts, patients, K):
-    """Try a few weights for one class at a time, keep whatever helps."""
+    """Try a few weights for one class at a time, keep the one that helps."""
     weights = torch.ones(K)
     best = dice_per_class(probs, gts, patients, weights, K)[1:].mean()
     print(f"starting point (all weights 1): {best:.4f}")
@@ -127,7 +127,7 @@ def main():
         labels = ['background', 'esophagus', 'heart', 'trachea', 'aorta'] \
             if args.K == 5 else [f"class {k}" for k in range(args.K)]
 
-        print("\n--- held-out patients (report these numbers) ---")
+        print("\n----------- held out patients:")
         for k in range(args.K):
             print(f"{labels[k]:<12}{before[k]:7.4f} -> {after[k]:7.4f}"
                   f"  ({after[k] - before[k]:+.4f})")
