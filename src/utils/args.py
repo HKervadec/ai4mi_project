@@ -25,6 +25,10 @@ class Args:
     # Keep only a fraction (10 samples) of the datasets, to test the logics around epochs and logging easily.
     debug: bool = False
 
+    # Augmentations from utils/augmentations.py to add an augmented copy of every
+    # training slice, e.g. --augment affine elastic gamma brightness_contrast noise
+    augment: tuple[str, ...] = ()
+
     wandb_watch: bool = False
 
     seed: int = 42

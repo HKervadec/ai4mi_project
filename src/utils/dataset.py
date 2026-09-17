@@ -26,6 +26,10 @@ from typing import Callable, Union
 from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import tv_tensors
+from torchvision.transforms.v2.functional import pil_to_tensor, to_pil_image
+
+from utils.augmentations import augment
 
 
 def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
@@ -57,14 +61,16 @@ class SliceDataset(Dataset):
         root_dir,
         img_transform,
         gt_transform,
-        augment=False,
+        augment: tuple[str, ...] = (),
         equalize=False,
         debug=False,
     ):
         self.root_dir: str = root_dir
         self.img_transform: Callable = img_transform
         self.gt_transform: Callable = gt_transform
-        self.augmentation: bool = augment
+        # Names from utils/augmentations.py, e.g. ("affine", "elastic"). If any are
+        # given, every slice is also served a second time, augmented.
+        self.augment: tuple[str, ...] = augment
         self.equalize: bool = equalize
 
         self.test_mode: bool = subset == "test"
@@ -76,17 +82,29 @@ class SliceDataset(Dataset):
         print(f">> Created {subset} dataset with {len(self)} images...")
 
     def __len__(self):
-        return len(self.files)
+        return len(self.files) * (2 if self.augment else 1)
 
     def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
-        img_path, gt_path = self.files[index]
+        img_path, gt_path = self.files[index % len(self.files)]
+        img_pil = Image.open(img_path)
+        gt_pil = None if self.test_mode else Image.open(gt_path)
 
-        img: Tensor = self.img_transform(Image.open(img_path))
+        # Indices past the original slices are their augmented copies
+        if index >= len(self.files):
+            aug_img, aug_gt = augment(
+                tv_tensors.Image(pil_to_tensor(img_pil) / 255),
+                tv_tensors.Mask(pil_to_tensor(gt_pil)),
+                img_path.stem,
+                self.augment,
+            )
+            img_pil, gt_pil = to_pil_image(aug_img), to_pil_image(aug_gt)
+
+        img: Tensor = self.img_transform(img_pil)
 
         data_dict = {"images": img, "stems": img_path.stem}
 
         if not self.test_mode:
-            gt: Tensor = self.gt_transform(Image.open(gt_path))
+            gt: Tensor = self.gt_transform(gt_pil)
 
             _, W, H = img.shape
             K, _, _ = gt.shape

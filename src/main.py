@@ -131,6 +131,7 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
         data_root_dir,
         img_transform=img_transform,
         gt_transform=partial(gt_transform, K),
+        augment=args.augment,
         debug=args.debug,
     )
     train_loader = DataLoader(
