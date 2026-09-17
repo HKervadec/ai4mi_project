@@ -1,0 +1,74 @@
+Job ID: 26831426
+Node: gcn2.local.snellius.surf.nl
+Started: Thu Sep 17 09:26:22 CEST 2026
+CUDA_VISIBLE_DEVICES=0
+Thu Sep 17 09:26:22 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 595.91.07              Driver Version: 595.91.07      CUDA Version: 13.2     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-40GB          On  |   00000000:31:00.0 Off |                   On |
+| N/A   30C    P0             69W /  400W |     417MiB /  40960MiB |     N/A      Default |
+|                                         |                        |              Enabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA A100-SXM4-40GB          On  |   00000000:32:00.0 Off |                   On |
+| N/A   31C    P0             69W /  400W |     417MiB /  40960MiB |     N/A      Default |
+|                                         |                        |              Enabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA A100-SXM4-40GB          On  |   00000000:CA:00.0 Off |                   On |
+| N/A   30C    P0             66W /  400W |     417MiB /  40960MiB |     N/A      Default |
+|                                         |                        |              Enabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA A100-SXM4-40GB          On  |   00000000:E3:00.0 Off |                   On |
+| N/A   30C    P0             66W /  400W |     417MiB /  40960MiB |     N/A      Default |
+|                                         |                        |              Enabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| MIG devices:                                                                            |
++------------------+----------------------------------+-----------+-----------------------+
+| GPU  GI  CI  MIG |              Shared Memory-Usage |        Vol|        Shared         |
+|      ID  ID  Dev |                Shared BAR1-Usage | SM     Unc| CE ENC  DEC  OFA  JPG |
+|                  |                                  |        ECC|                       |
+|==================+==================================+===========+=======================|
+|  0    1   0   0  |              86MiB / 20224MiB    | 42      0 |  3   0    2    0    0 |
+|                  |               0MiB / 12198MiB    |           |                       |
++------------------+----------------------------------+-----------+-----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    1    2    0          1857476      C   ...jmans/venvs/thesis/bin/python        240MiB |
+|    2    2    0          1857477      C   ...jmans/venvs/thesis/bin/python        240MiB |
+|    3    2    0          1857500      C   ...jmans/venvs/thesis/bin/python        240MiB |
++-----------------------------------------------------------------------------------------+
+PyTorch: 2.14.0+cu130
+CUDA build: 13.0
+CUDA available: True
+GPU: NVIDIA A100-SXM4-40GB MIG 3g.20gb
+Namespace(epochs=25, dataset='SEGTHOR_CLEAN', mode='full', dest=PosixPath('/scratch-shared/scur0136/ai4mi_project/results/segthor_clean/baseline_full'), gpu=True, debug=False)
+>>> Setting up to train on SEGTHOR_CLEAN with full
+>> Picked cuda to run experiments
+> Initialized ENet (in_dim=1->out_dim=5) with {'kernels': 8, 'factor': 2}
+> root=PosixPath('data/SEGTHOR_CLEAN')
+>> Created train dataset with 2817 images...
+> root=PosixPath('data/SEGTHOR_CLEAN')
+>> Created val dataset with 915 images...
+Initialized CrossEntropy with {'idk': [0, 1, 2, 3, 4]}
+>>> Improved dice at epoch 0: 0.000->0.528 DSC
+>>> Improved dice at epoch 2: 0.528->0.620 DSC
+>>> Improved dice at epoch 10: 0.620->0.628 DSC
+>>> Improved dice at epoch 14: 0.628->0.629 DSC
+>>> Improved dice at epoch 15: 0.629->0.651 DSC
+>>> Improved dice at epoch 16: 0.651->0.653 DSC
+>>> Improved dice at epoch 17: 0.653->0.657 DSC
+>>> Improved dice at epoch 19: 0.657->0.665 DSC
+>>> Improved dice at epoch 22: 0.665->0.670 DSC
+Finished: Thu Sep 17 10:49:41 CEST 2026
+Final results: /home/scur0136/projects/ai4mi_project/results/segthor_clean/baseline_full
+Baseline training completed successfully.

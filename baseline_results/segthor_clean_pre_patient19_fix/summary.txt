@@ -1,0 +1,9 @@
+SegTHOR baseline before Patient 19 correction
+Patient 19 was in the validation split with an incorrect label.
+Best epoch: 22
+Mean foreground validation Dice: 0.669532
+Validation loss: 0.023921
+Esophagus Dice: 0.492410
+Heart Dice: 0.882518
+Trachea Dice: 0.665415
+Aorta Dice: 0.637786
