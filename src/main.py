@@ -97,8 +97,7 @@ def setup(
     args: Args,
 ) -> tuple[nn.Module, Any, LRScheduler, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
-    gpu: bool = args.gpu and torch.cuda.is_available()
-    device = torch.device("cuda") if gpu else torch.device("cpu")
+    device = torch.device("cuda") if args.gpu else torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
     K: int = datasets_params[args.dataset]["K"]
