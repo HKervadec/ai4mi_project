@@ -29,6 +29,7 @@ from pprint import pprint
 from shutil import copytree, rmtree
 
 import torch
+from torch.optim.lr_scheduler import LRScheduler
 import wandb
 import numpy as np
 import torch.nn.functional as F
@@ -92,7 +93,9 @@ def gt_transform(K, img):
     return img[0]
 
 
-def setup(args: Args) -> tuple[nn.Module, Any, Any, Any, DataLoader, DataLoader, int]:
+def setup(
+    args: Args,
+) -> tuple[nn.Module, Any, LRScheduler, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
@@ -122,10 +125,7 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, Any, DataLoader, DataLoader,
         net.parameters(), lr=lr, weight_decay=args.weight_decay, betas=args.betas
     )
 
-    #Scheduler
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=args.epochs
-    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # Dataset part
     B: int = datasets_params[args.dataset]["B"]
@@ -273,7 +273,7 @@ def runTraining(args: Args):
 
                     if opt is not None:  # Only for training
                         loss.backward()
-                        optimizer.step()
+                        opt.step()
 
                     if m == "val":
                         with warnings.catch_warnings():

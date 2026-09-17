@@ -4,10 +4,14 @@ data/*
 results/
 volumes/
 ai4mi/
+personal/
 __pycache__/
 
-projects
+projects/
 
 wandb/
 .ruff_cache
+
+.vscode/
+
 
