@@ -10,7 +10,7 @@ Usage:
 
 Writes GT_4label_v2.nii.gz into each patient folder.
 
-if you want to call this in another python script 
+if you want to call this in another python script
 
 from spliting_labels import process_patient
 
@@ -33,7 +33,7 @@ from scipy import ndimage as ndi
 from skimage.segmentation import watershed
 
 MERGED_LABEL = 1
-TRACHEA_LABEL = 3  
+TRACHEA_LABEL = 3
 MAX_EROSION = 8
 
 # helper
@@ -45,8 +45,9 @@ def ap_axis_and_sign(affine: np.ndarray) -> tuple[int, int]:
     raise ValueError(f"expected an anterior/posterior in-plane axis, got orientation {codes}")
 
 # changed to erosion in case of connected components, then watershed to split them
-def split_fused_slice(m: np.ndarray, prev_centroid: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+def split_fused_slice(m: np.ndarray, prev_centroid: np.ndarray | None = None, size_cap: float | None = None, aorta_hint: float | None = None) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
 
+    best, best_score = None, None
     for k in range(1, MAX_EROSION + 1):
         eroded = ndi.binary_erosion(m, iterations=k)
         lbl, n = ndi.label(eroded)
@@ -62,19 +63,26 @@ def split_fused_slice(m: np.ndarray, prev_centroid: np.ndarray | None = None) ->
         markers[lbl == aorta_c] = 1
         markers[(lbl != aorta_c) & eroded] = 2
         labels = watershed(np.zeros(m.shape), markers=markers, mask=m)
-        return labels == 1, labels == 2
-    return None, None
+        a, e = labels == 1, labels == 2
+        if size_cap is not None and a.sum() > size_cap:
+            continue
+        if aorta_hint is None:
+            return a, e
+        score = abs(int(a.sum()) - aorta_hint)
+        if best_score is None or score < best_score:
+            best, best_score = (a, e), score
+    return best if best is not None else (None, None)
 
 # post hoc 3D clean up
 def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    
+
     lbl, n = ndi.label(esophagus, structure=np.ones((3, 3, 3)))
     if n <= 1:
         return aorta, esophagus
 
     aorta_zs = np.where(aorta.any(axis=(0, 1)))[0]
     aorta_median_area = np.median([aorta[:, :, z].sum() for z in aorta_zs]) if len(aorta_zs) else 0
-    area_cap = max(aorta_median_area * 2, 50)  
+    area_cap = max(aorta_median_area * 2, 50)
 
     sizes = ndi.sum(esophagus, lbl, range(1, n + 1))
     main_c = int(np.argmax(sizes)) + 1
@@ -93,17 +101,20 @@ def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) 
     return aorta, esophagus
 
 # spliting the merged label into aorta and esophagus
-def split_aorta_from_esophagus(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def split_aorta_from_esophagus(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[int]]:
     aorta = np.zeros_like(merged)
     esophagus = np.zeros_like(merged)
     prev_centroid = None
-    running_areas: list[int] = []
+    trusted_areas: list[int] = []
+    flagged_zs: list[int] = []
+    pending: list[tuple[int, np.ndarray]] = []
 
     for z in range(merged.shape[2]):
         m = merged[:, :, z]
         if not m.any():
             continue
         lbl, n = ndi.label(m)
+        confident = False
 
         if n >= 2:
             comps = list(range(1, n + 1))
@@ -111,42 +122,106 @@ def split_aorta_from_esophagus(merged: np.ndarray, ct_affine: np.ndarray) -> tup
             areas = [(lbl == c).sum() for c in comps]
 
             if prev_centroid is None:
-                aorta_i = int(np.argmin(areas))
+                if pending:
+                    last_c = np.array(ndi.center_of_mass(pending[-1][1]))
+                    aorta_i = min(range(n), key=lambda i: np.linalg.norm(centroids[i] - last_c))
+                else:
+                    aorta_i = int(np.argmin(areas))
                 a_mask = lbl == comps[aorta_i]
                 e_mask = (lbl != comps[aorta_i]) & m
+                confident = True
             else:
-                cap = max(np.median(running_areas[-5:]) * 2, 500)
+                cap = max(np.median(trusted_areas[-15:]) * 2, 500)
                 candidates = [i for i in range(n) if areas[i] <= cap]
                 if candidates:
                     aorta_i = min(candidates, key=lambda i: np.linalg.norm(centroids[i] - prev_centroid))
                     a_mask = lbl == comps[aorta_i]
                     e_mask = (lbl != comps[aorta_i]) & m
+                    confident = True
                 else:
                     nearest_i = min(range(n), key=lambda i: np.linalg.norm(centroids[i] - prev_centroid))
                     nearest_comp = lbl == comps[nearest_i]
                     rest = m & ~nearest_comp
-                    a_local, e_local = split_fused_slice(nearest_comp, prev_centroid)
+                    a_local, e_local = split_fused_slice(nearest_comp, prev_centroid, cap, np.median(trusted_areas[-15:]))
                     if a_local is None:
                         a_mask = np.zeros_like(m)
                         e_mask = m.copy()
                     else:
                         a_mask = a_local
                         e_mask = e_local | rest
+                        confident = True
         else:
-            a_mask, e_mask = split_fused_slice(m, prev_centroid)
+            size_cap = max(np.median(trusted_areas[-15:]) * 2, 500) if trusted_areas else None
+            aorta_hint = np.median(trusted_areas[-15:]) if trusted_areas else None
+            anchor = np.array(ndi.center_of_mass(pending[-1][1])) if pending and prev_centroid is None else prev_centroid
+            a_mask, e_mask = split_fused_slice(m, anchor, size_cap, aorta_hint)
             if a_mask is None:
+                if prev_centroid is None:
+                    pending.append((z, m))
+                    continue
                 e_mask = m
                 a_mask = np.zeros_like(m)
+            else:
+                confident = True
+
+        if pending:
+            last_c = np.array(ndi.center_of_mass(pending[-1][1]))
+            if a_mask.any() and (not e_mask.any() or np.linalg.norm(last_c - np.array(ndi.center_of_mass(a_mask))) < np.linalg.norm(last_c - np.array(ndi.center_of_mass(e_mask)))):
+                for pz, pm in pending:
+                    aorta[:, :, pz] = pm
+                    trusted_areas.append(int(pm.sum()))
+            else:
+                for pz, pm in pending:
+                    esophagus[:, :, pz] = pm
+            pending = []
 
         aorta[:, :, z] = a_mask
         esophagus[:, :, z] = e_mask
+        if not confident:
+            flagged_zs.append(z)
         if a_mask.any():
             prev_centroid = np.array(ndi.center_of_mass(a_mask))
-            running_areas.append(int(a_mask.sum()))
+            if confident:
+                trusted_areas.append(int(a_mask.sum()))
+
+    if pending:
+        for pz, pm in pending:
+            esophagus[:, :, pz] = pm
+            flagged_zs.append(pz)
 
     aorta, esophagus = reclaim_stray_esophagus_fragments(aorta, esophagus)
-    return esophagus, aorta
+    return esophagus, aorta, flagged_zs
 
+
+def disconnected_gap_zs(mask: np.ndarray, spacing: np.ndarray, min_gap_mm: float = 2.0) -> list[int]:
+    lbl, n = ndi.label(mask, structure=np.ones((3, 3, 3)))
+    if n <= 1:
+        return []
+    comps = [lbl == c for c in range(1, n + 1)]
+    edts = [ndi.distance_transform_edt(~comps[i], sampling=spacing) for i in range(n)]
+    dists = np.full((n, n), np.inf)
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                dists[i, j] = edts[j][comps[i]].min()
+    in_tree = [0]
+    remaining = set(range(1, n))
+    edges = []
+    while remaining:
+        i, j, d = min(((i, j, dists[i, j]) for i in in_tree for j in remaining), key=lambda x: x[2])
+        edges.append((i, j, d))
+        in_tree.append(j)
+        remaining.remove(j)
+
+    gap_zs = set()
+    for i, j, d in edges:
+        if d < min_gap_mm:
+            continue
+        zi = np.where(comps[i].any(axis=(0, 1)))[0]
+        zj = np.where(comps[j].any(axis=(0, 1)))[0]
+        lo, hi = sorted((zi.max(), zj.min())) if zi.max() < zj.min() else sorted((zj.max(), zi.min()))
+        gap_zs.update(range(lo, hi + 1))
+    return sorted(gap_zs)
 
 def report(name: str, mask: np.ndarray) -> None:
     if not mask.any():
@@ -156,13 +231,13 @@ def report(name: str, mask: np.ndarray) -> None:
     print(f"  {name:<10} {len(zs):>4} slices   {int(mask.sum()):>7} px")
 
 def process_patient(patient_dir: Path, patient_name: str, verbose: bool = True) -> dict:
-   
+
     gt_img = nib.load(patient_dir / "GT.nii.gz")
     ct_img = nib.load(patient_dir / f"{patient_name}.nii.gz")
     lab = np.asanyarray(gt_img.dataobj).astype(np.uint8)
 
     merged = lab == MERGED_LABEL
-    trachea = lab == TRACHEA_LABEL  
+    trachea = lab == TRACHEA_LABEL
 
     if verbose:
         print(f"{patient_name}  shape={lab.shape}")
@@ -172,11 +247,11 @@ def process_patient(patient_dir: Path, patient_name: str, verbose: bool = True) 
         report("label 1", merged)
         report("trachea", trachea)
 
-    esophagus, aorta = split_aorta_from_esophagus(merged, ct_img.affine)
+    esophagus, aorta, flagged_zs = split_aorta_from_esophagus(merged, ct_img.affine)
     assert ((esophagus | aorta) == merged).all(), "esophagus + aorta should exactly cover merged"
     assert not (esophagus & aorta).any(), "esophagus/aorta should not overlap"
 
-    out = lab.copy()  
+    out = lab.copy()
     out[merged] = 0
     out[esophagus] = 1
     out[aorta] = 4
@@ -184,12 +259,15 @@ def process_patient(patient_dir: Path, patient_name: str, verbose: bool = True) 
     untouched = (lab != MERGED_LABEL)
     assert (out[untouched] == lab[untouched]).all(), "background/heart/trachea labels should be unchanged"
 
-    
+
     touches_trachea = bool((ndi.binary_dilation(aorta, iterations=2) & trachea).any())
 
     aorta_zs = np.where(aorta.any(axis=(0, 1)))[0]
     aorta_areas = np.array([aorta[:, :, z].sum() for z in aorta_zs])
     max_median_ratio = float(aorta_areas.max() / max(np.median(aorta_areas), 1))
+
+    spacing = np.abs(np.diag(ct_img.affine))[:3]
+    review_zs = disconnected_gap_zs(aorta, spacing)
 
     if verbose:
         print("\nAFTER (split):")
@@ -199,6 +277,8 @@ def process_patient(patient_dir: Path, patient_name: str, verbose: bool = True) 
         print(f"  sanity check: aorta contacts the true trachea somewhere: {touches_trachea}")
         print(f"  aorta area: median={np.median(aorta_areas):.0f} max={aorta_areas.max()} "
               f"max/median={max_median_ratio:.1f}x")
+        if review_zs:
+            print(f"  slices to review manually: {review_zs}")
 
     out_path = patient_dir / "GT_4label_v2.nii.gz"
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
@@ -209,6 +289,7 @@ def process_patient(patient_dir: Path, patient_name: str, verbose: bool = True) 
         "patient": patient_name,
         "touches_trachea": touches_trachea,
         "aorta_max_median_ratio": max_median_ratio,
+        "review_zs": review_zs,
         "out_path": str(out_path),
     }
 
@@ -229,13 +310,19 @@ def main() -> int:
     for patient_dir in patient_dirs:
         stats = process_patient(patient_dir, patient_dir.name, verbose=False)
         results.append(stats)
+        flag = f"  REVIEW slices {stats['review_zs']}" if stats["review_zs"] else ""
         print(f"{stats['patient']}: touches_trachea={stats['touches_trachea']}  "
-              f"aorta_max/median={stats['aorta_max_median_ratio']:.1f}x  -> wrote {Path(stats['out_path']).name}")
+              f"aorta_max/median={stats['aorta_max_median_ratio']:.1f}x  -> wrote {Path(stats['out_path']).name}{flag}")
 
     n_ok = sum(r["touches_trachea"] for r in results)
     print(f"\n{n_ok}/{len(results)} patients: aorta contacts the true trachea")
     worst = max(results, key=lambda r: r["aorta_max_median_ratio"])
     print(f"worst-case aorta max/median ratio: {worst['aorta_max_median_ratio']:.1f}x ({worst['patient']})")
+
+    need_review = [r for r in results if r["review_zs"]]
+    print(f"\n{len(need_review)}/{len(results)} patients need manual review:")
+    for r in need_review:
+        print(f"  {r['patient']}: z = {r['review_zs']}")
 
     return 0
 
