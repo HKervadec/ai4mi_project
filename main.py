@@ -42,6 +42,7 @@ from functools import partial
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
+from ViT import ViT
 from utils import (Dcm,
                    class2one_hot,
                    probs2one_hot,
@@ -52,12 +53,18 @@ from utils import (Dcm,
 
 from losses import (CrossEntropy)
 
+models = {
+    "ENet": ENet,
+    "ViT": ViT,
+}
+
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
 # Avoids the classes with C (often used for the number of Channel)
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
-datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'B': 8, 'kernels': 8, 'factor': 2}
+
 
 def img_transform(img):
         img = img.convert('L')
@@ -86,8 +93,17 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     K: int = datasets_params[args.dataset]['K']
     kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
-    net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
-    net.init_weights()
+
+    net_class = models[args.model]
+
+    if args.model == "ViT":
+        net = net_class(img_size=256, patch_size=8, out_dim=K, mlp_dim=2048)
+    else:
+        net = net_class(1, K, kernels=kernels, factor=factor)
+        net.init_weights()
+
+    # net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
+    # net.init_weights()
     net.to(device)
 
     lr = 0.0005
@@ -125,7 +141,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
 
 def runTraining(args):
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
+    print(f">>> Setting up to train {args.model} on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
@@ -182,6 +198,7 @@ def runTraining(args):
 
                     # Metrics computation, not used for training
                     pred_seg = probs2one_hot(pred_probs)
+                    # print(f"pred_seg size: {pred_seg.size()}")
                     log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
 
                     loss = loss_fn(pred_probs, gt)
@@ -231,10 +248,14 @@ def runTraining(args):
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
+    print("\n Training finished. ")
+    print(f"\n Best dice: {best_dice}")
+
 
 def main():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--model', type=str, required=True)
     parser.add_argument('--epochs', default=20, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
