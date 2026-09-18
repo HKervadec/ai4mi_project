@@ -1,3 +1,27 @@
+"""Splitting the merged label.
+
+Usage:
+
+  For a single patient (datapoint):
+    python spliting_labels.py --patient Patient_01
+  For all patients in a folder:
+    python spliting_labels.py --all --data-dir segthor_part1/data/segthor_part1/train
+  Running just python spliting_labels.py will default to Patient_01 in the default data-dir. (if it is set as such)
+
+Writes GT_4label_v2.nii.gz into each patient folder.
+
+if you want to call this in another python script 
+
+from spliting_labels import process_patient
+
+  stats = process_patient(Path("Data_path"),"Patient_01", verbose=False)
+  print(stats["touches_trachea"], stats["aorta_max_median_ratio"]) # You can do this as well
+
+or loop over every patient:
+
+  root = Path("segthor_part1/data/segthor_part1/train")
+  results = [process_patient(p, p.name, verbose=False) for p in sorted(root.glob("Patient_*"))]
+"""
 from __future__ import annotations
 
 import argparse
