@@ -14,16 +14,6 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 MERGED_LABEL = 1
 MIN_CIRCULARITY = 0.5 
 
-BEFORE_NAMES = ["background", "esophagus+trachea", "heart", "aorta"]
-BEFORE_COLORS = ["#c3c2b7", "#2a78d6", "#eb6834", "#eda100"]
-AFTER_NAMES = ["background", "esophagus", "heart", "trachea", "aorta"]
-AFTER_COLORS = ["#c3c2b7", "#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
-
-
-def cmap_norm(colors: list[str]):
-    cmap = ListedColormap(colors)
-    norm = BoundaryNorm(np.arange(-0.5, len(colors) + 0.5, 1), cmap.N)
-    return cmap, norm
 
 
 def components_per_slice(mask: np.ndarray) -> np.ndarray:
@@ -80,9 +70,7 @@ def split_slice(
     markers[nearest_mask_point(mask, seed_b)] = 2
     labels = watershed(np.zeros(mask.shape), markers=markers, mask=mask)
 
-    # a disconnected fragment (e.g. the trachea splitting at the carina) can't be
-    # reached by either seed's flood through mask connectivity -- give it to
-    # whichever region is nearest instead of leaving it unlabeled
+
     holes = mask & (labels == 0)
     if holes.any():
         _, (iy, ix) = ndi.distance_transform_edt(labels == 0, return_indices=True)
@@ -97,8 +85,7 @@ def split_slice(
 
 
 def find_bootstrap_slice(merged: np.ndarray) -> tuple[int, np.ndarray, np.ndarray]:
-    """The cleanest slice to start tracking from: exactly 2 components, as far
-    apart as possible (least likely to be mismatched)."""
+
     best = None
     for z in np.where(merged.any(axis=(0, 1)))[0]:
         lbl, n = ndi.label(merged[:, :, z])
@@ -179,26 +166,6 @@ def main() -> int:
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
     print(f"\nwrote {out_path}")
 
-    # a mid-scan slice through the merged region, before vs after
-    z = int(np.median(np.where(merged.any(axis=(0, 1)))[0]))
-    before_cmap, before_norm = cmap_norm(BEFORE_COLORS)
-    after_cmap, after_norm = cmap_norm(AFTER_COLORS)
-
-    fig, axes = plt.subplots(1, 2, figsize=(9, 4.5))
-    axes[0].imshow(lab[:, :, z], cmap=before_cmap, norm=before_norm)
-    axes[0].set_title(f"before - slice {z}")
-    axes[1].imshow(out[:, :, z], cmap=after_cmap, norm=after_norm)
-    axes[1].set_title(f"after - slice {z}")
-    for ax, names, colors in [(axes[0], BEFORE_NAMES, BEFORE_COLORS), (axes[1], AFTER_NAMES, AFTER_COLORS)]:
-        ax.axis("off")
-        handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in colors[1:]]
-        ax.legend(handles, names[1:], loc="upper center", bbox_to_anchor=(0.5, 0), ncol=2, frameon=False, fontsize=8)
-
-    fig_path = patient_dir / "GT_4label_preview.png"
-    fig.savefig(fig_path, dpi=110, bbox_inches="tight")
-    print(f"wrote {fig_path}")
-
-    return 0
 
 
 if __name__ == "__main__":
