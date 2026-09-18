@@ -37,6 +37,24 @@ def split_fused_slice(m: np.ndarray) -> tuple[np.ndarray, np.ndarray] | tuple[No
     return None, None
 
 
+def reclaim_stray_esophagus_fragments(trachea: np.ndarray, esophagus: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+
+    lbl, n = ndi.label(esophagus, structure=np.ones((3, 3, 3)))
+    if n <= 1:
+        return trachea, esophagus
+    sizes = ndi.sum(esophagus, lbl, range(1, n + 1))
+    main_c = int(np.argmax(sizes)) + 1
+    trachea_dilated = ndi.binary_dilation(trachea, iterations=2)
+    for c in range(1, n + 1):
+        if c == main_c:
+            continue
+        frag = lbl == c
+        if (trachea_dilated & frag).any():
+            trachea = trachea | frag
+            esophagus = esophagus & ~frag
+    return trachea, esophagus
+
+
 def split_trachea_from_esophagus_v2(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     trachea = np.zeros_like(merged)
     esophagus = np.zeros_like(merged)
@@ -58,6 +76,7 @@ def split_trachea_from_esophagus_v2(merged: np.ndarray, ct_affine: np.ndarray) -
             else:
                 trachea[:, :, z] = t
                 esophagus[:, :, z] = e
+    trachea, esophagus = reclaim_stray_esophagus_fragments(trachea, esophagus)
     return esophagus, trachea
 
 
@@ -105,22 +124,6 @@ def main() -> int:
     report("esophagus", out == 1)
     report("trachea", out == 3)
     report("aorta", out == 4)
-
-    ap_axis, ap_sign = ap_axis_and_sign(ct_img.affine)
-    zs = np.where(merged.any(axis=(0, 1)))[0]
-    consistent = checked = 0
-    for z in zs:
-        t, e = trachea[:, :, z], esophagus[:, :, z]
-        if not (t.any() and e.any()):
-            continue
-        checked += 1
-        consistent += np.mean(np.where(t)[ap_axis]) * ap_sign > np.mean(np.where(e)[ap_axis]) * ap_sign
-    print(f"  anatomy check: trachea anterior to esophagus in {consistent}/{checked} slices with both present")
-
-    tra_zs = np.where(trachea.any(axis=(0, 1)))[0]
-    tra_areas = np.array([trachea[:, :, z].sum() for z in tra_zs])
-    print(f"  trachea area: median={np.median(tra_areas):.0f} max={tra_areas.max()} "
-          f"max/median={tra_areas.max() / max(np.median(tra_areas), 1):.1f}x")
 
     out_path = patient_dir / "GT_4label_v2.nii.gz"
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
