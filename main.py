@@ -48,12 +48,9 @@ from utils import (Dcm,
                    probs2class,
                    tqdm_,
                    dice_coef,
-                   hausdorff,
                    save_images)
 
-from losses import (CrossEntropy, DiceLoss, CrossEntropyDiceLoss)
-
-LOSSES: dict[str, Any] = {'ce': CrossEntropy, 'dice': DiceLoss, 'ce_dice': CrossEntropyDiceLoss}
+from losses import (CrossEntropy)
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -61,7 +58,6 @@ datasets_params: dict[str, dict[str, Any]] = {}
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
-datasets_params["SEGTHOR_CORRECTED"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 
 def img_transform(img):
         img = img.convert('L')
@@ -133,20 +129,17 @@ def runTraining(args):
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
-        idk = list(range(K))  # Supervise both background and foreground
+        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
     elif args.mode in ["partial"] and args.dataset == 'SEGTHOR':
-        idk = [0, 1, 3, 4]  # Do not supervise the heart (class 2)
+        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
     else:
         raise ValueError(args.mode, args.dataset)
-
-    loss_fn = LOSSES[args.loss](idk=idk)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
     log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
-    log_hd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
     best_dice: float = 0
 
@@ -199,8 +192,6 @@ def runTraining(args):
                         opt.step()
 
                     if m == 'val':
-                        log_hd_val[e, j:j + B, :] = hausdorff(pred_seg, gt)  # One HD value per sample and per class
-
                         with warnings.catch_warnings():
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
@@ -213,8 +204,6 @@ def runTraining(args):
                     # For the DSC average: do not take the background class (0) into account:
                     postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
                                                     "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
-                    if m == 'val':
-                        postfix_dict |= {"HD": f"{log_hd_val[e, :j, 1:].mean():05.3f}"}
                     if K > 2:
                         postfix_dict |= {f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
                                          for k in range(1, K)}
@@ -225,7 +214,6 @@ def runTraining(args):
         np.save(args.dest / "dice_tra.npy", log_dice_tra)
         np.save(args.dest / "loss_val.npy", log_loss_val)
         np.save(args.dest / "dice_val.npy", log_dice_val)
-        np.save(args.dest / "hd_val.npy", log_hd_val)
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
@@ -250,8 +238,6 @@ def main():
     parser.add_argument('--epochs', default=20, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
-    parser.add_argument('--loss', default='ce', choices=list(LOSSES.keys()),
-                        help="Loss function to use for training.")
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
 

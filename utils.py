@@ -33,7 +33,6 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
-from scipy.spatial.distance import directed_hausdorff
 
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
@@ -155,36 +154,6 @@ def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -
 
 dice_coef = partial(meta_dice, "bk...->bk")
 dice_batch = partial(meta_dice, "bk...->k")  # used for 3d dice
-
-
-def numpy_hausdorff(pred: np.ndarray, target: np.ndarray) -> float:
-    assert pred.shape == target.shape
-
-    pred_pts, target_pts = np.argwhere(pred), np.argwhere(target)
-
-    if pred_pts.size == 0 and target_pts.size == 0:
-        return 0.0
-    if pred_pts.size == 0 or target_pts.size == 0:
-        return np.inf  # Undefined distance when only one of the two masks is empty
-
-    return max(directed_hausdorff(pred_pts, target_pts)[0],
-               directed_hausdorff(target_pts, pred_pts)[0])
-
-
-def hausdorff(preds: Tensor, target: Tensor) -> Tensor:
-    assert preds.shape == target.shape
-    assert one_hot(preds)
-    assert one_hot(target)
-
-    B, K, *_ = preds.shape
-    np_preds, np_target = preds.detach().cpu().numpy(), target.detach().cpu().numpy()
-
-    res = torch.zeros((B, K), dtype=torch.float32)
-    for b in range(B):
-        for k in range(K):
-            res[b, k] = numpy_hausdorff(np_preds[b, k].astype(bool), np_target[b, k].astype(bool))
-
-    return res
 
 
 def intersection(a: Tensor, b: Tensor) -> Tensor:
