@@ -24,6 +24,8 @@ def classify_separated_slices(merged: np.ndarray, ap_axis: int, ap_sign: int) ->
 
     trachea_marker = np.zeros_like(merged)
     esophagus_marker = np.zeros_like(merged)
+    prev_centroid = None
+    prev_area = None
     for z in range(merged.shape[2]):
         m = merged[:, :, z]
         if not m.any():
@@ -31,16 +33,31 @@ def classify_separated_slices(merged: np.ndarray, ap_axis: int, ap_sign: int) ->
         lbl, n = ndi.label(m)
         if n < 2:
             continue
-        ap_pos = [np.mean(np.where(lbl == c)[ap_axis]) * ap_sign for c in range(1, n + 1)]
-        trachea_c = int(np.argmax(ap_pos)) + 1
+        comps = list(range(1, n + 1))
+        centroids = [np.array(ndi.center_of_mass(lbl == c)) for c in comps]
+        areas = [float((lbl == c).sum()) for c in comps]
+
+        if prev_centroid is None:
+            # first confident slice: no history yet, trust anatomy alone
+            ap_pos = [centroids[i][ap_axis] * ap_sign for i in range(n)]
+            trachea_i = int(np.argmax(ap_pos))
+        else:
+            dist = [np.linalg.norm(centroids[i] - prev_centroid) for i in range(n)]
+            area_ratio = [max(areas[i], prev_area) / max(min(areas[i], prev_area), 1.0) for i in range(n)]
+            cost = [dist[i] + 20.0 * (area_ratio[i] - 1.0) for i in range(n)]
+            trachea_i = int(np.argmin(cost))
+
+        trachea_c = comps[trachea_i]
         trachea_marker[:, :, z] = lbl == trachea_c
         esophagus_marker[:, :, z] = (lbl != trachea_c) & m
+        prev_centroid = centroids[trachea_i]
+        prev_area = areas[trachea_i]
     return trachea_marker, esophagus_marker
 
 
-def split_trachea_from_esophagus_v2(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def split_v2(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     ap_axis, ap_sign = ap_axis_and_sign(ct_affine)
-    spacing = np.abs(np.diag(ct_affine))[:3] 
+    spacing = np.abs(np.diag(ct_affine))[:3]  
 
     trachea_marker, esophagus_marker = classify_separated_slices(merged, ap_axis, ap_sign)
 
@@ -51,7 +68,7 @@ def split_trachea_from_esophagus_v2(merged: np.ndarray, ct_affine: np.ndarray) -
     dist = ndi.distance_transform_edt(merged, sampling=spacing)
     labels3d = watershed(-dist, markers=markers, mask=merged)
 
- 
+
     lbl3d, n3d = ndi.label(merged, structure=STRUCT_3D)
     for c in range(1, n3d + 1):
         comp = lbl3d == c
@@ -90,9 +107,9 @@ def main() -> int:
     print("\nBEFORE (label 1 = esophagus+trachea merged):")
     report("label 1", merged)
 
-    esophagus, trachea = split_trachea_from_esophagus_v2(merged, ct_img.affine)
-    assert ((esophagus | trachea) == merged).all(), "esophagus + trachea should exactly cover merged"
-    assert not (esophagus & trachea).any(), "esophagus/trachea should not overlap"
+    esophagus, t = split_v2(merged, ct_img.affine)
+    assert ((esophagus | t) == merged).all(), "esophagus + trachea should exactly cover merged"
+    assert not (esophagus & t).any(), "esophagus/trachea should not overlap"
 
     out = lab.copy()
     out[lab == 3] = 4
@@ -108,18 +125,16 @@ def main() -> int:
     report("trachea", out == 3)
     report("aorta", out == 4)
 
-   
     ap_axis, ap_sign = ap_axis_and_sign(ct_img.affine)
     zs = np.where(merged.any(axis=(0, 1)))[0]
-    consistent = 0
-    checked = 0
+    consistent = checked = 0
     for z in zs:
         t, e = trachea[:, :, z], esophagus[:, :, z]
         if not (t.any() and e.any()):
             continue
         checked += 1
         consistent += np.mean(np.where(t)[ap_axis]) * ap_sign > np.mean(np.where(e)[ap_axis]) * ap_sign
-    print(f"  anatomy check: trachea anterior to esophagus in {consistent}/{checked} slices with both present")
+   
 
     out_path = patient_dir / "GT_4label_v2.nii.gz"
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
