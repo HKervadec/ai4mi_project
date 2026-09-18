@@ -187,6 +187,12 @@ dice_coef = partial(meta_dice, "bk...->bk")
 dice_batch = partial(meta_dice, "bk...->k")  # used for 3d dice
 
 
+def gated_dice(dice: Tensor, present: Tensor) -> Tensor:
+    # Mean of the dice values over where the class is actually present in gt
+    assert dice.shape == present.shape
+    return dice.masked_fill(~present, 0.0).sum() / present.sum().clamp(min=1)
+
+
 def intersection(a: Tensor, b: Tensor) -> Tensor:
     assert a.shape == b.shape
     assert sset(a, [0, 1])
@@ -207,3 +213,16 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+
+def deep_update(base_dict: dict, update_dict: dict) -> dict:
+    for key, value in update_dict.items():
+        if (
+            isinstance(value, dict)
+            and key in base_dict
+            and isinstance(base_dict[key], dict)
+        ):
+            deep_update(base_dict[key], value)
+        else:
+            base_dict[key] = value
+    return base_dict
