@@ -12,7 +12,7 @@ MERGED_LABEL = 1
 TRACHEA_LABEL = 3  
 MAX_EROSION = 8
 
-
+# helper
 def ap_axis_and_sign(affine: np.ndarray) -> tuple[int, int]:
     codes = nib.aff2axcodes(affine)
     for axis, code in enumerate(codes[:2]):
@@ -20,7 +20,7 @@ def ap_axis_and_sign(affine: np.ndarray) -> tuple[int, int]:
             return axis, (1 if code == "A" else -1)
     raise ValueError(f"expected an anterior/posterior in-plane axis, got orientation {codes}")
 
-
+# changed to erosion in case of connected components, then watershed to split them
 def split_fused_slice(m: np.ndarray) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
 
     for k in range(1, MAX_EROSION + 1):
@@ -37,7 +37,7 @@ def split_fused_slice(m: np.ndarray) -> tuple[np.ndarray, np.ndarray] | tuple[No
         return labels == 1, labels == 2
     return None, None
 
-
+# helper in maintaining continuity across slices
 def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     
     lbl, n = ndi.label(esophagus, structure=np.ones((3, 3, 3)))
@@ -64,7 +64,7 @@ def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) 
             esophagus = esophagus & ~frag
     return aorta, esophagus
 
-
+# spliting the merged label into aorta and esophagus 
 def split_aorta_from_esophagus(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     aorta = np.zeros_like(merged)
     esophagus = np.zeros_like(merged)
@@ -97,7 +97,7 @@ def report(name: str, mask: np.ndarray) -> None:
     zs = np.where(mask.any(axis=(0, 1)))[0]
     print(f"  {name:<10} {len(zs):>4} slices   {int(mask.sum()):>7} px")
 
-
+# Main console function to run the script
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data-dir", type=Path, default=Path("segthor_part1/data/segthor_part1/train"))
@@ -115,7 +115,6 @@ def main() -> int:
 
     merged = lab == MERGED_LABEL
     trachea = lab == TRACHEA_LABEL  
-    print("\nBEFORE (label 1 = esophagus+aorta merged; label 3 = trachea, already separate):")
     report("label 1", merged)
     report("trachea", trachea)
 
