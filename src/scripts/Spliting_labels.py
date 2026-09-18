@@ -8,13 +8,9 @@ import nibabel as nib
 from scipy import ndimage as ndi
 from skimage.segmentation import watershed
 from skimage.measure import perimeter
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap, BoundaryNorm
 
 MERGED_LABEL = 1
-MIN_CIRCULARITY = 0.5 
-
-
+MIN_CIRCULARITY = 0.5  
 
 def components_per_slice(mask: np.ndarray) -> np.ndarray:
     """Number of connected components in each non-empty axial slice of a 3D mask."""
@@ -32,8 +28,7 @@ def report(name: str, mask: np.ndarray) -> None:
 
 
 def ap_axis_and_sign(affine: np.ndarray) -> tuple[int, int]:
-    """Which of the two in-plane array axes is anterior/posterior, and which
-    direction along it is anterior."""
+
     codes = nib.aff2axcodes(affine)
     for axis, code in enumerate(codes[:2]):
         if code in ("A", "P"):
@@ -70,7 +65,9 @@ def split_slice(
     markers[nearest_mask_point(mask, seed_b)] = 2
     labels = watershed(np.zeros(mask.shape), markers=markers, mask=mask)
 
-
+    # a disconnected fragment (e.g. the trachea splitting at the carina) can't be
+    # reached by either seed's flood through mask connectivity -- give it to
+    # whichever region is nearest instead of leaving it unlabeled
     holes = mask & (labels == 0)
     if holes.any():
         _, (iy, ix) = ndi.distance_transform_edt(labels == 0, return_indices=True)
@@ -85,7 +82,8 @@ def split_slice(
 
 
 def find_bootstrap_slice(merged: np.ndarray) -> tuple[int, np.ndarray, np.ndarray]:
-
+    """The cleanest slice to start tracking from: exactly 2 components, as far
+    apart as possible (least likely to be mismatched)."""
     best = None
     for z in np.where(merged.any(axis=(0, 1)))[0]:
         lbl, n = ndi.label(merged[:, :, z])
@@ -154,7 +152,10 @@ def main() -> int:
     out[merged] = 0
     out[esophagus] = 1
     out[trachea] = 3
-    out[ambiguous] = 1  # unresolved: keep the original merged label rather than guess
+    out[ambiguous] = 1  # unresolve
+
+    untouched = (lab != MERGED_LABEL) & (lab != 3)  # background + heart: not part of the split, must not move
+    assert (out[untouched] == lab[untouched]).all(), "background/heart labels should be unchanged"
 
     print("\nAFTER (split):")
     report("esophagus", out == 1)
@@ -166,6 +167,7 @@ def main() -> int:
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
     print(f"\nwrote {out_path}")
 
+    return 0
 
 
 if __name__ == "__main__":
