@@ -97,32 +97,28 @@ def report(name: str, mask: np.ndarray) -> None:
     zs = np.where(mask.any(axis=(0, 1)))[0]
     print(f"  {name:<10} {len(zs):>4} slices   {int(mask.sum()):>7} px")
 
-# Main console function to run the script
-def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--data-dir", type=Path, default=Path("segthor_part1/data/segthor_part1/train"))
-    ap.add_argument("--patient", default="Patient_01")
-    args = ap.parse_args()
-
-    patient_dir = args.data_dir / args.patient
+def process_patient(patient_dir: Path, patient_name: str, verbose: bool = True) -> dict:
+   
     gt_img = nib.load(patient_dir / "GT.nii.gz")
-    ct_img = nib.load(patient_dir / f"{args.patient}.nii.gz")
+    ct_img = nib.load(patient_dir / f"{patient_name}.nii.gz")
     lab = np.asanyarray(gt_img.dataobj).astype(np.uint8)
-
-    print(f"{args.patient}  shape={lab.shape}")
-    print(f"  GT affine is identity (no orientation info): {(gt_img.affine == np.eye(4)).all()}")
-    print(f"  CT orientation={nib.aff2axcodes(ct_img.affine)}  spacing={ct_img.header.get_zooms()[:3]}")
 
     merged = lab == MERGED_LABEL
     trachea = lab == TRACHEA_LABEL  
-    report("label 1", merged)
-    report("trachea", trachea)
+
+    if verbose:
+        print(f"{patient_name}  shape={lab.shape}")
+        print(f"  GT affine is identity (no orientation info): {(gt_img.affine == np.eye(4)).all()}")
+        print(f"  CT orientation={nib.aff2axcodes(ct_img.affine)}  spacing={ct_img.header.get_zooms()[:3]}")
+        print("\nBEFORE (label 1 = esophagus+aorta merged; label 3 = trachea, already separate):")
+        report("label 1", merged)
+        report("trachea", trachea)
 
     esophagus, aorta = split_aorta_from_esophagus(merged, ct_img.affine)
     assert ((esophagus | aorta) == merged).all(), "esophagus + aorta should exactly cover merged"
     assert not (esophagus & aorta).any(), "esophagus/aorta should not overlap"
 
-    out = lab.copy() 
+    out = lab.copy()  
     out[merged] = 0
     out[esophagus] = 1
     out[aorta] = 4
@@ -130,23 +126,58 @@ def main() -> int:
     untouched = (lab != MERGED_LABEL)
     assert (out[untouched] == lab[untouched]).all(), "background/heart/trachea labels should be unchanged"
 
-    print("\nAFTER (split):")
-    report("esophagus", out == 1)
-    report("trachea", out == 3)
-    report("aorta", out == 4)
-
-
-    touches_trachea = (ndi.binary_dilation(aorta, iterations=2) & trachea).any()
-    print(f"  sanity check: aorta contacts the true trachea somewhere: {touches_trachea}")
+    
+    touches_trachea = bool((ndi.binary_dilation(aorta, iterations=2) & trachea).any())
 
     aorta_zs = np.where(aorta.any(axis=(0, 1)))[0]
     aorta_areas = np.array([aorta[:, :, z].sum() for z in aorta_zs])
-    print(f"  aorta area: median={np.median(aorta_areas):.0f} max={aorta_areas.max()} "
-          f"max/median={aorta_areas.max() / max(np.median(aorta_areas), 1):.1f}x")
+    max_median_ratio = float(aorta_areas.max() / max(np.median(aorta_areas), 1))
+
+    if verbose:
+        print("\nAFTER (split):")
+        report("esophagus", out == 1)
+        report("trachea", out == 3)
+        report("aorta", out == 4)
+        print(f"  sanity check: aorta contacts the true trachea somewhere: {touches_trachea}")
+        print(f"  aorta area: median={np.median(aorta_areas):.0f} max={aorta_areas.max()} "
+              f"max/median={max_median_ratio:.1f}x")
 
     out_path = patient_dir / "GT_4label_v2.nii.gz"
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
-    print(f"\nwrote {out_path}")
+    if verbose:
+        print(f"\nwrote {out_path}")
+
+    return {
+        "patient": patient_name,
+        "touches_trachea": touches_trachea,
+        "aorta_max_median_ratio": max_median_ratio,
+        "out_path": str(out_path),
+    }
+
+# Main console function to run the script
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--data-dir", type=Path, default=Path("segthor_part1/data/segthor_part1/train"))
+    ap.add_argument("--patient", default="Patient_01")
+    ap.add_argument("--all", action="store_true", help="run every Patient_* folder under --data-dir instead")
+    args = ap.parse_args()
+
+    if not args.all:
+        process_patient(args.data_dir / args.patient, args.patient)
+        return 0
+
+    patient_dirs = sorted(args.data_dir.glob("Patient_*"))
+    results = []
+    for patient_dir in patient_dirs:
+        stats = process_patient(patient_dir, patient_dir.name, verbose=False)
+        results.append(stats)
+        print(f"{stats['patient']}: touches_trachea={stats['touches_trachea']}  "
+              f"aorta_max/median={stats['aorta_max_median_ratio']:.1f}x  -> wrote {Path(stats['out_path']).name}")
+
+    n_ok = sum(r["touches_trachea"] for r in results)
+    print(f"\n{n_ok}/{len(results)} patients: aorta contacts the true trachea")
+    worst = max(results, key=lambda r: r["aorta_max_median_ratio"])
+    print(f"worst-case aorta max/median ratio: {worst['aorta_max_median_ratio']:.1f}x ({worst['patient']})")
 
     return 0
 
