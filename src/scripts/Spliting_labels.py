@@ -46,7 +46,7 @@ def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) 
 
     aorta_zs = np.where(aorta.any(axis=(0, 1)))[0]
     aorta_median_area = np.median([aorta[:, :, z].sum() for z in aorta_zs]) if len(aorta_zs) else 0
-    area_cap = max(aorta_median_area * 2, 50)  # generous margin above the typical aorta cross section
+    area_cap = max(aorta_median_area * 2, 50)  
 
     sizes = ndi.sum(esophagus, lbl, range(1, n + 1))
     main_c = int(np.argmax(sizes)) + 1
