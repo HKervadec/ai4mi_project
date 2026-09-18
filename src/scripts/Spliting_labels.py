@@ -45,15 +45,19 @@ def reclaim_stray_esophagus_fragments(trachea: np.ndarray, esophagus: np.ndarray
 
     tra_zs = np.where(trachea.any(axis=(0, 1)))[0]
     tra_median_area = np.median([trachea[:, :, z].sum() for z in tra_zs]) if len(tra_zs) else 0
-    size_cap = max(tra_median_area * 2, 50)  # BUG: compared against total fragment volume below
+    area_cap = max(tra_median_area * 2, 50)  # generous margin above the typical airway cross section
 
     sizes = ndi.sum(esophagus, lbl, range(1, n + 1))
     main_c = int(np.argmax(sizes)) + 1
     trachea_dilated = ndi.binary_dilation(trachea, iterations=2)
     for c in range(1, n + 1):
-        if c == main_c or sizes[c - 1] > size_cap:  # BUG: sizes[c-1] is total volume, not per-slice area
+        if c == main_c:
             continue
         frag = lbl == c
+        frag_zs = np.where(frag.any(axis=(0, 1)))[0]
+        max_slice_area = max((frag[:, :, z].sum() for z in frag_zs), default=0)
+        if max_slice_area > area_cap:
+            continue
         if (trachea_dilated & frag).any():
             trachea = trachea | frag
             esophagus = esophagus & ~frag
