@@ -113,26 +113,26 @@ def main() -> int:
     print(f"  CT orientation={nib.aff2axcodes(ct_img.affine)}  spacing={ct_img.header.get_zooms()[:3]}")
 
     merged = lab == MERGED_LABEL
-    print("\nBEFORE (label 1 = esophagus+trachea merged; label 3 was mislabeled 'aorta'):")
+    print("\nBEFORE (label 1 = esophagus+trachea merged; label 3 = trachea, no longer moved):")
     report("label 1", merged)
 
     esophagus, trachea = split_trachea_from_esophagus_v2(merged, ct_img.affine)
     assert ((esophagus | trachea) == merged).all(), "esophagus + trachea should exactly cover merged"
     assert not (esophagus & trachea).any(), "esophagus/trachea should not overlap"
 
+
     out = lab.copy()
-    out[lab == 3] = 4  # move the trachea's air lumen out of the way first (was mislabeled "aorta")
     out[merged] = 0
     out[esophagus] = 1
-    out[trachea] = 3
+    out[trachea] = 4
 
-    untouched = (lab != MERGED_LABEL) & (lab != 3)
-    assert (out[untouched] == lab[untouched]).all(), "background/heart labels should be unchanged"
+    untouched = (lab != MERGED_LABEL)
+    assert (out[untouched] == lab[untouched]).all(), "background/heart/trachea labels should be unchanged"
 
     print("\nAFTER (split):")
     report("esophagus", out == 1)
-    report("trachea (wall)", out == 3)
-    report("trachea_lumen", out == 4)
+    report("trachea (raw label 3, unchanged)", out == 3)
+    report("trachea (extracted piece -- naming still wrong, see next revision)", out == 4)
 
     out_path = patient_dir / "GT_4label_v2.nii.gz"
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
