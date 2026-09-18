@@ -9,6 +9,7 @@ from scipy import ndimage as ndi
 from skimage.segmentation import watershed
 
 MERGED_LABEL = 1
+TRACHEA_LABEL = 3  
 MAX_EROSION = 8
 
 
@@ -28,28 +29,28 @@ def split_fused_slice(m: np.ndarray) -> tuple[np.ndarray, np.ndarray] | tuple[No
         if n < 2:
             continue
         sizes = [(lbl == c).sum() for c in range(1, n + 1)]
-        trachea_c = int(np.argmin(sizes)) + 1
+        aorta_c = int(np.argmin(sizes)) + 1
         markers = np.zeros(m.shape, dtype=np.int32)
-        markers[lbl == trachea_c] = 1
-        markers[(lbl != trachea_c) & eroded] = 2
+        markers[lbl == aorta_c] = 1
+        markers[(lbl != aorta_c) & eroded] = 2
         labels = watershed(np.zeros(m.shape), markers=markers, mask=m)
         return labels == 1, labels == 2
     return None, None
 
 
-def reclaim_stray_esophagus_fragments(trachea: np.ndarray, esophagus: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-
+def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    
     lbl, n = ndi.label(esophagus, structure=np.ones((3, 3, 3)))
     if n <= 1:
-        return trachea, esophagus
+        return aorta, esophagus
 
-    tra_zs = np.where(trachea.any(axis=(0, 1)))[0]
-    tra_median_area = np.median([trachea[:, :, z].sum() for z in tra_zs]) if len(tra_zs) else 0
-    area_cap = max(tra_median_area * 2, 50)  # generous margin above the typical airway cross section
+    aorta_zs = np.where(aorta.any(axis=(0, 1)))[0]
+    aorta_median_area = np.median([aorta[:, :, z].sum() for z in aorta_zs]) if len(aorta_zs) else 0
+    area_cap = max(aorta_median_area * 2, 50)  # generous margin above the typical aorta cross section
 
     sizes = ndi.sum(esophagus, lbl, range(1, n + 1))
     main_c = int(np.argmax(sizes)) + 1
-    trachea_dilated = ndi.binary_dilation(trachea, iterations=2)
+    aorta_dilated = ndi.binary_dilation(aorta, iterations=2)
     for c in range(1, n + 1):
         if c == main_c:
             continue
@@ -58,14 +59,14 @@ def reclaim_stray_esophagus_fragments(trachea: np.ndarray, esophagus: np.ndarray
         max_slice_area = max((frag[:, :, z].sum() for z in frag_zs), default=0)
         if max_slice_area > area_cap:
             continue
-        if (trachea_dilated & frag).any():
-            trachea = trachea | frag
+        if (aorta_dilated & frag).any():
+            aorta = aorta | frag
             esophagus = esophagus & ~frag
-    return trachea, esophagus
+    return aorta, esophagus
 
 
-def split_trachea_from_esophagus_v2(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    trachea = np.zeros_like(merged)
+def split_aorta_from_esophagus(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    aorta = np.zeros_like(merged)
     esophagus = np.zeros_like(merged)
     for z in range(merged.shape[2]):
         m = merged[:, :, z]
@@ -75,18 +76,18 @@ def split_trachea_from_esophagus_v2(merged: np.ndarray, ct_affine: np.ndarray) -
         if n >= 2:
             comps = list(range(1, n + 1))
             areas = [(lbl == c).sum() for c in comps]
-            trachea_c = comps[int(np.argmin(areas))]
-            trachea[:, :, z] = lbl == trachea_c
-            esophagus[:, :, z] = (lbl != trachea_c) & m
+            aorta_c = comps[int(np.argmin(areas))]
+            aorta[:, :, z] = lbl == aorta_c
+            esophagus[:, :, z] = (lbl != aorta_c) & m
         else:
-            t, e = split_fused_slice(m)
-            if t is None:
-                esophagus[:, :, z] = m  # never separated -- overwhelmingly esophagus alone
+            a, e = split_fused_slice(m)
+            if a is None:
+                esophagus[:, :, z] = m  
             else:
-                trachea[:, :, z] = t
+                aorta[:, :, z] = a
                 esophagus[:, :, z] = e
-    trachea, esophagus = reclaim_stray_esophagus_fragments(trachea, esophagus)
-    return esophagus, trachea
+    aorta, esophagus = reclaim_stray_esophagus_fragments(aorta, esophagus)
+    return esophagus, aorta
 
 
 def report(name: str, mask: np.ndarray) -> None:
@@ -113,26 +114,36 @@ def main() -> int:
     print(f"  CT orientation={nib.aff2axcodes(ct_img.affine)}  spacing={ct_img.header.get_zooms()[:3]}")
 
     merged = lab == MERGED_LABEL
-    print("\nBEFORE (label 1 = esophagus+trachea merged; label 3 = trachea, no longer moved):")
+    trachea = lab == TRACHEA_LABEL  
+    print("\nBEFORE (label 1 = esophagus+aorta merged; label 3 = trachea, already separate):")
     report("label 1", merged)
+    report("trachea", trachea)
 
-    esophagus, trachea = split_trachea_from_esophagus_v2(merged, ct_img.affine)
-    assert ((esophagus | trachea) == merged).all(), "esophagus + trachea should exactly cover merged"
-    assert not (esophagus & trachea).any(), "esophagus/trachea should not overlap"
+    esophagus, aorta = split_aorta_from_esophagus(merged, ct_img.affine)
+    assert ((esophagus | aorta) == merged).all(), "esophagus + aorta should exactly cover merged"
+    assert not (esophagus & aorta).any(), "esophagus/aorta should not overlap"
 
-
-    out = lab.copy()
+    out = lab.copy() 
     out[merged] = 0
     out[esophagus] = 1
-    out[trachea] = 4
+    out[aorta] = 4
 
     untouched = (lab != MERGED_LABEL)
     assert (out[untouched] == lab[untouched]).all(), "background/heart/trachea labels should be unchanged"
 
     print("\nAFTER (split):")
     report("esophagus", out == 1)
-    report("trachea (raw label 3, unchanged)", out == 3)
-    report("trachea (extracted piece -- naming still wrong, see next revision)", out == 4)
+    report("trachea", out == 3)
+    report("aorta", out == 4)
+
+
+    touches_trachea = (ndi.binary_dilation(aorta, iterations=2) & trachea).any()
+    print(f"  sanity check: aorta contacts the true trachea somewhere: {touches_trachea}")
+
+    aorta_zs = np.where(aorta.any(axis=(0, 1)))[0]
+    aorta_areas = np.array([aorta[:, :, z].sum() for z in aorta_zs])
+    print(f"  aorta area: median={np.median(aorta_areas):.0f} max={aorta_areas.max()} "
+          f"max/median={aorta_areas.max() / max(np.median(aorta_areas), 1):.1f}x")
 
     out_path = patient_dir / "GT_4label_v2.nii.gz"
     nib.save(nib.Nifti1Image(out, gt_img.affine, gt_img.header), out_path)
