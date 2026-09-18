@@ -55,7 +55,6 @@ class PartialCrossEntropy(CrossEntropy):
 
 class DiceLoss():
     def __init__(self, **kwargs):
-        # Self.idk is used to filter out some classes of the target mask. Use fancy indexing
         self.idk = kwargs['idk']
         self.smooth: float = kwargs.get('smooth', 1e-8)
         print(f"Initialized {self.__class__.__name__} with {kwargs}")
