@@ -1,3 +1,4 @@
+from os import cpu_count
 from pathlib import Path
 from typing import Literal
 
@@ -8,12 +9,35 @@ import tyro
 
 
 @dataclass
-class Args:
+class DatasetConfig:
+    name: Literal["TOY2", "SEGTHOR"] = "SEGTHOR"
+
+    num_classes: int = 5
+
+    seed: int = 0
+
+    shape: tuple[int, int] = (256, 256)
+    retains: int = 5
+    fold: int = 0
+
+
+@dataclass
+class ModelConfig:
+    name: Literal["ShallowNet", "ENet"] = "ENet"
+
+    kernels: int = 8
+    factor: int = 2
+
+
+@dataclass
+class Config:
     # Destination directory to save the results (predictions and weights).
     dest: Path
 
     # The dataset to train on
-    dataset: str = "TOY2"
+    dataset: DatasetConfig
+
+    model: ModelConfig
 
     epochs: int = 20
 
@@ -32,16 +56,16 @@ class Args:
 
     lr: float = 0.0005
     weight_decay: float = 0
-    batch_size: int = 256
+    batch_size: int = 8
     betas: tuple[float, float] = (0.9, 0.999)
     dropout: float = 0.01
     temperature: float = 1
 
 
-def get_args() -> Args:
-    args = tyro.cli(Args)
+def get_config() -> Config:
+    config = tyro.cli(Config)
 
     # Make sure a gpu is available if configured to use
-    args.gpu = args.gpu and torch.cuda.is_available()
+    config.gpu = config.gpu and torch.cuda.is_available()
 
-    return args
+    return config
