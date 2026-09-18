@@ -30,3 +30,12 @@ data/SEGTHOR:
 	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1 --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
+
+## Corrected ground truth
+data/SEGTHOR_CORRECTED:
+	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
+	find data/correct_data -name '.DS_Store' -delete
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --source_dir data/correct_data --dest_dir $@_tmp \
+		--shape 256 256 --retain 5
+	mv $@_tmp $@
