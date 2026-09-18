@@ -37,7 +37,7 @@ def split_fused_slice(m: np.ndarray) -> tuple[np.ndarray, np.ndarray] | tuple[No
         return labels == 1, labels == 2
     return None, None
 
-# helper in maintaining continuity across slices
+# post hoc 3D clean up
 def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     
     lbl, n = ndi.label(esophagus, structure=np.ones((3, 3, 3)))
