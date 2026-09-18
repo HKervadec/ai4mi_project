@@ -45,15 +45,19 @@ def ap_axis_and_sign(affine: np.ndarray) -> tuple[int, int]:
     raise ValueError(f"expected an anterior/posterior in-plane axis, got orientation {codes}")
 
 # changed to erosion in case of connected components, then watershed to split them
-def split_fused_slice(m: np.ndarray) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+def split_fused_slice(m: np.ndarray, prev_centroid: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
 
     for k in range(1, MAX_EROSION + 1):
         eroded = ndi.binary_erosion(m, iterations=k)
         lbl, n = ndi.label(eroded)
         if n < 2:
             continue
-        sizes = [(lbl == c).sum() for c in range(1, n + 1)]
-        aorta_c = int(np.argmin(sizes)) + 1
+        if prev_centroid is None:
+            sizes = [(lbl == c).sum() for c in range(1, n + 1)]
+            aorta_c = int(np.argmin(sizes)) + 1
+        else:
+            centroids = [np.array(ndi.center_of_mass(lbl == c)) for c in range(1, n + 1)]
+            aorta_c = min(range(n), key=lambda i: np.linalg.norm(centroids[i] - prev_centroid)) + 1
         markers = np.zeros(m.shape, dtype=np.int32)
         markers[lbl == aorta_c] = 1
         markers[(lbl != aorta_c) & eroded] = 2
@@ -88,28 +92,58 @@ def reclaim_stray_esophagus_fragments(aorta: np.ndarray, esophagus: np.ndarray) 
             esophagus = esophagus & ~frag
     return aorta, esophagus
 
-# spliting the merged label into aorta and esophagus 
+# spliting the merged label into aorta and esophagus
 def split_aorta_from_esophagus(merged: np.ndarray, ct_affine: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     aorta = np.zeros_like(merged)
     esophagus = np.zeros_like(merged)
+    prev_centroid = None
+    running_areas: list[int] = []
+
     for z in range(merged.shape[2]):
         m = merged[:, :, z]
         if not m.any():
             continue
         lbl, n = ndi.label(m)
+
         if n >= 2:
             comps = list(range(1, n + 1))
+            centroids = [np.array(ndi.center_of_mass(lbl == c)) for c in comps]
             areas = [(lbl == c).sum() for c in comps]
-            aorta_c = comps[int(np.argmin(areas))]
-            aorta[:, :, z] = lbl == aorta_c
-            esophagus[:, :, z] = (lbl != aorta_c) & m
-        else:
-            a, e = split_fused_slice(m)
-            if a is None:
-                esophagus[:, :, z] = m  
+
+            if prev_centroid is None:
+                aorta_i = int(np.argmin(areas))
+                a_mask = lbl == comps[aorta_i]
+                e_mask = (lbl != comps[aorta_i]) & m
             else:
-                aorta[:, :, z] = a
-                esophagus[:, :, z] = e
+                cap = max(np.median(running_areas[-5:]) * 2, 500)
+                candidates = [i for i in range(n) if areas[i] <= cap]
+                if candidates:
+                    aorta_i = min(candidates, key=lambda i: np.linalg.norm(centroids[i] - prev_centroid))
+                    a_mask = lbl == comps[aorta_i]
+                    e_mask = (lbl != comps[aorta_i]) & m
+                else:
+                    nearest_i = min(range(n), key=lambda i: np.linalg.norm(centroids[i] - prev_centroid))
+                    nearest_comp = lbl == comps[nearest_i]
+                    rest = m & ~nearest_comp
+                    a_local, e_local = split_fused_slice(nearest_comp, prev_centroid)
+                    if a_local is None:
+                        a_mask = np.zeros_like(m)
+                        e_mask = m.copy()
+                    else:
+                        a_mask = a_local
+                        e_mask = e_local | rest
+        else:
+            a_mask, e_mask = split_fused_slice(m, prev_centroid)
+            if a_mask is None:
+                e_mask = m
+                a_mask = np.zeros_like(m)
+
+        aorta[:, :, z] = a_mask
+        esophagus[:, :, z] = e_mask
+        if a_mask.any():
+            prev_centroid = np.array(ndi.center_of_mass(a_mask))
+            running_areas.append(int(a_mask.sum()))
+
     aorta, esophagus = reclaim_stray_esophagus_fragments(aorta, esophagus)
     return esophagus, aorta
 
