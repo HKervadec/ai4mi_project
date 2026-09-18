@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 import dataclasses
+from datetime import datetime
 import warnings
 from typing import Any
 from pathlib import Path
@@ -38,7 +39,7 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 
 from functools import partial
-import autorootcwd  # noqa
+import autoroot  # noqa     Do not remove
 
 from src.utils.config import Config, get_config
 from src.utils.dataset import SliceDataset
@@ -53,7 +54,6 @@ from src.utils.utils import (
     seed_all,
     tqdm_,
     dice_coef,
-    gated_dice,
     save_images,
 )
 
@@ -117,7 +117,7 @@ def setup(
 
     # Dataset part
     batch_size: int = config.batch_size
-    data_root_dir = autorootcwd.root / "data" / config.dataset.name
+    data_root_dir = autoroot.root / "data" / config.dataset.name
 
     train_set = SliceDataset(
         "train",
@@ -152,8 +152,6 @@ def setup(
         shuffle=False,
     )
 
-    config.dest.mkdir(parents=True, exist_ok=True)
-
     return (net, optimizer, scheduler, device, train_loader, val_loader, num_classes)
 
 
@@ -175,6 +173,10 @@ def runTraining(config: Config):
         config
     )
 
+    result_dir = config.dest or Path(
+        f"results/{config.dataset.name}/{datetime.now().strftime('%d/%m/%Y, %H:%M:%S')}"
+    )
+    result_dir.mkdir(parents=True, exist_ok=True)
     scaler = torch.amp.GradScaler("cuda", enabled=config.gpu)
 
     wandb.init(
@@ -200,14 +202,6 @@ def runTraining(config: Config):
     log_dice_val: Tensor = torch.zeros(
         (config.epochs, len(val_loader.dataset), num_classes)  # type: ignore
     )
-    log_presence_tra: Tensor = torch.zeros(
-        (config.epochs, len(train_loader.dataset), num_classes),  # type: ignore
-        dtype=torch.bool,
-    )
-    log_presence_val: Tensor = torch.zeros(
-        (config.epochs, len(val_loader.dataset), num_classes),  # type: ignore
-        dtype=torch.bool,
-    )
 
     best_dice: float = 0
 
@@ -224,7 +218,6 @@ def runTraining(config: Config):
                     loader = train_loader
                     log_loss = log_loss_tra
                     log_dice = log_dice_tra
-                    log_presence = log_presence_tra
                 case "val":
                     net.eval()
                     opt = None
@@ -233,7 +226,6 @@ def runTraining(config: Config):
                     loader = val_loader
                     log_loss = log_loss_val
                     log_dice = log_dice_val
-                    log_presence = log_presence_val
                 case _:
                     raise  # Should never be reached, but needed to silence ide warn
 
@@ -266,7 +258,6 @@ def runTraining(config: Config):
                         log_dice[e, j : j + batch_size, :] = dice_coef(
                             pred_seg, gt
                         )  # One DSC value per sample and per class
-                        log_presence[e, j : j + batch_size, :] = gt.sum(dim=(-2, -1)) > 0
 
                         # Pixel-wise accuracy
                         predicted_classes = pred_probs.argmax(dim=1)  # (B, W, H)
@@ -294,21 +285,20 @@ def runTraining(config: Config):
                             save_images(
                                 predicted_class * mult,
                                 data["stems"],
-                                config.dest / f"iter{e:03d}" / m,
+                                result_dir / f"iter{e:03d}" / m,
                             )
 
                     j += batch_size  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
                     epoch_acc = total_correct / total_pixels
-                    d, p = log_dice[e, :j], log_presence[e, :j]
                     postfix_dict: dict[str, str] = {
-                        "Dice": f"{gated_dice(d[:, 1:], p[:, 1:]):05.3f}",
+                        "Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
                         "Loss": f"{log_loss[e, : i + 1].mean():5.2e}",
                         "Acc": f"{epoch_acc:05.3f}",
                     }
                     if num_classes > 2:
                         postfix_dict |= {
-                            f"Dice-{k}": f"{gated_dice(d[:, k], p[:, k]):05.3f}"
+                            f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
                             for k in range(1, num_classes)
                         }
                     tq_iter.set_postfix(postfix_dict)
@@ -321,67 +311,55 @@ def runTraining(config: Config):
         metrics = {
             "epoch": e,
             "train/loss": log_loss_tra[e].mean().item(),
-            "train/dice": gated_dice(
-                log_dice_tra[e, :, 1:], log_presence_tra[e, :, 1:]
-            ).item(),
+            "train/dice": log_dice_tra[e, :, 1:].mean().item(),
             "train/acc": acc_tra,
             "val/loss": log_loss_val[e].mean().item(),
-            "val/dice": gated_dice(
-                log_dice_val[e, :, 1:], log_presence_val[e, :, 1:]
-            ).item(),
+            "val/dice": log_dice_val[e, :, 1:].mean().item(),
             "val/acc": acc_val,
         }
         if num_classes > 2:
             for k in range(1, num_classes):
-                metrics[f"train/dice_{k}"] = gated_dice(
-                    log_dice_tra[e, :, k], log_presence_tra[e, :, k]
-                ).item()
-                metrics[f"val/dice_{k}"] = gated_dice(
-                    log_dice_val[e, :, k], log_presence_val[e, :, k]
-                ).item()
+                metrics[f"train/dice_{k}"] = log_dice_tra[e, :, k].mean().item()
+                metrics[f"val/dice_{k}"] = log_dice_val[e, :, k].mean().item()
         wandb.log(metrics)
 
         # Scheduler at the end of each epoch
         scheduler.step()
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
-        np.save(config.dest / "loss_tra.npy", log_loss_tra)
-        np.save(config.dest / "dice_tra.npy", log_dice_tra)
-        np.save(config.dest / "presence_tra.npy", log_presence_tra)
-        np.save(config.dest / "loss_val.npy", log_loss_val)
-        np.save(config.dest / "dice_val.npy", log_dice_val)
-        np.save(config.dest / "presence_val.npy", log_presence_val)
+        np.save(result_dir / "loss_tra.npy", log_loss_tra)
+        np.save(result_dir / "dice_tra.npy", log_dice_tra)
+        np.save(result_dir / "loss_val.npy", log_loss_val)
+        np.save(result_dir / "dice_val.npy", log_dice_val)
 
-        current_dice: float = gated_dice(
-            log_dice_val[e, :, 1:], log_presence_val[e, :, 1:]
-        ).item()
+        current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
             print(message)
             best_dice = current_dice
-            with open(config.dest / "best_epoch.txt", "w") as f:
+            with open(result_dir / "best_epoch.txt", "w") as f:
                 f.write(message)
 
-            best_folder = config.dest / "best_epoch"
+            best_folder = result_dir / "best_epoch"
             if best_folder.exists():
                 rmtree(best_folder)
-            copytree(config.dest / f"iter{e:03d}", Path(best_folder))
+            copytree(result_dir / f"iter{e:03d}", Path(best_folder))
 
-            torch.save(net.state_dict(), config.dest / "bestweights.pt")
+            torch.save(net.state_dict(), result_dir / "bestweights.pt")
 
     # Wait for the background logging thread to finish
     wandb.finish()
 
 
 def main():
-    args = get_config()
+    config = get_config()
 
     # Seed everything right at the beginning
-    seed_all(args.seed, args.gpu)
+    seed_all(config.seed, config.gpu)
 
-    pprint(args)
+    pprint(dataclasses.asdict(config))
 
-    runTraining(args)
+    runTraining(config)
 
 
 if __name__ == "__main__":

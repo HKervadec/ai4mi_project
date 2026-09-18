@@ -1,0 +1,10 @@
+debug: true
+seed: 20
+
+dataset:
+  num_classes: 4
+  fold: 5
+
+model:
+  factor: 4
+  kernels: 16

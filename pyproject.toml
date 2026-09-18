@@ -3,11 +3,12 @@ name = "medical-imaging"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-  "autorootcwd>=1.0.1",
+  "autoroot>=1.0.1",
   "matplotlib>=3.11.1",
   "nibabel>=5.4.2",
   "numpy>=2.5.3",
   "pillow>=12.3.0",
+  "pyyaml>=6.0.3",
   "scikit-image>=0.26.0",
   "torch>=2.14.0",
   "torchvision>=0.29.0",

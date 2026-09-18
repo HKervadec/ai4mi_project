@@ -213,3 +213,16 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+
+def deep_update(base_dict: dict, update_dict: dict) -> dict:
+    for key, value in update_dict.items():
+        if (
+            isinstance(value, dict)
+            and key in base_dict
+            and isinstance(base_dict[key], dict)
+        ):
+            deep_update(base_dict[key], value)
+        else:
+            base_dict[key] = value
+    return base_dict

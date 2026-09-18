@@ -12,16 +12,16 @@ wheels = [
 ]
 
 [[package]]
-name = "autorootcwd"
+name = "autoroot"
 version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyrootutils" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/81/e1d437b397a3198f973a9875a5dfd37e35fdf90d3ffd5273fd1ca896d00c/autorootcwd-1.0.1.tar.gz", hash = "sha256:65ebae35478592ef453b29c6317fb8b6757f5dc6351877c85bf74d85491590bf", size = 1552, upload-time = "2024-08-09T15:41:47.044Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1b/44/6709ca20dcd3aa3dfb124f734dcf148929a4e7e4956ffb5121f768af48ca/autoroot-1.0.1.tar.gz", hash = "sha256:1372eecdd7c73fa32ddd6cfb5ed3f38de9587e4d4127692c98d1df9f6808d5d5", size = 1534, upload-time = "2024-08-09T15:41:48.668Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/cf/ced2cef6152c4c14afa1ead49a4d2805fdfbfa3eb6496d3bb0a4931ab1b2/autorootcwd-1.0.1-py3-none-any.whl", hash = "sha256:418600077572488f5c16f729835852e3a5e0f76f2fbd5d599fb6be0128e131f5", size = 1764, upload-time = "2024-08-09T15:41:46.171Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/7b/4187b8ca2ff9a4a5b3d7ad11548da24cbbdaf2cfd935c0033543c2c8b8dc/autoroot-1.0.1-py3-none-any.whl", hash = "sha256:8d945653a6a7d6ec855b395f4c34f423d5cafd3f011e63eea3b990aad9dd08c1", size = 1728, upload-time = "2024-08-09T15:41:47.779Z" },
 ]
 
 [[package]]
@@ -706,11 +706,12 @@ name = "medical-imaging"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "autorootcwd" },
+    { name = "autoroot" },
     { name = "matplotlib" },
     { name = "nibabel" },
     { name = "numpy" },
     { name = "pillow" },
+    { name = "pyyaml" },
     { name = "scikit-image" },
     { name = "torch" },
     { name = "torchvision" },
@@ -726,11 +727,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "autorootcwd", specifier = ">=1.0.1" },
+    { name = "autoroot", specifier = ">=1.0.1" },
     { name = "matplotlib", specifier = ">=3.11.1" },
     { name = "nibabel", specifier = ">=5.4.2" },
     { name = "numpy", specifier = ">=2.5.3" },
     { name = "pillow", specifier = ">=12.3.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "scikit-image", specifier = ">=0.26.0" },
     { name = "torch", specifier = ">=2.14.0" },
     { name = "torchvision", specifier = ">=0.29.0" },
