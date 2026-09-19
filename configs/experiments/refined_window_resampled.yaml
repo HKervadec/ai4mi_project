@@ -1,0 +1,15 @@
+# Voxel-spacing resampling on top of `current` (refined GT + HU window).
+# Resamples every volume to a common mm spacing, then center crop/pad to `shape`
+# (instead of per-slice resize), so the same physical organ lands on the same grid
+# in every patient. Compare against `current` to isolate the resampling effect.
+#
+# 1.95/1.95 mm in-plane is ~2x the cohort median native spacing (0.977 mm), i.e.
+# the effective in-plane spacing the resize baseline already produces (512 -> 256);
+# 2.5 mm z is the cohort median. Chosen so the A/B isolates cross-patient spatial
+# *consistency* rather than a change in overall resolution. See preprocessing.py.
+base: ../current.yaml
+owner:
+idea: "Voxel-spacing resampling to 1.95/1.95/2.5 mm (crop/pad) vs per-slice resize."
+
+data:
+  target_spacing: [1.95, 1.95, 2.5]

@@ -1,0 +1,27 @@
+# Current choices. Change a line when the group agrees and add an entry to DECISIONS.md.
+# Experiments in configs/experiments/ start from this file with `base: ../current.yaml`.
+
+data:
+  gt: data/gt/watershed_refined
+  window: [40, 400]     # HU [level, width] used when slicing; null = per-volume min-max
+  target_spacing: null  # [sx, sy, sz] mm to resample every volume + center crop/pad; null = resize each slice (original)
+  shape: [256, 256]
+  split: holdout        # holdout | cv4
+  fold: 0
+
+input:
+  context_slices: 0     # 2.5D, not implemented yet
+
+model:
+  name: enet
+  params: {kernels: 8, factor: 2}
+  pretrained: false
+
+loss: {name: ce}
+regularizers: []
+optimizer: {name: adam, lr: 0.0005, betas: [0.9, 0.999]}
+scheduler: {name: none}
+augment: []
+
+train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5}
+eval: {metrics_3d: [dice]}     # computed after training; the best epoch is still chosen on 2D val Dice

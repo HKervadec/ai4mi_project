@@ -1,0 +1,12 @@
+# Watershed (basic) GT fix + HU window + voxel-spacing resampling.
+# Same resampling as refined_window_resampled, but on the basic watershed GT fix
+# instead of the refined one -- overrides data.gt accordingly. Compare against a
+# watershed_window baseline to isolate the resampling effect on the basic fix.
+# See preprocessing.py for the resampling rationale (1.95/1.95/2.5 mm, crop/pad).
+base: ../current.yaml
+owner:
+idea: "Watershed GT fix + HU window + resampling to 1.95/1.95/2.5 mm (crop/pad)."
+
+data:
+  gt: data/gt/watershed
+  target_spacing: [1.95, 1.95, 2.5]

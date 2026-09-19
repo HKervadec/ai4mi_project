@@ -1,0 +1,54 @@
+{
+  "name": "holdout",
+  "seed": 0,
+  "patients": [
+    "Patient_01",
+    "Patient_02",
+    "Patient_03",
+    "Patient_04",
+    "Patient_05",
+    "Patient_06",
+    "Patient_07",
+    "Patient_08",
+    "Patient_09",
+    "Patient_10",
+    "Patient_11",
+    "Patient_12",
+    "Patient_13",
+    "Patient_14",
+    "Patient_15",
+    "Patient_16",
+    "Patient_17",
+    "Patient_18",
+    "Patient_19",
+    "Patient_20"
+  ],
+  "folds": [
+    {
+      "train": [
+        "Patient_02",
+        "Patient_03",
+        "Patient_04",
+        "Patient_05",
+        "Patient_06",
+        "Patient_07",
+        "Patient_08",
+        "Patient_09",
+        "Patient_10",
+        "Patient_12",
+        "Patient_13",
+        "Patient_14",
+        "Patient_16",
+        "Patient_18",
+        "Patient_20"
+      ],
+      "val": [
+        "Patient_01",
+        "Patient_11",
+        "Patient_15",
+        "Patient_17",
+        "Patient_19"
+      ]
+    }
+  ]
+}

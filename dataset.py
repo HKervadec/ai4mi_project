@@ -25,13 +25,13 @@
 from pathlib import Path
 from typing import Callable, Union
 
+import numpy as np
 import torch
 from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as TF
 import torchvision.transforms as T
-import random
 
 
 def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
@@ -51,6 +51,75 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
         full_labels = [None] * len(images)
 
     return list(zip(images, full_labels))
+
+
+def augment_pair(img: Tensor, gt: Tensor, rng: np.random.Generator | None = None) -> tuple[Tensor, Tensor]:
+    # All randomness is drawn from `rng` (a numpy Generator) so augmentation is
+    # tied to the run's per-worker seed rather than the process-global RNG. The
+    # segpipe pipeline passes the generator seeded in run.py; legacy callers that
+    # pass nothing get one derived from the (per-worker seeded) numpy global RNG.
+    if rng is None:
+        rng = np.random.default_rng(np.random.randint(0, 2 ** 32))
+
+    # spatial transforms are applied to both image and ground truth
+    if rng.random() > 0.5:
+        # rotating and scaling
+        angle = float(rng.uniform(-10, 10))
+        scale = float(rng.uniform(0.9, 1.1))
+
+        img = TF.affine(img, angle = angle, translate = [0, 0], scale = scale, shear = 0, interpolation = TF.InterpolationMode.BILINEAR)
+        gt = TF.affine(gt, angle = angle, translate = [0, 0], scale = scale, shear = 0, interpolation = TF.InterpolationMode.NEAREST)
+
+        # make sure that the ground truth is not empty after the transformation
+        empty_pixels = gt.sum(dim = 0) == 0
+        gt[0, empty_pixels] = 1
+
+    # adding SULBA (Stepwise Upper and Lowe Boundaries Augmentation)
+    if rng.random() > 0.5:
+        # get image dimensions
+        _, W, H = img.shape
+
+        # pick a random shift amount (up to 25% of the image size)
+        shift_w = int(rng.integers(-W // 4, W // 4 + 1))
+        shift_h = int(rng.integers(-H // 4, H // 4 + 1))
+
+        # roll the image and ground truth
+        img = torch.roll(img, shifts=(shift_w, shift_h), dims=(1, 2))
+        gt = torch.roll(gt, shifts=(shift_w, shift_h), dims=(1, 2))
+
+    # adding elastic deformation
+    if rng.random() > 0.5:
+        # ElasticTransform samples its displacement field from torch's global RNG
+        # and gives no generator hook, so we seed it deterministically from `rng`
+        # and reuse the same seed for image and GT to keep their geometry aligned.
+        seed = int(rng.integers(0, 2 ** 31))
+
+        # apply to image
+        torch.manual_seed(seed)
+        elastic_transform = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.BILINEAR)
+        img = elastic_transform(img)
+
+        # apply to ground truth
+        torch.manual_seed(seed)
+        elastic_transform_gt = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.NEAREST)
+        gt = elastic_transform_gt(gt)
+
+        # make sure that the ground truth is not empty after the transformation
+        empty_pixels = gt.sum(dim = 0) == 0
+        gt[0, empty_pixels] = 1
+
+    # intensity transforms are applied only to the image
+    if rng.random() > 0.5:
+        # adjust brightness
+        brightness_factor = float(rng.uniform(0.8, 1.2))
+        img = TF.adjust_brightness(img, brightness_factor)
+
+    if rng.random() > 0.5:
+        # adjust contrast
+        contrast_factor = float(rng.uniform(0.8, 1.2))
+        img = TF.adjust_contrast(img, contrast_factor)
+
+    return img, gt
 
 
 class SliceDataset(Dataset):
@@ -85,61 +154,7 @@ class SliceDataset(Dataset):
 
         # apply augmentations if enabled and not in test mode
         if self.augmentation and not self.test_mode:
-            # spatial transforms are applied to both image and ground truth
-            if random.random() > 0.5:
-                # rotating and scaling
-                angle = random.uniform(-10, 10)
-                scale = random.uniform(0.9, 1.1)
-
-                img = TF.affine(img, angle = angle, translate = [0, 0], scale = scale, shear = 0, interpolation = TF.InterpolationMode.BILINEAR)
-                gt = TF.affine(gt, angle = angle, translate = [0, 0], scale = scale, shear = 0, interpolation = TF.InterpolationMode.NEAREST)
-
-                # make sure that the ground truth is not empty after the transformation
-                empty_pixels = gt.sum(dim = 0) == 0
-                gt[0, empty_pixels] = 1
-
-            # adding SULBA (Stepwise Upper and Lowe Boundaries Augmentation)
-            if random.random() > 0.5:
-                # get image dimensions
-                _, W, H = img.shape
-
-                # pick a random shift amount (up to 25% of the image size)
-                shift_w = random.randint(-W // 4, W // 4)
-                shift_h = random.randint(-H // 4, H // 4)
-
-                # roll the image and ground truth
-                img = torch.roll(img, shifts=(shift_w, shift_h), dims=(1, 2))
-                gt = torch.roll(gt, shifts=(shift_w, shift_h), dims=(1, 2))
-
-            # adding elastic deformation
-            if random.random() > 0.5:
-                # generate a random seed to ensure the same deformation for image and GT
-                seed = random.randint(0, 10000)
-
-                # apply to image
-                torch.manual_seed(seed)
-                elastic_transform = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.BILINEAR)
-                img = elastic_transform(img)
-
-                # apply to ground truth 
-                torch.manual_seed(seed)
-                elastic_transform_gt = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.NEAREST)
-                gt = elastic_transform_gt(gt)
-
-                # make sure that the ground truth is not empty after the transformation
-                empty_pixels = gt.sum(dim = 0) == 0
-                gt[0, empty_pixels] = 1
-
-            # intensity transforms are applied only to the image
-            if random.random() > 0.5:
-                # adjust brightness
-                brightness_factor = random.uniform(0.8, 1.2)
-                img = TF.adjust_brightness(img, brightness_factor)
-
-            if random.random() > 0.5:
-                # adjust contrast
-                contrast_factor = random.uniform(0.8, 1.2)
-                img = TF.adjust_contrast(img, contrast_factor)
+            img, gt = augment_pair(img, gt)
 
         data_dict = {"images": img,
                              "stems": img_path.stem}

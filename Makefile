@@ -24,10 +24,15 @@ data/segthor_part1: data/segthor_part1.zip
 	unzip -q $<
 	rm -f $@/.DS_STORE
 
-data/SEGTHOR: data/segthor_fixed
+## Legacy single-dataset slice for `main.py --dataset SEGTHOR`. Slices from the
+## corrected GT (data/gt/watershed_refined, built as an order-only prereq), which
+## holds both the CT and the repaired GT. The modular pipeline does NOT use this
+## target -- it slices once via `make data-cache` (see below). For per-technique
+## experiments use run.py with a config (PIPELINE_PLAN.md), not main.py.
+data/SEGTHOR: | data/gt/watershed_refined
 	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
 	rm -rf $@_tmp $@
-	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_fixed --dest_dir $@_tmp \
+	python $(CFLAGS) slice_segthor.py --source_dir data/gt/watershed_refined --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
 
@@ -42,7 +47,7 @@ data/gt/watershed:
 	python fix_gt.py --source_dir data/segthor_part1/train --dest $@_tmp/train
 	mv $@_tmp $@
 
-data/gt/watershed_refined:
+data/gt/watershed_refined: 
 	$(info $(yellow)python fix_segthor_gt.py -> $@$(reset))
 	rm -rf $@_tmp $@
 	python fix_segthor_gt.py --source_dir data/segthor_part1 --dest_dir $@_tmp
@@ -68,17 +73,30 @@ data/experiments/watershed_window: | data/gt/watershed
 	python $(CFLAGS) slice_segthor.py --experiment watershed_window --dest_dir $@_tmp
 	mv $@_tmp $@
 
+data/experiments/watershed_window_resampled: | data/gt/watershed
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --experiment watershed_window_resampled --dest_dir $@_tmp
+	mv $@_tmp $@
+
 data/experiments/refined_window: | data/gt/watershed_refined
 	rm -rf $@_tmp $@
 	python $(CFLAGS) slice_segthor.py --experiment refined_window --dest_dir $@_tmp
 	mv $@_tmp $@
 
-data/experiments/refined_augment: | data/gt/watershed_refined
-	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
+data/experiments/refined_window_resampled: | data/gt/watershed_refined
 	rm -rf $@_tmp $@
-	python $(CFLAGS) slice_segthor.py --experiment refined_augment --dest_dir $@_tmp
+	python $(CFLAGS) slice_segthor.py --experiment refined_window_resampled --dest_dir $@_tmp
 	mv $@_tmp $@
 
 .PHONY: data-experiments
 data-experiments: data/experiments/original data/experiments/watershed_minmax \
-                  data/experiments/watershed_window data/experiments/refined_window
+                  data/experiments/watershed_window data/experiments/watershed_window_resampled \
+                  data/experiments/refined_window data/experiments/refined_window_resampled
+
+## Modular pipeline (see PIPELINE_PLAN.md): all patients sliced once for run.py.
+## run.py builds it automatically when missing; this target only does it ahead of time.
+## Resampling (target_spacing) gets its own cache folder, so switching it on/off
+## never reuses the wrong slices -- run.py rebuilds the cache automatically.
+.PHONY: data-cache
+data-cache: | data/gt/watershed_refined
+	python -m segpipe.data --config configs/current.yaml

@@ -7,3 +7,4 @@ pillow
 scikit-image
 scipy
 matplotlib
+pyyaml

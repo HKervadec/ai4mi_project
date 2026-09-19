@@ -111,7 +111,12 @@ def build_loss(name: str, K: int, mode: str):
     if mode == "full":
         return CrossEntropy(idk=list(range(K)))       # supervise all classes
     if mode == "partial":
-        return CrossEntropy(idk=[0, 1, 3, 4])         # skip heart (class 2); SEGTHOR-specific
+        # SEGTHOR-specific (skip heart, class 2). Guard so it can't silently
+        # produce a wrong loss on a non-5-class dataset (matches master, which
+        # only allowed partial for SEGTHOR).
+        if K != 5:
+            raise ValueError(f"partial mode is SEGTHOR-specific (K=5), got K={K}")
+        return CrossEntropy(idk=[0, 1, 3, 4])
     raise ValueError(f"unknown mode: {mode}")
 
 
@@ -152,7 +157,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                              root_dir,
                              img_transform=img_transform,
                              gt_transform= partial(gt_transform, K),
-                             augment=True,
+                             augment=augment,
                              debug=args.debug)
     # Deterministic shuffling: a seeded generator fixes the batch order and
     # seed_worker makes each worker's RNG reproducible (matters once augmentation
