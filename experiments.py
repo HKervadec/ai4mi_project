@@ -133,3 +133,10 @@ register(Experiment(
     slice=SliceConfig(source_dir="data/gt/watershed_refined", window=MEDIASTINAL),
     train=TrainConfig(mode="full", loss="ce", augment=False),
 ))
+
+register(Experiment(
+    name="refined_augment",
+    description="Refined watershed GT + HU windowing + SULBA/Elastic Augmentation",
+    slice=SliceConfig(source_dir="data/gt/watershed_refined", window=MEDIASTINAL),
+    train=TrainConfig(augment=True, loss="ce"),
+))
