@@ -54,7 +54,7 @@ from utils.utils import (
     save_images,
 )
 
-from utils.losses import CrossEntropy
+from utils.losses import CrossEntropy, DiceCrossEntropy
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -181,13 +181,19 @@ def runTraining(args: Args):
         wandb.watch(net, log="all", log_freq=100)
 
     if args.mode == "full":
-        loss_fn = CrossEntropy(
-            idk=list(range(K))
-        )  # Supervise both background and foreground
+        idk = list(range(K))
     elif args.mode in ["partial"] and args.dataset == "SEGTHOR":
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+        idk = [0, 1, 3, 4]
     else:
         raise ValueError(args.mode, args.dataset)
+
+    if args.loss == "ce":
+        loss_fn = CrossEntropy(idk=idk)
+    elif args.loss == "dice_ce":
+        dice_idk = [c for c in idk if c != 0]
+        loss_fn = DiceCrossEntropy(ce_idk=idk, dice_idk=dice_idk, dice_weight=args.dice_weight)
+    else:
+        raise ValueError(args.loss)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))

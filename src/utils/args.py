@@ -18,6 +18,10 @@ class Args:
 
     mode: Literal["partial", "full"] = "full"
 
+    loss: Literal["ce", "dice_ce"] = "ce"
+
+    dice_weight: float = 1.0
+
     gpu: bool = False
 
     num_workers: int = 5
