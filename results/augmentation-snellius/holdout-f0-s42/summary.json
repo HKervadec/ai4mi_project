@@ -1,0 +1,69 @@
+{
+  "experiment": "augmentation-snellius",
+  "run": "holdout-f0-s42",
+  "owner": "Githa",
+  "idea": "Data augmentation from Testing-data-augmentation, to compare against current.",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 42,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "e974bc0",
+    "branch": "Testing-data-augmentation",
+    "dirty": true
+  },
+  "best_epoch": 24,
+  "val_dice_2d": 0.7498,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.5272,
+    "heart": 0.9504,
+    "trachea": 0.7096,
+    "aorta": 0.8121
+  },
+  "train_minutes": 153.8,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.4651,
+      "per_class": {
+        "esophagus": 0.1793,
+        "heart": 0.9273,
+        "trachea": 0.0047,
+        "aorta": 0.7494
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.2115,
+          "heart": 0.9371,
+          "trachea": 0.0094,
+          "aorta": 0.8281
+        },
+        "Patient_11": {
+          "esophagus": 0.2298,
+          "heart": 0.9195,
+          "trachea": 0.0016,
+          "aorta": 0.6905
+        },
+        "Patient_15": {
+          "esophagus": 0.1082,
+          "heart": 0.9379,
+          "trachea": 0.0046,
+          "aorta": 0.7215
+        },
+        "Patient_17": {
+          "esophagus": 0.1825,
+          "heart": 0.9288,
+          "trachea": 0.0038,
+          "aorta": 0.7405
+        },
+        "Patient_19": {
+          "esophagus": 0.1644,
+          "heart": 0.913,
+          "trachea": 0.004,
+          "aorta": 0.7661
+        }
+      }
+    }
+  }
+}
