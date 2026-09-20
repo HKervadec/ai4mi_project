@@ -159,6 +159,7 @@ options:
   --mode {partial,full}
   --dest DEST           Destination directory to save the results (predictions and weights).
   --gpu
+  --loss {ce,dice,cedice}               default: ce
   --debug               Keep only a fraction (10 samples) of the datasets, to test the logic around epochs and logging easily.
 $ python main.py --dataset TOY2 --mode full --epoch 25 --dest results/toy2/ce --gpu
 ```

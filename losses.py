@@ -48,6 +48,47 @@ class CrossEntropy():
         return loss
 
 
+class DiceLoss():
+    def __init__(self, **kwargs):
+        # Self.idk is used to filter out some classes of the target mask. Use fancy indexing
+        self.idk = kwargs['idk']
+        self.smooth: float = kwargs['smooth'] if 'smooth' in kwargs else 1e-8
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        pred = pred_softmax[:, self.idk, ...]
+        mask = weak_target[:, self.idk, ...].float()
+
+        # Summed over the batch and not per image: most slices contain no
+        # esophagus, and a per-image Dice scores an absent class as a perfect 1
+        # with no gradient, so the small classes end up supervised on almost
+        # nothing.
+        inter = einsum("bkwh,bkwh->k", pred, mask)
+        sizes = einsum("bkwh->k", pred) + einsum("bkwh->k", mask)
+
+        dice = (2 * inter + self.smooth) / (sizes + self.smooth)
+
+        return 1 - dice.mean()
+
+
+class CEDice():
+    def __init__(self, **kwargs):
+        self.alpha: float = kwargs['alpha'] if 'alpha' in kwargs else 0.5
+        self.ce = CrossEntropy(idk=kwargs['idk'])
+        # Background stays supervised by the cross-entropy, but is kept out of
+        # the Dice: at ~99% of the pixels it would drown the organs it is there
+        # to rebalance.
+        self.dice = DiceLoss(idk=[k for k in kwargs['idk'] if k != 0])
+
+    def __call__(self, pred_softmax, weak_target):
+        return (self.alpha * self.ce(pred_softmax, weak_target)
+                + (1 - self.alpha) * self.dice(pred_softmax, weak_target))
+
+
 class PartialCrossEntropy(CrossEntropy):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
