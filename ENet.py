@@ -184,7 +184,7 @@ class ENet(nn.Module):
                 #                          conv_block)
 
                 # Initial operations
-                self.conv0 = nn.Conv2d(in_dim, K - 1, kernel_size=3, stride=2, padding=1)
+                self.conv0 = nn.Conv2d(in_dim, K - in_dim, kernel_size=3, stride=2, padding=1)  # ADDED adaptation for 2.5D channel flexibility
                 self.maxpool0 = nn.MaxPool2d(2, return_indices=False, ceil_mode=False)
 
                 # Downsampling half
