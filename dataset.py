@@ -88,11 +88,22 @@ class SliceDataset(Dataset):
 
     def __len__(self):
         return len(self.files)
+    
+    def _maybe_crop(self, tensor: Tensor) -> Tensor:      # ADDED crop switch to tensor
+        if self.crop_transform is not None:
+            return self.crop_transform(tensor)
+        return tensor
 
+    
     def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
         img_path, gt_path = self.files[index]
+        gt_pil_aug = None
 
-        img: Tensor = self.img_transform(Image.open(img_path))
+
+            img: Tensor = self._maybe_crop(self.img_transform(pil_curr))
+
+            img: Tensor = self._maybe_crop(torch.cat([slice_prev, slice_curr, slice_next], dim=0))
+        
 
         data_dict = {"images": img,
                      "stems": img_path.stem}
