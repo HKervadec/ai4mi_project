@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Callable, Union
 
@@ -29,7 +30,7 @@ from torch.utils.data import Dataset
 from torchvision import tv_tensors
 from torchvision.transforms.v2.functional import pil_to_tensor, to_pil_image
 
-from utils.augmentations import augment
+from src.utils.augmentations import augment
 
 
 def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
@@ -61,7 +62,7 @@ class SliceDataset(Dataset):
         root_dir,
         img_transform,
         gt_transform,
-        augment: tuple[str, ...] = (),
+        augment: Sequence[str] = (),
         equalize=False,
         debug=False,
     ):
@@ -70,7 +71,7 @@ class SliceDataset(Dataset):
         self.gt_transform: Callable = gt_transform
         # Names from utils/augmentations.py, e.g. ("affine", "elastic"). If any are
         # given, every slice is also served a second time, augmented.
-        self.augment: tuple[str, ...] = augment
+        self.augment: Sequence[str] = augment
         self.equalize: bool = equalize
 
         self.test_mode: bool = subset == "test"

@@ -32,6 +32,7 @@ import random
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
+from scipy import ndimage
 
 
 tqdm_ = partial(
@@ -187,6 +188,12 @@ dice_coef = partial(meta_dice, "bk...->bk")
 dice_batch = partial(meta_dice, "bk...->k")  # used for 3d dice
 
 
+def gated_dice(dice: Tensor, present: Tensor) -> Tensor:
+    # Mean of the dice values over where the class is actually present in gt
+    assert dice.shape == present.shape
+    return dice.masked_fill(~present, 0.0).sum() / present.sum().clamp(min=1)
+
+
 def intersection(a: Tensor, b: Tensor) -> Tensor:
     assert a.shape == b.shape
     assert sset(a, [0, 1])
@@ -207,3 +214,197 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+
+# distance-based metrics
+
+
+def _surface_voxels(mask: np.ndarray) -> np.ndarray:
+    return mask ^ ndimage.binary_erosion(mask)
+
+
+def _surface_coords(mask: np.ndarray, spacing_mm: tuple) -> Tensor:
+    spacing = torch.tensor(spacing_mm, dtype=torch.float32)
+    coords = torch.from_numpy(np.argwhere(_surface_voxels(mask))).float()
+    return coords * spacing
+
+
+def _asymmetric_distance(a_coords: Tensor, b_coords: Tensor) -> Tensor:
+    return torch.cdist(a_coords, b_coords).min(dim=1).values
+
+
+def hausdorff_distance(
+    a: np.ndarray, b: np.ndarray, spacing_mm: tuple, percentile: float
+) -> float:
+    a_coords, b_coords = _surface_coords(a, spacing_mm), _surface_coords(b, spacing_mm)
+    if len(a_coords) == 0 or len(b_coords) == 0:
+        return float("inf")
+
+    dist_ab = _asymmetric_distance(a_coords, b_coords)
+    dist_ba = _asymmetric_distance(b_coords, a_coords)
+
+    q = percentile / 100.0
+
+    return torch.max(torch.quantile(dist_ab, q), torch.quantile(dist_ba, q)).item()
+
+
+def average_hausdorff_distance(
+    a: np.ndarray, b: np.ndarray, spacing_mm: tuple
+) -> float:
+    a_coords, b_coords = _surface_coords(a, spacing_mm), _surface_coords(b, spacing_mm)
+    if len(a_coords) == 0 or len(b_coords) == 0:
+        return float("inf")
+
+    dist_ab = _asymmetric_distance(a_coords, b_coords)
+    dist_ba = _asymmetric_distance(b_coords, a_coords)
+
+    return ((dist_ab.mean() + dist_ba.mean()) / 2.0).item()
+
+
+def normalized_surface_distance(
+    a: np.ndarray, b: np.ndarray, spacing_mm: tuple, tau_mm: float
+) -> float:
+    """
+    NSD within border of size tau_mm (tolerance in mm) of the other surface.
+    """
+    a_coords, b_coords = _surface_coords(a, spacing_mm), _surface_coords(b, spacing_mm)
+    if len(a_coords) == 0 or len(b_coords) == 0:
+        return float("nan")
+
+    dist_ab = _asymmetric_distance(a_coords, b_coords)
+    dist_ba = _asymmetric_distance(b_coords, a_coords)
+
+    within_ab = (dist_ab <= tau_mm).sum()
+    within_ba = (dist_ba <= tau_mm).sum()
+
+    return ((within_ab + within_ba).float() / (len(a_coords) + len(b_coords))).item()
+
+
+def meta_hausdorff(
+    percentile: float, label: Tensor, pred: Tensor, spacing_mm: tuple = (1, 1, 1)
+) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    b, k, *_ = label.shape
+    res = torch.zeros((b, k), dtype=torch.float32)
+
+    label_np = label.detach().cpu().numpy().astype(bool)
+    pred_np = pred.detach().cpu().numpy().astype(bool)
+
+    for i in range(b):
+        for j in range(k):
+            res[i, j] = hausdorff_distance(
+                label_np[i, j], pred_np[i, j], spacing_mm, percentile
+            )
+
+    return res
+
+
+hausdorff_coef = partial(meta_hausdorff, 100.0)
+hd95_coef = partial(meta_hausdorff, 95.0)
+
+
+def meta_average_hausdorff(
+    label: Tensor, pred: Tensor, spacing_mm: tuple = (1, 1, 1)
+) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    b, k, *_ = label.shape
+    res = torch.zeros((b, k), dtype=torch.float32)
+
+    label_np = label.detach().cpu().numpy().astype(bool)
+    pred_np = pred.detach().cpu().numpy().astype(bool)
+
+    for i in range(b):
+        for j in range(k):
+            res[i, j] = average_hausdorff_distance(
+                label_np[i, j], pred_np[i, j], spacing_mm
+            )
+
+    return res
+
+
+ahd_coef = meta_average_hausdorff
+
+
+def meta_normalized_surface_distance(
+    tau_mm: float, label: Tensor, pred: Tensor, spacing_mm: tuple = (1, 1, 1)
+) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    b, k, *_ = label.shape
+    res = torch.zeros((b, k), dtype=torch.float32)
+
+    label_np = label.detach().cpu().numpy().astype(bool)
+    pred_np = pred.detach().cpu().numpy().astype(bool)
+
+    for i in range(b):
+        for j in range(k):
+            res[i, j] = normalized_surface_distance(
+                label_np[i, j], pred_np[i, j], spacing_mm, tau_mm
+            )
+
+    return res
+
+
+nsd_coef = partial(
+    meta_normalized_surface_distance, 2.0
+)  # 2mm tolerance — set per organ
+
+
+# Overlap-based metrics
+
+
+def boundary_iou(a: np.ndarray, b: np.ndarray, dilation: int = 2) -> float:
+    a_boundary = a ^ ndimage.binary_erosion(a, iterations=dilation)
+    b_boundary = b ^ ndimage.binary_erosion(b, iterations=dilation)
+
+    inter = (a_boundary & b_boundary).sum()
+    uni = (a_boundary | b_boundary).sum()
+
+    if uni == 0:
+        return float("nan")
+
+    return inter / uni
+
+
+def meta_boundary_iou(dilation: int, label: Tensor, pred: Tensor) -> Tensor:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    b, k, *_ = label.shape
+    res = torch.zeros((b, k), dtype=torch.float32)
+
+    label_np = label.detach().cpu().numpy().astype(bool)
+    pred_np = pred.detach().cpu().numpy().astype(bool)
+
+    for i in range(b):
+        for j in range(k):
+            res[i, j] = boundary_iou(label_np[i, j], pred_np[i, j], dilation)
+
+    return res
+
+
+biou_coef = partial(
+    meta_boundary_iou, 2
+)  # boundary band width in voxels — tune per organ scale
+
+
+def deep_update(base_dict: dict, update_dict: dict) -> dict:
+    for key, value in update_dict.items():
+        if (
+            isinstance(value, dict)
+            and key in base_dict
+            and isinstance(base_dict[key], dict)
+        ):
+            deep_update(base_dict[key], value)
+        else:
+            base_dict[key] = value
+    return base_dict

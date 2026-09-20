@@ -7,6 +7,7 @@ intensity transforms leave the labels untouched.
 """
 
 import zlib
+from collections.abc import Sequence
 
 import torch
 from torchvision import tv_tensors
@@ -45,7 +46,7 @@ def augment(
     img: tv_tensors.Image,
     gt: tv_tensors.Mask,
     stem: str,
-    names: tuple[str, ...] = tuple(AUGMENTATIONS),
+    names: Sequence[str] = tuple(AUGMENTATIONS),
     seed: int = 0,
 ) -> tuple[tv_tensors.Image, tv_tensors.Mask]:
     """Augment one slice the same way as the other slices of its patient.

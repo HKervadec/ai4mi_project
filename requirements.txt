@@ -8,4 +8,6 @@ scikit-image
 matplotlib
 wandb
 tyro
+autoroot
+pyyaml
 

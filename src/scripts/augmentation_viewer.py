@@ -23,6 +23,7 @@ Keys: right/left next/previous slice, r new random draw, s save figure, q quit.
 import sys
 from pathlib import Path
 
+import autoroot  # noqa     Do not remove, puts the project root on sys.path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -33,10 +34,7 @@ from PIL import Image
 from torchvision import tv_tensors
 from torchvision.transforms.v2.functional import pil_to_tensor
 
-# So that `utils` resolves when this file is run directly as a script.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from utils.augmentations import AUGMENTATIONS, augment
+from src.utils.augmentations import AUGMENTATIONS, augment
 
 CLASS_NAMES: tuple[str, ...] = ("esophagus", "heart", "trachea", "aorta")
 CLASS_COLORS: tuple[str, ...] = ("gold", "crimson", "deepskyblue", "limegreen")
