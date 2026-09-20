@@ -97,7 +97,7 @@ def _load_config_file():
     args, remaining_argv = parser.parse_known_args()
 
     config_path = Path(args.config)
-    if config_path.exists():
+    if args.config != "" and config_path.exists():
         with open(config_path, "r") as fp:
             return yaml.safe_load(fp) or {}, remaining_argv
 
