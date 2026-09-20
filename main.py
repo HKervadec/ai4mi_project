@@ -43,6 +43,7 @@ from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
 from ViT import ViT
+from swin_model import build_swin_unet
 from utils import (Dcm,
                    class2one_hot,
                    probs2one_hot,
@@ -53,9 +54,11 @@ from utils import (Dcm,
 
 from losses import (CrossEntropy)
 
+
 models = {
     "ENet": ENet,
     "ViT": ViT,
+    "SwinUnet": build_swin_unet
 }
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -98,6 +101,13 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     if args.model == "ViT":
         net = net_class(img_size=256, patch_size=8, out_dim=K, mlp_dim=2048)
+    elif args.model == "SwinUnet":
+        checkpoint = Path(args.swin_checkpoint)
+        net = net_class(
+            num_classes=K,
+            checkpoint=checkpoint,
+            img_size=256
+        )
     else:
         net = net_class(1, K, kernels=kernels, factor=factor)
         net.init_weights()
@@ -256,6 +266,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model', type=str, required=True)
+    parser.add_argument('--swin_checkpoint', type=Path,
+                        help="Path to the pretrained Swin-Unet checkpoint")
     parser.add_argument('--epochs', default=20, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
