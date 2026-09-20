@@ -24,7 +24,7 @@
 
 import argparse
 import warnings
-from typing import Any
+from typing import Any, Optional
 from pathlib import Path
 from pprint import pprint
 from operator import itemgetter
@@ -86,7 +86,11 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     K: int = datasets_params[args.dataset]['K']
     kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
     factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
-    net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
+   
+    # ADDED: Dynamic input channel count (1 for 2D, 3 for 2.5D)
+    in_channels: int = 3 if args.is_25d else 1
+
+    net = datasets_params[args.dataset]['net'](in_channels, K, kernels=kernels, factor=factor)
     net.init_weights()
     net.to(device)
 
@@ -95,6 +99,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     # Dataset part
     B: int = datasets_params[args.dataset]['B']
+    crop_size: Optional[int] = args.crop_size if args.crop_size and args.crop_size > 0 else None       # so we can run vanilla baseline, and then preprocessed flexibly
     root_dir = Path("data") / args.dataset
 
 
@@ -103,7 +108,11 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                              root_dir,
                              img_transform=img_transform,
                              gt_transform= partial(gt_transform, K),
-                             debug=args.debug)
+                             augment=args.augment,
+                             debug=args.debug,
+                             is_25d=args.is_25d,             # ADDED dimensionality flexibility,
+                             crop_size=crop_size,            # CenterCrop (None=original 256/no crop),
+                             filter_empty=args.filter_empty) # empty slice filtering 
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=5,
@@ -113,7 +122,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                            root_dir,
                            img_transform=img_transform,
                            gt_transform=partial(gt_transform, K),
-                           debug=args.debug)
+                           debug=args.debug,
+                           is_25d=args.is_25d,           # Dimensionality switc
+                           crop_size=crop_size,          # CenterCrop (None=no crop),
+                           filter_empty=False)           # empty slice filtering 
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=5,
@@ -245,7 +257,14 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logics around epochs and logging easily.")
-
+    # ADDED Dimensionality flexibility, CenterCrop 192x192, Filter empty slices
+    parser.add_argument('--is_25d', action='store_true',
+                       help="Enable 2.5D slice stacking [t-1, t, t+1]")
+    parser.add_argument('--crop_size', type=int, default=192, help="Center crop size for images/masks (set 0 to keep full 256x256)")
+    parser.add_argument('--filter_empty', action=argparse.BooleanOptionalAction, default=True, 
+                        help="Filter empty slices during training")
+    parser.add_argument('--augment', action='store_true', 
+                        help="Enable spatial data augmentations")
     args = parser.parse_args()
 
     pprint(args)

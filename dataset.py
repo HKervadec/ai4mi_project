@@ -94,24 +94,89 @@ class SliceDataset(Dataset):
             return self.crop_transform(tensor)
         return tensor
 
+    def _apply_joint_augmentation(self, img_pil, gt_pil):
+        # ADDED identical tilt/rotation and slight zoom-out/scale to image and mask
+         angle = random.uniform(-8.0, 8.0)
+         scale = random.uniform(0.85, 1.05)
+         
+         w, h = img_pil.size
+         translations = (int(random.uniform(-0.03, 0.03) * w), 
+                         int(random.uniform(-0.03, 0.03) * h))
+
+         img_aug = TF.affine(
+             img_pil, angle=angle, translate=translations, scale=scale, shear=0,
+             interpolation=TF.InterpolationMode.BILINEAR, fill=0
+         )
+         gt_aug = TF.affine(
+             gt_pil, angle=angle, translate=translations, scale=scale, shear=0,
+             interpolation=TF.InterpolationMode.NEAREST, fill=0
+         )
+         return img_aug, gt_aug
     
     def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
         img_path, gt_path = self.files[index]
         gt_pil_aug = None
 
+        if not self.is_25d:                                             # Original 2D logic
+            pil_curr = Image.open(img_path)
+            if not self.test_mode:
+                gt_pil_raw = Image.open(gt_path)
+                if self.augmentation:
+                    pil_curr, gt_pil_aug = self._apply_joint_augmentation(pil_curr, gt_pil_raw)
+                else:
+                    gt_pil_aug = gt_pil_raw
 
             img: Tensor = self._maybe_crop(self.img_transform(pil_curr))
+        else:                                                           # ADDED 2.5D logic
+            prev_idx = max(0, index - 1)
+            curr_idx = index
+            next_idx = min(len(self.files) - 1, index + 1)
+ 
+            img_path_prev, _ = self.files[prev_idx]
+            img_path_curr = img_path
+            img_path_next, _ = self.files[next_idx]
+ 
+            # Prevent cross-patient volume mixing
+            if img_path_prev.stem.split('_')[0] != img_path_curr.stem.split('_')[0]:
+                img_path_prev = img_path_curr
+            if img_path_next.stem.split('_')[0] != img_path_curr.stem.split('_')[0]:
+                img_path_next = img_path_curr
+ 
+            pil_prev = Image.open(img_path_prev)
+            pil_curr = Image.open(img_path_curr)
+            pil_next = Image.open(img_path_next)
+             
+            if not self.test_mode:
+                gt_pil_raw = Image.open(gt_path)
+                if self.augmentation:
+                # Sample ONE set of affine parameters for all 3 slices & mask
+                    angle = random.uniform(-8.0, 8.0)
+                    scale = random.uniform(0.85, 1.05)
+                    w, h = pil_curr.size
+                    trans = (int(random.uniform(-0.03, 0.03) * w), int(random.uniform(-0.03, 0.03) * h))
+                    gt_pil_raw = Image.open(gt_path)
+                
+                    pil_prev = TF.affine(pil_prev, angle, trans, scale, 0, TF.InterpolationMode.BILINEAR)
+                    pil_curr = TF.affine(pil_curr, angle, trans, scale, 0, TF.InterpolationMode.BILINEAR)
+                    pil_next = TF.affine(pil_next, angle, trans, scale, 0, TF.InterpolationMode.BILINEAR)
+                    gt_pil_aug = TF.affine(gt_pil_raw, angle, trans, scale, 0, TF.InterpolationMode.NEAREST)
+                else:
+                        gt_pil_aug = gt_pil_raw
+
+            slice_prev = self.img_transform(pil_prev)
+            slice_curr = self.img_transform(pil_curr)
+            slice_next = self.img_transform(pil_next)
 
             img: Tensor = self._maybe_crop(torch.cat([slice_prev, slice_curr, slice_next], dim=0))
         
 
         data_dict = {"images": img,
-                     "stems": img_path.stem}
+                    "stems": self.files[index][0].stem}  # ADDED Dimensionality flexibility
 
         if not self.test_mode:
-            gt: Tensor = self.gt_transform(Image.open(gt_path))
-
-            _, W, H = img.shape
+            gt: Tensor = self._maybe_crop(self.gt_transform(gt_pil_aug))
+          
+            W, H = img.shape[-2:]  # ADDED Dimensionality flexibility
             K, _, _ = gt.shape
             assert gt.shape == (K, W, H)
 
