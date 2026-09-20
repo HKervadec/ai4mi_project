@@ -57,24 +57,7 @@ from src.utils.utils import (
     save_images,
 )
 
-<<<<<<< HEAD
-from utils.losses import CrossEntropy, DiceCrossEntropy
-
-datasets_params: dict[str, dict[str, Any]] = {}
-# K for the number of classes
-# Avoids the classes with C (often used for the number of Channel)
-datasets_params["TOY2"] = {"K": 2, "net": shallowCNN, "B": 2, "kernels": 8, "factor": 2}
-datasets_params["SEGTHOR"] = {"K": 5, "net": ENet, "B": 8, "kernels": 8, "factor": 2}
-datasets_params["SEGTHOR_CLEAN"] = {
-    "K": 5,
-    "net": ENet,
-    "B": 8,
-    "kernels": 8,
-    "factor": 2,
-}
-=======
-from src.utils.losses import CrossEntropy
->>>>>>> master
+from src.utils.losses import CrossEntropy, CrossEntropyPlusDice
 
 
 def img_transform(img):
@@ -221,7 +204,9 @@ def runTraining(config: Config):
         loss_fn = CrossEntropy(idk=idk)
     elif config.loss == "dice_ce":
         dice_idk = [c for c in idk if c != 0]
-        loss_fn = DiceCrossEntropy(ce_idk=idk, dice_idk=dice_idk, dice_weight=config.dice_weight)
+        loss_fn = CrossEntropyPlusDice(
+            ce_idk=idk, dice_idk=dice_idk, dice_weight=config.dice_weight
+        )
     else:
         raise ValueError(config.loss)
 
