@@ -22,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import dataclasses
+from datetime import datetime
 import warnings
 from typing import Any
 from pathlib import Path
@@ -29,6 +31,7 @@ from pprint import pprint
 from shutil import copytree, rmtree
 
 import torch
+from torch.optim.lr_scheduler import LRScheduler
 import wandb
 import numpy as np
 import torch.nn.functional as F
@@ -36,13 +39,13 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 
 from functools import partial
+import autoroot  # noqa     Do not remove
 
-from models import ShallowNet
-from utils.args import Args, get_args
-from utils.dataset import SliceDataset
-from models.ShallowNet import shallowCNN
-from models.ENet import ENet
-from utils.utils import (
+from src.utils.config import Config, get_config
+from src.utils.dataset import SliceDataset
+from src.models.ShallowNet import shallowCNN
+from src.models.ENet import ENet
+from src.utils.utils import (
     Dcm,
     class2one_hot,
     get_root_dir,
@@ -54,6 +57,7 @@ from utils.utils import (
     save_images,
 )
 
+<<<<<<< HEAD
 from utils.losses import CrossEntropy, DiceCrossEntropy
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -68,6 +72,9 @@ datasets_params["SEGTHOR_CLEAN"] = {
     "kernels": 8,
     "factor": 2,
 }
+=======
+from src.utils.losses import CrossEntropy
+>>>>>>> master
 
 
 def img_transform(img):
@@ -92,54 +99,57 @@ def gt_transform(K, img):
     return img[0]
 
 
-def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+def setup(
+    config: Config,
+) -> tuple[nn.Module, Any, LRScheduler, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
-    gpu: bool = args.gpu and torch.cuda.is_available()
-    device = torch.device("cuda") if gpu else torch.device("cpu")
+    device = torch.device("cuda") if config.gpu else torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
-    K: int = datasets_params[args.dataset]["K"]
-    kernels: int = (
-        datasets_params[args.dataset]["kernels"]
-        if "kernels" in datasets_params[args.dataset]
-        else 8
-    )
-    factor: int = (
-        datasets_params[args.dataset]["factor"]
-        if "factor" in datasets_params[args.dataset]
-        else 2
-    )
+    num_classes: int = config.dataset.num_classes
+    kernels: int = config.model.kernels
+    factor: int = config.model.factor
 
-    # dropoutRate might not be in class, probably want more robust type checking here
-    net: ENet | ShallowNet.shallowCNN = datasets_params[args.dataset]["net"](
-        1, K, kernels=kernels, factor=factor, dropoutRate=args.dropout
-    )
+    # NOTE Gonna rewrite this into a BaseModel which can load any subclass from str
+    if config.model.name == "ENet":
+        net = ENet(
+            1, num_classes, kernels=kernels, factor=factor, dropoutRate=config.dropout
+        )
+    else:
+        net = shallowCNN(
+            1, num_classes, kernels=kernels, factor=factor, dropoutRate=config.dropout
+        )
+
     net.init_weights()
     net.to(device)
 
-    lr = args.lr
-    optimizer = torch.optim.Adam(
-        net.parameters(), lr=lr, weight_decay=args.weight_decay, betas=args.betas
+    lr = config.lr
+    optimizer = torch.optim.AdamW(
+        net.parameters(), lr=lr, weight_decay=config.weight_decay, betas=config.betas
+    )
+
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=config.epochs
     )
 
     # Dataset part
-    B: int = datasets_params[args.dataset]["B"]
-    data_root_dir = get_root_dir() / "data" / args.dataset
+    batch_size: int = config.batch_size
+    data_root_dir = autoroot.root / "data" / config.dataset.name
 
     train_set = SliceDataset(
         "train",
         data_root_dir,
         img_transform=img_transform,
-        gt_transform=partial(gt_transform, K),
-        debug=args.debug,
+        gt_transform=partial(gt_transform, num_classes),
+        debug=config.debug,
     )
     train_loader = DataLoader(
         train_set,
-        batch_size=B,
-        num_workers=args.num_workers,
+        batch_size=batch_size,
+        num_workers=config.num_workers,
         pin_memory=True,
         persistent_workers=True,
-        generator=torch.Generator().manual_seed(args.seed),
+        generator=torch.Generator().manual_seed(config.seed),
         shuffle=True,
     )
 
@@ -147,63 +157,89 @@ def setup(args: Args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]
         "val",
         data_root_dir,
         img_transform=img_transform,
-        gt_transform=partial(gt_transform, K),
-        debug=args.debug,
+        gt_transform=partial(gt_transform, num_classes),
+        debug=config.debug,
     )
     val_loader = DataLoader(
         val_set,
-        batch_size=B,
-        num_workers=args.num_workers,
+        batch_size=batch_size,
+        num_workers=config.num_workers,
         pin_memory=True,
         persistent_workers=True,
         shuffle=False,
     )
 
-    args.dest.mkdir(parents=True, exist_ok=True)
-
-    return (net, optimizer, device, train_loader, val_loader, K)
+    return (net, optimizer, scheduler, device, train_loader, val_loader, num_classes)
 
 
-def runTraining(args: Args):
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+def get_loss_func(config: Config, num_classes: int):
+    if config.mode == "full":
+        return CrossEntropy(
+            idk=list(range(num_classes))
+        )  # Supervise both background and foreground
+    elif config.mode in ["partial"] and config.dataset.name == "SEGTHOR":
+        return CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+    else:
+        raise ValueError(config.mode, config.dataset)
+
+
+def runTraining(config: Config):
+    print(f">>> Setting up to train on {config.dataset} with {config.mode}")
+
+    net, optimizer, scheduler, device, train_loader, val_loader, num_classes = setup(
+        config
+    )
+
+    result_dir = config.dest or Path(
+        f"results/{config.dataset.name}/{datetime.now().strftime('%d/%m/%Y, %H:%M:%S')}"
+    )
+    result_dir.mkdir(parents=True, exist_ok=True)
+    scaler = torch.amp.GradScaler("cuda", enabled=config.gpu)
 
     wandb.init(
         entity="ai-for-medical-imaging",
-        project=f"{args.dataset}",
-        config=vars(args) | datasets_params[args.dataset],
+        project=f"{config.dataset}-baseline",
+        config=dataclasses.asdict(config),
         dir=get_root_dir() / "results" / "wandb",
     )
 
     # Adds histogram of the gradients and parameters
     # NOTE Does add a lot of info to our project, need to see if we want that
-    if args.wandb_watch:
+    if config.wandb_watch:
         wandb.watch(net, log="all", log_freq=100)
 
-    if args.mode == "full":
-        idk = list(range(K))
-    elif args.mode in ["partial"] and args.dataset == "SEGTHOR":
+    if config.mode == "full":
+        idk = list(range(num_classes))
+    elif config.mode in ["partial"] and config.dataset == "SEGTHOR":
         idk = [0, 1, 3, 4]
     else:
-        raise ValueError(args.mode, args.dataset)
+        raise ValueError(config.mode, config.dataset)
 
-    if args.loss == "ce":
+    loss_fn = get_loss_func(config, num_classes)
+
+    if config.loss == "ce":
         loss_fn = CrossEntropy(idk=idk)
-    elif args.loss == "dice_ce":
+    elif config.loss == "dice_ce":
         dice_idk = [c for c in idk if c != 0]
-        loss_fn = DiceCrossEntropy(ce_idk=idk, dice_idk=dice_idk, dice_weight=args.dice_weight)
+        loss_fn = DiceCrossEntropy(ce_idk=idk, dice_idk=dice_idk, dice_weight=config.dice_weight)
     else:
-        raise ValueError(args.loss)
+        raise ValueError(config.loss)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
-    log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
-    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))  # type: ignore
-    log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
-    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))  # type: ignore
+    log_loss_tra: Tensor = torch.zeros((config.epochs, len(train_loader)))
+    log_dice_tra: Tensor = torch.zeros(
+        (config.epochs, len(train_loader.dataset), num_classes)  # type: ignore
+    )
+    log_loss_val: Tensor = torch.zeros((config.epochs, len(val_loader)))
+    log_dice_val: Tensor = torch.zeros(
+        (config.epochs, len(val_loader.dataset), num_classes)  # type: ignore
+    )
 
     best_dice: float = 0
 
-    for e in range(args.epochs):
+    # NOTE Just need a total rewrite of this, split it up into functions
+    # Also not handy bc train and val are in this same loop
+    for e in range(config.epochs):
         for m in ["train", "val"]:
             match m:
                 case "train":
@@ -241,46 +277,50 @@ def runTraining(args: Args):
 
                     # Sanity tests to see we loaded and encoded the data correctly
                     assert 0 <= img.min() and img.max() <= 1
-                    B, _, W, H = img.shape
+                    batch_size, _, W, H = img.shape
 
-                    pred_logits = net(img)
-                    pred_probs = F.softmax(
-                        args.temperature * pred_logits, dim=1
-                    )  # 1 is the temperature parameter
+                    with torch.autocast(device_type="cuda" if config.gpu else "cpu"):
+                        pred_logits = net(img)
+                        pred_probs = F.softmax(
+                            config.temperature * pred_logits, dim=1
+                        )  # 1 is the temperature parameter
 
-                    # Metrics computation, not used for training
-                    pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j : j + B, :] = dice_coef(
-                        pred_seg, gt
-                    )  # One DSC value per sample and per class
+                        # Metrics computation, not used for training
+                        pred_seg = probs2one_hot(pred_probs)
+                        log_dice[e, j : j + batch_size, :] = dice_coef(
+                            pred_seg, gt
+                        )  # One DSC value per sample and per class
 
-                    # Pixel-wise accuracy
-                    predicted_classes = pred_probs.argmax(dim=1)  # (B, W, H)
-                    gt_classes = gt.argmax(dim=1)  # (B, W, H)
-                    total_correct += (predicted_classes == gt_classes).sum().item()
-                    total_pixels += predicted_classes.numel()
+                        # Pixel-wise accuracy
+                        predicted_classes = pred_probs.argmax(dim=1)  # (B, W, H)
+                        gt_classes = gt.argmax(dim=1)  # (B, W, H)
+                        total_correct += (predicted_classes == gt_classes).sum().item()
+                        total_pixels += predicted_classes.numel()
 
-                    loss = loss_fn(pred_probs, gt)
-                    log_loss[e, i] = (
-                        loss.item()
-                    )  # One loss value per batch (averaged in the loss)
+                        loss = loss_fn(pred_probs, gt)
+                        log_loss[e, i] = (
+                            loss.item()
+                        )  # One loss value per batch (averaged in the loss)
 
                     if opt is not None:  # Only for training
-                        loss.backward()
-                        opt.step()
+                        scaler.scale(loss).backward()
+                        scaler.step(opt)
+                        scaler.update()
 
                     if m == "val":
                         with warnings.catch_warnings():
                             warnings.filterwarnings("ignore", category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
-                            mult: int = 63 if K == 5 else int(255 / (K - 1))
+                            mult: int = (
+                                63 if num_classes == 5 else int(255 / (num_classes - 1))
+                            )
                             save_images(
                                 predicted_class * mult,
                                 data["stems"],
-                                args.dest / f"iter{e:03d}" / m,
+                                result_dir / f"iter{e:03d}" / m,
                             )
 
-                    j += B  # Keep in mind that _in theory_, each batch might have a different size
+                    j += batch_size  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
                     epoch_acc = total_correct / total_pixels
                     postfix_dict: dict[str, str] = {
@@ -288,10 +328,10 @@ def runTraining(args: Args):
                         "Loss": f"{log_loss[e, : i + 1].mean():5.2e}",
                         "Acc": f"{epoch_acc:05.3f}",
                     }
-                    if K > 2:
+                    if num_classes > 2:
                         postfix_dict |= {
                             f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
-                            for k in range(1, K)
+                            for k in range(1, num_classes)
                         }
                     tq_iter.set_postfix(postfix_dict)
 
@@ -309,46 +349,49 @@ def runTraining(args: Args):
             "val/dice": log_dice_val[e, :, 1:].mean().item(),
             "val/acc": acc_val,
         }
-        if K > 2:
-            for k in range(1, K):
+        if num_classes > 2:
+            for k in range(1, num_classes):
                 metrics[f"train/dice_{k}"] = log_dice_tra[e, :, k].mean().item()
                 metrics[f"val/dice_{k}"] = log_dice_val[e, :, k].mean().item()
         wandb.log(metrics)
 
+        # Scheduler at the end of each epoch
+        scheduler.step()
+
         # I save it at each epochs, in case the code crashes or I decide to stop it early
-        np.save(args.dest / "loss_tra.npy", log_loss_tra)
-        np.save(args.dest / "dice_tra.npy", log_dice_tra)
-        np.save(args.dest / "loss_val.npy", log_loss_val)
-        np.save(args.dest / "dice_val.npy", log_dice_val)
+        np.save(result_dir / "loss_tra.npy", log_loss_tra)
+        np.save(result_dir / "dice_tra.npy", log_dice_tra)
+        np.save(result_dir / "loss_val.npy", log_loss_val)
+        np.save(result_dir / "dice_val.npy", log_dice_val)
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
             print(message)
             best_dice = current_dice
-            with open(args.dest / "best_epoch.txt", "w") as f:
+            with open(result_dir / "best_epoch.txt", "w") as f:
                 f.write(message)
 
-            best_folder = args.dest / "best_epoch"
+            best_folder = result_dir / "best_epoch"
             if best_folder.exists():
                 rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
+            copytree(result_dir / f"iter{e:03d}", Path(best_folder))
 
-            torch.save(net.state_dict(), args.dest / "bestweights.pt")
+            torch.save(net.state_dict(), result_dir / "bestweights.pt")
 
     # Wait for the background logging thread to finish
     wandb.finish()
 
 
 def main():
-    args = get_args()
+    config = get_config()
 
     # Seed everything right at the beginning
-    seed_all(args.seed, args.gpu)
+    seed_all(config.seed, config.gpu)
 
-    pprint(args)
+    pprint(dataclasses.asdict(config))
 
-    runTraining(args)
+    runTraining(config)
 
 
 if __name__ == "__main__":

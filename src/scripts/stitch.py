@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from multiprocessing import Pool
 import re
 from re import Pattern, Match
 import argparse
@@ -36,8 +37,6 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from scripts.utils import store_args
-
 
 def get_z(image: Path) -> int:
     return int(image.stem.split("_")[-1])
@@ -47,10 +46,12 @@ def merge_patient(
     id_: str,
     dest_folder: str,
     images: list[Path],
-    idxes: list[int],
+    patient_idxes: dict[str, list[int]],
     K: int,
     source_pattern: str,
 ) -> None:
+    idxes = patient_idxes[id_]
+
     # print(source_pattern.format(id_=id_))
     orig_nib: Any = nib.load(source_pattern.format(id_=id_))
     orig_shape = np.asarray(orig_nib.dataobj).shape
@@ -112,28 +113,33 @@ def main(args) -> None:
     for i, patient in enumerate(patients):
         idx_map[patient] += [i]
 
-    # print(idx_map)
     assert sum(len(idx_map[k]) for k in unique_patients) == len(images)
 
     args.dest_folder.mkdir(parents=True, exist_ok=True)
 
-    for p in tqdm(
-        unique_patients,
-        dynamic_ncols=True,
-        leave=True,
-        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
-    ):
-        merge_patient(
-            p,
-            args.dest_folder,
-            images,
-            idx_map[p],
-            args.num_classes,
-            args.source_scan_pattern,
+    with Pool() as pool:
+        list(
+            tqdm(
+                # imap_unordered is used bc it returns an iterator so tqdm can actually show progress
+                # And unordered part is bc otherwise an early slow patient may halt later patients
+                pool.imap_unordered(
+                    # Needs a partial here bc the function gets pickled, and for it to be pickable the
+                    # function needs to be a module level function, so lambda and def don't work here
+                    partial(
+                        merge_patient,
+                        dest_folder=args.dest_folder,
+                        images=images,
+                        patient_idxes=idx_map,
+                        K=args.num_classes,
+                        source_pattern=args.source_scan_pattern,
+                    ),
+                    unique_patients,
+                ),
+                dynamic_ncols=True,
+                leave=True,
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
+            )
         )
-    # mmap_(lambda p: merge_patient(p, args.dest_folder, images, idx_map[p], K=args.num_classes), patients)
-
-    store_args("stitch", args, args.dest_folder)
 
 
 def get_args() -> argparse.Namespace:

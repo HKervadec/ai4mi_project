@@ -12,7 +12,7 @@ data/TOY:
 
 data/TOY2:
 	rm -rf $@_tmp $@
-	python gen_two_circles.py --dest $@_tmp -n 1000 100 -r 25 -wh 256 256
+	python src/scripts/gen_two_circles.py --dest $@_tmp -n 1000 100 -r 25 -wh 256 256
 	mv $@_tmp $@
 
 
@@ -27,6 +27,6 @@ data/segthor_part1: data/segthor_part1.zip
 data/SEGTHOR:
 	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
 	rm -rf $@_tmp $@
-	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1 --dest_dir $@_tmp \
+	python $(CFLAGS) src/scripts/slice_segthor.py --source_dir data/segthor_part1 --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
