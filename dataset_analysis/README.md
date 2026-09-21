@@ -1,9 +1,18 @@
 # SegTHOR exploratory analysis
 
-This analysis uses annotated classes 1 (esophagus), 2 (heart), and 3 (trachea).
-The professor intentionally omitted the aorta annotation (class 4). Its absence
-is not corruption, and it is not included in quality summaries. Background means
-the supplied label 0, not necessarily anatomically empty space.
+This analysis covers annotated classes 1 (esophagus), 2 (heart), 3 (trachea),
+and 4 (aorta). The original course release omits the aorta annotation
+entirely (the professor confirmed this is intentional, not corruption); a
+full 4-class release doesn't. Every script here reports which classes are
+actually present in the data it's given rather than assuming either case, and
+an absent class is left out of quality summaries rather than counted as zero.
+Background means the supplied label 0, not necessarily anatomically empty
+space.
+
+For the full figure set (dataset profile, nnU-Net planner checks, EDA) in one
+command, see `tools/run_all_figures.py` (documented in `tools/README.md`),
+which also runs this directory's `analyze_dataset.py`/`analyze_baseline.py`
+when given `--processed-dir`/`--predictions`.
 
 Run from any directory with the existing `ai4mi` environment. Paths default to
 the checkout containing these scripts; use `--help` for path overrides:

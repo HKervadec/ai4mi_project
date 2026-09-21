@@ -14,8 +14,8 @@ def original_stats(patient, split, nii, data):
     shape = data.shape
     spacing = nii.header.get_zooms()[:3]
     voxel_mm3 = abs(float(np.linalg.det(nii.affine[:3, :3])))
-    counts = np.bincount(data.ravel(), minlength=4)
-    foreground = int(counts[1:4].sum())
+    counts = np.bincount(data.ravel(), minlength=len(CLASSES) + 1)
+    foreground = int(counts[1:].sum())
     inventory = {"patient_id": patient, "split": split, "source_grid": "original_nifti",
                  "shape_x": shape[0], "shape_y": shape[1], "num_slices": shape[2],
                  "spacing_x_mm": spacing[0], "spacing_y_mm": spacing[1], "spacing_z_mm": spacing[2],
@@ -59,7 +59,7 @@ def processed_stats(patient, entry, num_slices):
                 raise ValueError(f"Image/mask shape or channel mismatch: {image}")
         if a.shape != (256, 256):
             raise ValueError(f"Expected repository's 256x256 grid: {gt}")
-        counts[z] = np.bincount(a.ravel(), minlength=4)
+        counts[z] = np.bincount(a.ravel(), minlength=len(CLASSES) + 1)
         shapes[z] = a.shape
     positives = {k: [z for z in sorted(counts) if counts[z][k] > 0] for k in CLASSES}
     rows = []
@@ -140,7 +140,7 @@ def plots(output, frequency, patients, slices, trends):
         plt.close(fig)
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4), layout="constrained")
-    for ax, ks, field, title in zip(axes, ([0, 1, 2, 3], [1, 2, 3]),
+    for ax, ks, field, title in zip(axes, ([0, *CLASSES], list(CLASSES)),
             ("fraction_all_voxels", "fraction_foreground_voxels"),
             ("All labeled voxels (including background)", "Annotated foreground only")):
         for j, split in enumerate(("train", "val", "all")):
@@ -169,7 +169,7 @@ def plots(output, frequency, patients, slices, trends):
     fig.suptitle("Original NIfTI: patient variation (triangles = validation)")
     save(fig, "original_patient_volume_extent.png")
 
-    fig, axes = plt.subplots(1, 3, figsize=(12, 5), sharey=True, layout="constrained")
+    fig, axes = plt.subplots(1, len(CLASSES), figsize=(12, 5), sharey=True, layout="constrained")
     ids = sorted({r["patient_id"] for r in patients})
     for ax, k in zip(axes, CLASSES):
         for r in patients:
@@ -188,7 +188,7 @@ def plots(output, frequency, patients, slices, trends):
         for j, split in enumerate(("train", "val")):
             values = [[r[field] for r in slices if r["class_id"] == k and r["present"]
                        and r["split"] == split] for k in CLASSES]
-            boxes = ax.boxplot(values, positions=np.arange(1, 4) + (j - .5) * .3,
+            boxes = ax.boxplot(values, positions=np.arange(1, len(CLASSES) + 1) + (j - .5) * .3,
                                widths=.25, showfliers=False, patch_artist=True)
             for patch in boxes["boxes"]:
                 patch.set_facecolor(("#9ecae1", "#fdae6b")[j])
@@ -199,7 +199,7 @@ def plots(output, frequency, patients, slices, trends):
     fig.suptitle("Processed PNG: GT-positive slices; zeros excluded; whiskers = 1.5 IQR")
     save(fig, "processed_positive_area_distribution.png")
 
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4), layout="constrained")
+    fig, axes = plt.subplots(1, len(CLASSES), figsize=(12, 4), layout="constrained")
     for ax, k in zip(axes, CLASSES):
         for split, style in (("train", "-"), ("val", "--")):
             rs = [r for r in trends if r["class_id"] == k and r["split"] == split]

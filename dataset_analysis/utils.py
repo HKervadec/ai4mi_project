@@ -10,15 +10,24 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 from datetime import datetime, timezone
 
 import nibabel as nib
 import numpy as np
 from PIL import Image
 
-CLASSES = {1: "esophagus", 2: "heart", 3: "trachea"}
-COLORS = {1: "#277da8", 2: "#d95f02", 3: "#32965a"}
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "tools"))
+from plot_style import LABEL_COLORS  # noqa: E402
+
+# Canonical label mapping for SegTHOR: some data-dirs (the original course
+# release) have zero aorta voxels, some (a full release) don't -- CLASSES lists
+# all four either way, and callers report an absent class as blank/NaN rather
+# than assuming which case they're in. COLORS is re-exported from
+# tools/plot_style.py so every figure in the repo colors organs the same way.
+CLASSES = {1: "esophagus", 2: "heart", 3: "trachea", 4: "aorta"}
+COLORS = LABEL_COLORS
 
 
 def parser(description: str) -> argparse.ArgumentParser:
@@ -103,12 +112,14 @@ def discover(processed: Path) -> dict:
     return dict(sorted(patients.items()))
 
 
-def load_png(path: Path, prediction: bool = False) -> np.ndarray:
-    """Decode exact 63-spaced labels; class 4 is allowed only in predictions."""
+PNG_LABEL_VALUES = np.array([0, 63, 126, 189, 252])  # background, then classes 1-4
+
+
+def load_png(path: Path) -> np.ndarray:
+    """Decode exact 63-spaced labels, 0-4; whether 252 (aorta) occurs depends on the dataset."""
     with Image.open(path) as img:
         a = np.asarray(img)
-    allowed = np.array([0, 63, 126, 189, 252] if prediction else [0, 63, 126, 189])
-    if a.ndim != 2 or a.dtype != np.uint8 or not np.isin(a, allowed).all():
+    if a.ndim != 2 or a.dtype != np.uint8 or not np.isin(a, PNG_LABEL_VALUES).all():
         raise ValueError(f"Invalid PNG label encoding: {path}")
     return a // 63
 
@@ -124,8 +135,9 @@ def load_original(folder: Path, patient: str):
             or not np.allclose(spacing, np.linalg.norm(gt.affine[:3, :3], axis=0))):
         raise ValueError(f"Unusable physical geometry for {patient}")
     data = np.asanyarray(gt.dataobj)
-    if not np.issubdtype(data.dtype, np.integer) or data.min() < 0 or data.max() > 3:
-        raise ValueError(f"Expected supplied annotations 0–3 for {patient}")
+    # 0-4: whether label 4 (aorta) actually occurs depends on the dataset.
+    if not np.issubdtype(data.dtype, np.integer) or data.min() < 0 or data.max() > 4:
+        raise ValueError(f"Expected supplied annotations 0–4 for {patient}")
     return gt, data
 
 

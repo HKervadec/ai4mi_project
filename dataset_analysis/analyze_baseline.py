@@ -141,13 +141,19 @@ def plots(output, rows, bins, patients):
     ax.set(ylabel="Slice Dice", ylim=(-.03, 1.03), title="Processed PNG validation: GT-positive slices only")
     save(fig, "baseline_positive_dice_distribution.png")
 
-    fig, axes = plt.subplots(1, 3, figsize=(13, 4), sharey=True, layout="constrained")
+    fig, axes = plt.subplots(1, len(CLASSES), figsize=(13, 4), sharey=True, layout="constrained")
     ids = sorted({r["patient_id"] for r in rows})
     for ax, k in zip(axes, CLASSES):
+        any_positive = False
         for patient in ids:
             rs = [r for r in rows if r["class_id"] == k and r["gt_present"] and r["patient_id"] == patient]
+            any_positive = any_positive or bool(rs)
             ax.scatter([r["gt_area"] for r in rs], [r["dice"] for r in rs], s=7, alpha=.35, label=patient)
-        ax.set(xscale="log", title=CLASSES[k], xlabel="GT area (processed pixels)", ylim=(-.03, 1.03))
+        # An absent class (e.g. aorta, in a release without it) has no positive
+        # area anywhere, and a log-scaled axis with no data raises at draw time.
+        ax.set(title=CLASSES[k], xlabel="GT area (processed pixels)", ylim=(-.03, 1.03))
+        if any_positive:
+            ax.set_xscale("log")
     axes[0].set_ylabel("Slice Dice")
     axes[-1].legend(fontsize=7)
     fig.suptitle("Processed PNG validation: GT-positive slices (adjacent slices are correlated)")
@@ -156,7 +162,7 @@ def plots(output, rows, bins, patients):
     for kind, filename, xlabel in (("area_quantile", "baseline_dice_vs_area_binned.png", "Median GT area (pixels)"),
                                    ("scan_z", "baseline_dice_vs_scan_z.png", "Scan-relative z"),
                                    ("organ_z", "baseline_dice_vs_organ_z.png", "Position in processed class extent")):
-        fig, axes = plt.subplots(1, 3, figsize=(13, 4), sharey=True, layout="constrained")
+        fig, axes = plt.subplots(1, len(CLASSES), figsize=(13, 4), sharey=True, layout="constrained")
         for ax, k in zip(axes, CLASSES):
             rs = [r for r in bins if r["class_id"] == k and r["bin_type"] == kind]
             x = [r["median_gt_area"] if kind == "area_quantile" else (r["lower"] + r["upper"]) / 2 for r in rs]
@@ -169,7 +175,7 @@ def plots(output, rows, bins, patients):
                 ax.annotate(f"{r['num_patients']}p", (xx, r["patient_mean_dice_median"]),
                             xytext=(0, 7), textcoords="offset points", fontsize=7, ha="center")
             ax.set(title=CLASSES[k], xlabel=xlabel, ylim=(-.03, 1.12))
-            if kind == "area_quantile":
+            if kind == "area_quantile" and x:
                 ax.set_xscale("log")
                 ax.set_xticks(x, [f"{v:g}" for v in x], rotation=35, ha="right")
                 ax.xaxis.set_minor_formatter(NullFormatter())
@@ -181,7 +187,7 @@ def plots(output, rows, bins, patients):
         fig.suptitle("Processed PNG validation: equal-patient summaries; shading = patient IQR, p = patients")
         save(fig, filename)
 
-    fig, axes = plt.subplots(1, 3, figsize=(13, 4), sharey=True, layout="constrained")
+    fig, axes = plt.subplots(1, len(CLASSES), figsize=(13, 4), sharey=True, layout="constrained")
     for ax, k in zip(axes, CLASSES):
         rs = [r for r in patients if r["class_id"] == k]
         x = np.arange(len(rs))
@@ -220,7 +226,7 @@ def examples(output, rows, processed, predictions):
             with Image.open(image_path) as image_file:
                 image = np.asarray(image_file)
             gt = load_png(processed / "val/gt" / f"{stem}.png") == k
-            pred = load_png(predictions / f"{stem}.png", prediction=True) == k
+            pred = load_png(predictions / f"{stem}.png") == k
             ax.imshow(image, cmap="gray", vmin=0, vmax=255)
             for a, color in ((gt, "#00e5ff"), (pred, "#ff8c00")):
                 if a.any() and not a.all():
@@ -276,7 +282,7 @@ def main():
     rows, inputs, decoded = [], [run_path, feature_path], {}
     for name in sorted(expected):
         gt_path, pred_path = processed / "val/gt" / name, predictions / name
-        gt, pred = load_png(gt_path), load_png(pred_path, prediction=True)
+        gt, pred = load_png(gt_path), load_png(pred_path)
         patient, z = identity(gt_path)
         decoded.setdefault(patient, {})[z] = pred
         for k, class_name in CLASSES.items():
@@ -313,7 +319,8 @@ def main():
                "dice_3d": "full original-grid reconstructed prediction vs original GT",
                "area_bins": "within-class 5 quantile bins, duplicate edges collapsed",
                "position_bins": "left-closed; last includes upper endpoint",
-               "num_available_reconstructions": sum(r["reconstruction_available"] for r in patient_rows) // 3})
+               "num_available_reconstructions": sum(r["reconstruction_available"] for r in patient_rows)
+                   // len(CLASSES)})
     print(f"Baseline complete -> {output}", flush=True)
 
 

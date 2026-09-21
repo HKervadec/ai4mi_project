@@ -1,8 +1,15 @@
-torch
-numpy
-nibabel
-torchvision
-tqdm
-pillow
-scikit-image
-matplotlib
+# Lower bounds only -- the course codebase is not pinned to exact versions.
+# matplotlib>=3.9 is a hard requirement for tools/explore_data.py: the boxplot
+# `labels=` kwarg was renamed to `tick_labels=` in 3.9 and the script uses the
+# new name. Versions below are the ones this project has been verified against.
+torch>=2.0
+numpy>=1.24
+nibabel>=5.0
+torchvision>=0.15
+tqdm>=4.60
+pillow>=9.0
+scikit-image>=0.20
+scipy>=1.10
+pandas>=2.0
+matplotlib>=3.9
+seaborn>=0.13

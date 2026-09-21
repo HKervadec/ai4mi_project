@@ -5,6 +5,9 @@ results/
 volumes/
 ai4mi/
 __pycache__/
+.DS_Store
+figures/_checks_cache.npz
+figures/_checks_cache.json
 
 projects
 
