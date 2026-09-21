@@ -53,7 +53,13 @@ from utils import (Dcm,
                    save_images,
                    iou_coef)
 
-from losses import (CrossEntropy, DiceLoss, CrossEntropyDice)
+from losses import (
+    CrossEntropy,
+    DiceLoss,
+    CrossEntropyDice,
+    TverskyLoss,
+    CrossEntropyTversky,
+)
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -107,7 +113,14 @@ def build_loss(name: str, K: int, mode: str):
     Keeping this here means a new loss is one branch, and every existing
     experiment keeps using exactly the loss it used before.
     """
-    losses = {"ce": CrossEntropy, "dice": DiceLoss, "ce_dice": CrossEntropyDice}
+    losses = {
+    "ce": CrossEntropy,
+    "dice": DiceLoss,
+    "ce_dice": CrossEntropyDice,
+    "tversky": TverskyLoss,
+    "ce_tversky": CrossEntropyTversky,
+    }
+
     if name not in losses:
         raise NotImplementedError(f"loss '{name}' is not implemented yet; add it in build_loss")
     loss_cls = losses[name]
