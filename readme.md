@@ -235,6 +235,29 @@ with `main.py` to select the checkpoint with the highest mean foreground 3D
 validation Dice; the default `dice2d` preserves the original slice-level
 selection behaviour.
 
+### 3D HD95 validation metric
+
+The `hd95_val.npy` metric complements 3D Dice with a boundary distance
+measure. It has shape `(epochs, validation_patients, classes)`
+and contain one 3D HD95 value per patient and class, in millimetres. Background
+(class `0`) will be stored as `NaN` and excluded from summary averages.
+
+HD95 is computed on the preprocessed 3D validation volumes, using the
+target voxel spacing saved in `preprocess_stats.pkl`. A surface consists of
+foreground voxel centres exposed under 6-connected binary erosion. Euclidean
+distances are computed in both directions (prediction-to-ground-truth and
+ground-truth-to-prediction); the 95th percentile is taken in each direction
+using NumPy's linear percentile method, then the larger value is retained.
+Surface voxels are initially unweighted.
+
+Empty-mask policy is explicit: if exactly one mask is empty, HD95 is the
+physical diagonal of that patient's evaluation volume; if both masks are empty,
+HD95 is `0 mm`. Patient and foreground-class summaries use macro averages.
+When reporting this metric, include the library/version, voxel spacing,
+boundary definition, percentile rule, and empty-mask policy. Use
+`--selection-metric hd95` to select the checkpoint with the lowest mean
+foreground 3D HD95; `dice2d` and `dice3d` continue to select the highest Dice.
+
 
 <a id="submission-and-scoring"></a>
 ## Submission and scoring

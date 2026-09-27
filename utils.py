@@ -31,6 +31,7 @@ from typing import Callable, Iterable, List, Set, Tuple, TypeVar, cast
 import torch
 import numpy as np
 from PIL import Image
+from scipy.ndimage import binary_erosion, distance_transform_edt, generate_binary_structure
 from tqdm import tqdm
 from torch import Tensor, einsum
 
@@ -194,6 +195,75 @@ def volume_dice_from_slices(
     pred_volume = torch.stack([pred for _, pred, _ in slices]).to(torch.int64)
     gt_volume = torch.stack([gt for _, _, gt in slices]).to(torch.int64)
     return dice_batch(class2one_hot(gt_volume, K), class2one_hot(pred_volume, K))
+
+
+def surface_voxels(mask: np.ndarray) -> np.ndarray:
+    """Return a 6-connected, voxel-centre surface for a 3D binary mask."""
+    assert mask.ndim == 3, mask.shape
+    mask = mask.astype(bool, copy=False)
+    if not mask.any():
+        return np.zeros_like(mask, dtype=bool)
+
+    structure = generate_binary_structure(rank=3, connectivity=1)
+    eroded = binary_erosion(mask, structure=structure, border_value=0)
+    return mask & ~eroded
+
+
+def physical_volume_diagonal(shape: tuple[int, int, int],
+                             spacing: tuple[float, float, float]) -> float:
+    """Return the physical field-of-view diagonal in millimetres."""
+    assert len(shape) == len(spacing) == 3
+    assert all(length > 0 for length in shape), shape
+    assert all(step > 0 for step in spacing), spacing
+    return float(np.linalg.norm(np.asarray(shape) * np.asarray(spacing)))
+
+
+def hd95_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
+                spacing: tuple[float, float, float]) -> float:
+    """Compute symmetric 3D HD95 in mm for one binary class mask.
+
+    Surfaces use 6-connected foreground voxel centres. HD95 is the maximum of
+    the directional 95th-percentile distances, calculated with a physical
+    Euclidean distance transform. One empty mask receives the physical volume
+    diagonal as a finite penalty; two empty masks receive zero.
+    """
+    assert pred_mask.shape == gt_mask.shape
+    assert pred_mask.ndim == 3, pred_mask.shape
+    assert len(spacing) == 3
+
+    pred_mask = pred_mask.astype(bool, copy=False)
+    gt_mask = gt_mask.astype(bool, copy=False)
+    pred_empty = not pred_mask.any()
+    gt_empty = not gt_mask.any()
+    if pred_empty and gt_empty:
+        return 0.0
+    if pred_empty or gt_empty:
+        return physical_volume_diagonal(pred_mask.shape, spacing)
+
+    pred_surface = surface_voxels(pred_mask)
+    gt_surface = surface_voxels(gt_mask)
+    pred_to_gt = distance_transform_edt(~gt_surface, sampling=spacing)[pred_surface]
+    gt_to_pred = distance_transform_edt(~pred_surface, sampling=spacing)[gt_surface]
+    return float(max(np.percentile(pred_to_gt, 95, method="linear"),
+                     np.percentile(gt_to_pred, 95, method="linear")))
+
+
+def volume_hd95_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
+                            spacing: tuple[float, float, float]) -> Tensor:
+    """Compute per-class 3D HD95 in mm from one patient's hard-label slices."""
+    assert slices
+    slices = sorted(slices, key=lambda item: item[0])
+    slice_ids = [slice_id for slice_id, _, _ in slices]
+    assert slice_ids == list(range(len(slice_ids))), slice_ids
+
+    pred_volume = torch.stack([pred for _, pred, _ in slices]).cpu().numpy()
+    gt_volume = torch.stack([gt for _, _, gt in slices]).cpu().numpy()
+    hd95s = torch.full((K,), torch.nan, dtype=torch.float32)
+    for class_id in range(1, K):
+        hd95s[class_id] = hd95_binary(pred_volume == class_id,
+                                      gt_volume == class_id,
+                                      spacing)
+    return hd95s
 
 
 def intersection(a: Tensor, b: Tensor) -> Tensor:

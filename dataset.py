@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 from pathlib import Path
+import pickle
 from typing import Callable, Union
 
 from torch import Tensor
@@ -58,6 +59,15 @@ def parse_segthor_slice_stem(stem: str) -> tuple[str, int]:
             f"got {stem!r}"
         )
     return patient_id, int(slice_id)
+
+
+def load_preprocessed_volume_spacing(root_dir: str | Path) -> tuple[float, float, float]:
+    """Load SegTHOR spacing as ``(depth, height, width)`` in millimetres."""
+    with open(Path(root_dir) / "preprocess_stats.pkl", "rb") as file:
+        target_spacing = pickle.load(file)["target_spacing"]
+    return (float(target_spacing["dz"]),
+            float(target_spacing["dy"]),
+            float(target_spacing["dx"]))
 
 
 class SliceDataset(Dataset):
