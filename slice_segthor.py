@@ -38,7 +38,7 @@ from skimage.exposure import equalize_adapthist
 from skimage.io import imsave
 from skimage.transform import resize
 
-from utils import map_, tqdm_
+from utils import crop_or_pad_arr, map_, tqdm_
 
 
 def compute_target_spacing(
@@ -161,6 +161,7 @@ def slice_patient(
     shape: tuple[int, int],
     norm_stats: tuple[float, float],
     target_spacing: tuple[float, float, float],
+    crop_size: int,
     test_mode: bool = False,
 ) -> tuple[float, float, float]:
     id_path: Path = source_path / ("train" if not test_mode else "test") / id_
@@ -186,7 +187,14 @@ def slice_patient(
     ct, gt = (
         resample_arr(ct, nib_obj.header.get_zooms(), target_spacing, order=3), # cubic interpolation
         resample_arr(gt, nib_obj.header.get_zooms(), target_spacing, order=0) # nearest neighbor interpolation
-    ) # both use nib_obj since ct and gt have same spacing. 
+    ) # both use nib_obj since ct and gt have same spacing.
+
+    # Make sure the final resize has the same scale for all patients
+    n_organ = (gt > 0).sum()
+    ct = crop_or_pad_arr(ct, (crop_size, crop_size), value=-1000) # pad with air
+    gt = crop_or_pad_arr(gt, (crop_size, crop_size), value=0)
+    assert (gt > 0).sum() == n_organ # the crop must not cut any organ
+
     x, y, z = ct.shape
     norm_ct: np.ndarray = norm_arr(ct, norm_stats)
     clahe_ct: np.ndarray = clahe_arr(norm_ct)
@@ -271,6 +279,7 @@ def main(args: argparse.Namespace):
                                  shape=tuple(args.shape),
                                  norm_stats=norm_stats,
                                  target_spacing=target_spacing,
+                                 crop_size=args.crop_size,
                                  test_mode=mode == 'test')
         resolutions: list[tuple[float, float, float]]
         iterator = tqdm_(split_ids)
@@ -293,6 +302,7 @@ def main(args: argparse.Namespace):
     stats = {
         "norm_stats": {"p_low": float(norm_stats[0]), "p_high": float(norm_stats[1])},
         "target_spacing": {"dx": float(target_spacing[0]), "dy": float(target_spacing[1]), "dz": float(target_spacing[2])},
+        "crop_size": args.crop_size,
     }
     with open(dest_path / "preprocess_stats.pkl", 'wb') as f:
         pickle.dump(stats, f, pickle.HIGHEST_PROTOCOL)
@@ -305,6 +315,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--dest_dir', type=str, required=True)
 
     parser.add_argument('--shape', type=int, nargs="+", default=[256, 256])
+    parser.add_argument('--crop_size', type=int, default=512,
+                        help="Size to center crop / pad to (at target spacing), before resizing to --shape")
     parser.add_argument('--retains', type=int, default=25, help="Number of retained patient for the validation data")
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--fold', type=int, default=0)

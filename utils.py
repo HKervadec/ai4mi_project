@@ -62,6 +62,27 @@ def starmmap_(fn: Callable[[Tuple[A]], B], iter: Iterable[Tuple[A]]) -> List[B]:
     return Pool().starmap(fn, iter)
 
 
+def crop_or_pad_arr(img: np.ndarray, size: tuple[int, int], value: int) -> np.ndarray:
+    """
+    Center crop (if too big) or pad with value (if too small) the x and y axes to size.
+    The function is designed to be reversible.
+    """
+    result = img
+    for axis, s in enumerate(size):
+        diff = result.shape[axis] - s
+        if diff > 0:  # if too big, crop the center
+            start = diff // 2
+            result = result.take(range(start, start + s), axis=axis)
+        elif diff < 0:  # if too small, pad around with value
+            before = (-diff) // 2
+            after = -diff - before
+            pad_width = [(0, 0)] * result.ndim
+            pad_width[axis] = (before, after)
+            result = np.pad(result, pad_width, constant_values=value)
+
+    return result
+
+
 # Assert utils
 def uniq(a: Tensor) -> Set:
     return set(torch.unique(a.cpu()).numpy())

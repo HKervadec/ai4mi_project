@@ -35,7 +35,7 @@ from scipy.ndimage import zoom
 from skimage.io import imread
 from skimage.transform import resize
 
-from utils import map_, tqdm_
+from utils import crop_or_pad_arr, map_, tqdm_
 
 
 def get_z(image: Path) -> int:
@@ -44,7 +44,7 @@ def get_z(image: Path) -> int:
 
 def merge_patient(id_: str, dest_folder: str, images: list[Path],
                   idxes: list[int], K: int, source_pattern: str,
-                  stats: dict | None = None) -> None:
+                  stats: dict) -> None:
     # print(source_pattern.format(id_=id_))
     orig_nib = nib.load(source_pattern.format(id_=id_))
     orig_shape = np.asarray(orig_nib.dataobj).shape
@@ -58,14 +58,17 @@ def merge_patient(id_: str, dest_folder: str, images: list[Path],
     assert sorted(
         get_z(images[i]) for i in idxes) == list(range(n)
     )  # no missing / duplicated slice
-    if stats is not None:
-        dz = float(orig_nib.header.get_zooms()[2])
-        expected_slices = round(Z * dz / stats["target_spacing"]["dz"])
-        # Check if expected slices close to actual slices
-        # NOTE: we allow a difference of 1 slice to account for rounding errors
-        assert abs(n - expected_slices) <= 1, (n, expected_slices)
 
-    res_arr: np.ndarray = np.zeros((X, Y, n), dtype=np.int16)
+    # Size of the volume after resampling, before the center crop / pad in slicing
+    dx, dy, dz = orig_nib.header.get_zooms()[:3]
+    target = stats["target_spacing"]
+    resampled_x = round(X * dx / target["dx"])
+    resampled_y = round(Y * dy / target["dy"])
+    # NOTE: we allow a difference of 1 slice to account for rounding errors
+    assert abs(n - round(Z * dz / target["dz"])) <= 1, n
+
+    crop_size = stats["crop_size"]
+    res_arr: np.ndarray = np.zeros((crop_size, crop_size, n), dtype=np.int16)
 
     for idx in idxes:
         img: Path = images[idx]
@@ -75,7 +78,7 @@ def merge_patient(id_: str, dest_folder: str, images: list[Path],
         assert img_arr.dtype == np.uint8
         assert set(np.unique(img_arr)) <= set(range(K))
 
-        resized: np.ndarray = resize(img_arr, (X, Y),
+        resized: np.ndarray = resize(img_arr, (crop_size, crop_size),
                                      mode="constant",
                                      preserve_range=True,
                                      anti_aliasing=False,
@@ -85,9 +88,12 @@ def merge_patient(id_: str, dest_folder: str, images: list[Path],
 
     assert set(np.unique(res_arr)) <= set(range(K))
 
+    # Undo the center crop / pad of the slicing (padded area is background)
+    res_arr = crop_or_pad_arr(res_arr, (resampled_x, resampled_y), value=0)
+
     # Resample back to original shape
     res_arr = zoom(
-        res_arr, (1, 1, Z / n), order=0
+        res_arr, (X / resampled_x, Y / resampled_y, Z / n), order=0
     ) # Nearest neighbour interpolation to avoid creating new classes
     assert orig_shape == res_arr.shape, (orig_shape, res_arr.shape)
 
@@ -122,10 +128,8 @@ def main(args) -> None:
     # print(idx_map)
     assert sum(len(idx_map[k]) for k in unique_patients) == len(images)
 
-    stats = None
-    if args.preprocess_stats is not None:
-        with open(args.preprocess_stats, "rb") as f:
-            stats = pickle.load(f)
+    with open(args.preprocess_stats, "rb") as f:
+        stats = pickle.load(f)
 
     args.dest_folder.mkdir(parents=True, exist_ok=True)
 
@@ -144,8 +148,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--grp_regex', type=str, required=True)
 
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--preprocess_stats', type=Path, default=None,
-                        help="Optional: preprocess_stats.pkl, used to check the number of slices")
+    parser.add_argument('--preprocess_stats', type=Path, required=True,
+                        help="preprocess_stats.pkl saved by slice_segthor.py. This is used to go back to the original space")
 
     args = parser.parse_args()
 
