@@ -60,8 +60,8 @@ datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'fac
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 
-# Overrides merged on top of the dataset defaults by --net. Both UNet variants
-# share one class: 2.5D is the 2D net with a wider input. What differs is how
+# Overrides are merged on top of the dataset defaults by --net. 
+# 2.5D and 2D UNet variants share one class, what differs is how
 # many adjacent slices the dataloader stacks into the channel axis.
 nets_params: dict[str, dict[str, Any]] = {}
 nets_params["default"] = {}  # Whatever the dataset asks for (ENet, shallowCNN)

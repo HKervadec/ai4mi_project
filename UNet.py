@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
-"""A UNet class covering the 2D and 2.5D variants.
+"""A UNet class covering the 2D and 2.5D variants. 2.5D is the 2D net fed a stack of adjacent
+slices in the channel dimension.
 
     2D    : in_dim=1                  input (B, 1, W, H)
     2.5D  : in_dim=2 * neighbours + 1 input (B, 2n+1, W, H)
-
-2.5D is not a separate architecture: it is the 2D net fed a stack of adjacent
-slices in the channel dimension, so only the `in_dim` given by main.py changes.
 """
 
 import torch

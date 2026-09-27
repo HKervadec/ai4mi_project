@@ -51,7 +51,7 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
 
 
 class SliceDataset(Dataset):
-    """Serves 2D slices or 2.5D stacks, depending on `neighbours`.
+    """Gives 2D slices or 2.5D stacks, depending on the 'neighbours' param.
 
         neighbours=0  -> 2D    img (1, W, H)
         neighbours=n  -> 2.5D  img (2n+1, W, H), gt of the centre slice

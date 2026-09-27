@@ -8,14 +8,6 @@
 #SBATCH --time=06:00:00
 #SBATCH --output=jobs/%x_%A.out
 
-# Usage (from the repo root, on Snellius):
-#   sbatch train.job unet2d
-#   sbatch train.job unet25d
-#   sbatch --time=12:00:00 train.job unet25d dicece 50
-#
-# Assumes the venv from the readme lives in ./ai4mi and that `make data/SEGTHOR`
-# has already been run (slicing is CPU-only, do not burn GPU hours on it).
-
 set -euo pipefail
 
 NET=${1:-unet2d}
@@ -35,9 +27,6 @@ DEST="results/${DATASET,,}/${NET}_${LOSS}_${SLURM_JOB_ID}"
 echo ">>> ${NET} / ${LOSS} / ${EPOCHS} epochs -> ${DEST}"
 nvidia-smi
 
-# ponytail: reads the pngs straight from the project filesystem. If the job turns
-# out to be dataloader-bound, copy data/$DATASET to $TMPDIR first and point
-# main.py at it.
 srun python -u main.py \
     --dataset "${DATASET}" \
     --net "${NET}" \
