@@ -177,6 +177,25 @@ dice_coef = partial(meta_dice, "bk...->bk")
 dice_batch = partial(meta_dice, "bk...->k")  # used for 3d dice
 
 
+def volume_dice_from_slices(
+    slices: list[tuple[int, Tensor, Tensor]], K: int
+) -> Tensor:
+    """Compute per-class 3D Dice from one patient's hard-label slices.
+
+    ``dice_batch`` sums over its batch and spatial dimensions. Using the depth
+    slices as its batch dimension is therefore equivalent to computing Dice
+    over the complete 3D volume.
+    """
+    assert slices
+    slices = sorted(slices, key=lambda item: item[0])
+    slice_ids = [slice_id for slice_id, _, _ in slices]
+    assert slice_ids == list(range(len(slice_ids))), slice_ids
+
+    pred_volume = torch.stack([pred for _, pred, _ in slices]).to(torch.int64)
+    gt_volume = torch.stack([gt for _, _, gt in slices]).to(torch.int64)
+    return dice_batch(class2one_hot(gt_volume, K), class2one_hot(pred_volume, K))
+
+
 def intersection(a: Tensor, b: Tensor) -> Tensor:
     assert a.shape == b.shape
     assert sset(a, [0, 1])

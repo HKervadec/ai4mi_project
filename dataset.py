@@ -49,6 +49,17 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
     return list(zip(images, full_labels))
 
 
+def parse_segthor_slice_stem(stem: str) -> tuple[str, int]:
+    """Split a SegTHOR slice stem such as ``Patient_01_0042``."""
+    patient_id, separator, slice_id = stem.rpartition('_')
+    if not separator or not patient_id or not slice_id.isdigit():
+        raise ValueError(
+            "SegTHOR slice names must end in a numeric slice index; "
+            f"got {stem!r}"
+        )
+    return patient_id, int(slice_id)
+
+
 class SliceDataset(Dataset):
     def __init__(self, subset, root_dir, img_transform=None,
                  gt_transform=None, augment=False, equalize=False, debug=False):

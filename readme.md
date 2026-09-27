@@ -228,6 +228,13 @@ $ python plot.py --metric_file results/segthor/ce/dice_val.npy --dest results/se
 ```
 ![Validation DSC](dice_val.png)
 
+For SegTHOR, training also saves `dice3d_val.npy`. It contains hard Dice per
+epoch, validation patient, and class, computed by aggregating all of a
+patient's preprocessed 2D slices into a volume. Use `--selection-metric dice3d`
+with `main.py` to select the checkpoint with the highest mean foreground 3D
+validation Dice; the default `dice2d` preserves the original slice-level
+selection behaviour.
+
 
 <a id="submission-and-scoring"></a>
 ## Submission and scoring

@@ -39,7 +39,7 @@ from torch.utils.data import DataLoader
 
 from functools import partial 
 
-from dataset import SliceDataset
+from dataset import SliceDataset, parse_segthor_slice_stem
 from ShallowNet import shallowCNN
 from ENet import ENet
 from SwinUNet import SwinUNet
@@ -49,6 +49,7 @@ from utils import (Dcm,
                    probs2class,
                    tqdm_,
                    dice_coef,
+                   volume_dice_from_slices,
                    save_images)
 
 from losses import (CrossEntropy, DiceLoss, DiceCELoss)
@@ -77,6 +78,19 @@ def gt_transform(K, img):
         img = torch.tensor(img, dtype=torch.int64)[None, ...]  # Add one dimension to simulate batch
         img = class2one_hot(img, K=K)
         return img[0]
+
+
+def record_volume_dice(
+    log_dice: Tensor,
+    epoch: int,
+    patient_id: str,
+    slices: list[tuple[int, Tensor, Tensor]],
+    patient_indexes: dict[str, int],
+    K: int,
+) -> None:
+    assert patient_id in patient_indexes, patient_id
+    log_dice[epoch, patient_indexes[patient_id], :] = volume_dice_from_slices(slices, K)
+
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Any | None]:
     # Networks and scheduler
@@ -174,7 +188,21 @@ def runTraining(args):
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
-    best_dice: float = 0
+    # SegTHOR validation slices are named Patient_XX_ZZZZ.  The validation
+    # loader is not shuffled, so each patient's slices arrive consecutively
+    # and can be accumulated one volume at a time.
+    compute_3d_dice: bool = args.dataset in ['SEGTHOR', 'SEGTHOR_CLEAN']
+    if args.selection_metric == 'dice3d' and not compute_3d_dice:
+        raise ValueError('--selection-metric dice3d is only available for SegTHOR datasets')
+    val_patient_indexes: dict[str, int] = {}
+    log_dice3d_val: Tensor | None = None
+    if compute_3d_dice:
+        val_patient_ids = sorted({parse_segthor_slice_stem(img_path.stem)[0]
+                                  for img_path, _ in val_loader.dataset.files})
+        val_patient_indexes = {patient_id: i for i, patient_id in enumerate(val_patient_ids)}
+        log_dice3d_val = torch.zeros((args.epochs, len(val_patient_ids), K))
+
+    best_score: float = 0
 
     for e in range(args.epochs):
         for m in ['train', 'val']:
@@ -195,6 +223,10 @@ def runTraining(args):
                     loader = val_loader
                     log_loss = log_loss_val
                     log_dice = log_dice_val
+
+                    active_patient_id: str | None = None
+                    active_patient_slices: list[tuple[int, Tensor, Tensor]] = []
+                    completed_patients: set[str] = set()
 
             with cm():  # Either dummy context manager, or the torch.no_grad for validation
                 j = 0
@@ -233,6 +265,25 @@ def runTraining(args):
                                         data['stems'],
                                         args.dest / f"iter{e:03d}" / m)
 
+                        if compute_3d_dice:
+                            assert log_dice3d_val is not None
+                            gt_class = probs2class(gt)
+                            for stem, pred_slice, gt_slice in zip(data['stems'], predicted_class, gt_class):
+                                patient_id, slice_id = parse_segthor_slice_stem(stem)
+                                if active_patient_id is None:
+                                    active_patient_id = patient_id
+                                elif patient_id != active_patient_id:
+                                    assert active_patient_id not in completed_patients
+                                    record_volume_dice(log_dice3d_val, e, active_patient_id,
+                                                       active_patient_slices, val_patient_indexes, K)
+                                    completed_patients.add(active_patient_id)
+                                    active_patient_id = patient_id
+                                    active_patient_slices = []
+
+                                active_patient_slices.append((slice_id,
+                                                              pred_slice.detach().cpu(),
+                                                              gt_slice.detach().cpu()))
+
                     j += B  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
                     postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
@@ -242,17 +293,47 @@ def runTraining(args):
                                          for k in range(1, K)}
                     tq_iter.set_postfix(postfix_dict)
 
+            if m == 'val' and compute_3d_dice:
+                assert log_dice3d_val is not None
+                assert active_patient_id is not None
+                assert active_patient_id not in completed_patients
+                record_volume_dice(log_dice3d_val, e, active_patient_id,
+                                   active_patient_slices, val_patient_indexes, K)
+                completed_patients.add(active_patient_id)
+                assert completed_patients == set(val_patient_indexes)
+
         # I save it at each epochs, in case the code crashes or I decide to stop it early
         np.save(args.dest / "loss_tra.npy", log_loss_tra)
         np.save(args.dest / "dice_tra.npy", log_dice_tra)
         np.save(args.dest / "loss_val.npy", log_loss_val)
         np.save(args.dest / "dice_val.npy", log_dice_val)
+        if log_dice3d_val is not None:
+            np.save(args.dest / "dice3d_val.npy", log_dice3d_val)
 
-        current_dice: float = log_dice_val[e, :, 1:].mean().item()
-        if current_dice > best_dice:
-            message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
+        dice2d: float = log_dice_val[e, :, 1:].mean().item()
+        dice3d: float | None = None
+        if log_dice3d_val is not None:
+            dice3d = log_dice3d_val[e, :, 1:].mean().item()
+
+        match args.selection_metric:
+            case 'dice2d':
+                current_score = dice2d
+            case 'dice3d':
+                if dice3d is None:
+                    raise ValueError('--selection-metric dice3d is only available for SegTHOR datasets')
+                current_score = dice3d
+            case _:
+                raise ValueError(f"Unsupported selection metric: {args.selection_metric}")
+
+        if current_score > best_score:
+            score_details = f"2D={dice2d:05.3f}"
+            if dice3d is not None:
+                score_details += f", 3D={dice3d:05.3f}"
+            message = (f">>> Improved {args.selection_metric} at epoch {e}: "
+                       f"{best_score:05.3f}->{current_score:05.3f} DSC "
+                       f"({score_details})")
             print(message)
-            best_dice = current_dice
+            best_score = current_score
             with open(args.dest / "best_epoch.txt", 'w') as f:
                 f.write(message)
 
@@ -273,6 +354,9 @@ def main():
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--loss', default='ce', choices=['ce', 'dice', 'dicece'])
+    parser.add_argument('--selection-metric', default='dice2d', choices=['dice2d', 'dice3d'],
+                        help='Validation metric used to select and save the best model. '
+                             '3D Dice is available for SegTHOR datasets.')
     parser.add_argument('--architecture', default='baseline',
                         choices=['baseline', 'enet', 'swin_unet'],
                         help='Network architecture. The default preserves the dataset-specific baseline network.')
