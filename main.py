@@ -52,7 +52,7 @@ from utils import (Dcm,
                    tqdm_,
                    dice_coef,
                    volume_dice_from_slices,
-                   volume_hd95_from_slices,
+                   volume_surface_metrics_from_slices,
                    save_images)
 
 from losses import (CrossEntropy, DiceLoss, DiceCELoss)
@@ -95,8 +95,10 @@ def record_volume_dice(
     log_dice[epoch, patient_indexes[patient_id], :] = volume_dice_from_slices(slices, K)
 
 
-def record_volume_hd95(
+def record_volume_surface_metrics(
     log_hd95: Tensor,
+    log_hd: Tensor,
+    log_assd: Tensor,
     epoch: int,
     patient_id: str,
     slices: list[tuple[int, Tensor, Tensor]],
@@ -105,7 +107,11 @@ def record_volume_hd95(
     spacing: tuple[float, float, float],
 ) -> None:
     assert patient_id in patient_indexes, patient_id
-    log_hd95[epoch, patient_indexes[patient_id], :] = volume_hd95_from_slices(slices, K, spacing)
+    patient_index = patient_indexes[patient_id]
+    hd95, hd, assd = volume_surface_metrics_from_slices(slices, K, spacing)
+    log_hd95[epoch, patient_index, :] = hd95
+    log_hd[epoch, patient_index, :] = hd
+    log_assd[epoch, patient_index, :] = assd
 
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Any | None]:
@@ -208,11 +214,13 @@ def runTraining(args):
     # loader is not shuffled, so each patient's slices arrive consecutively
     # and can be accumulated one volume at a time.
     compute_3d_dice: bool = args.dataset in ['SEGTHOR', 'SEGTHOR_CLEAN']
-    if args.selection_metric in ['dice3d', 'hd95'] and not compute_3d_dice:
+    if args.selection_metric in ['dice3d', 'hd95', 'assd'] and not compute_3d_dice:
         raise ValueError(f'--selection-metric {args.selection_metric} is only available for SegTHOR datasets')
     val_patient_indexes: dict[str, int] = {}
     log_dice3d_val: Tensor | None = None
     log_hd95_val: Tensor | None = None
+    log_hd_val: Tensor | None = None
+    log_assd_val: Tensor | None = None
     if compute_3d_dice:
         volume_spacing = load_preprocessed_volume_spacing(Path("data") / args.dataset)
         val_patient_ids = sorted({parse_segthor_slice_stem(img_path.stem)[0]
@@ -220,8 +228,10 @@ def runTraining(args):
         val_patient_indexes = {patient_id: i for i, patient_id in enumerate(val_patient_ids)}
         log_dice3d_val = torch.zeros((args.epochs, len(val_patient_ids), K))
         log_hd95_val = torch.full((args.epochs, len(val_patient_ids), K), torch.nan)
+        log_hd_val = torch.full((args.epochs, len(val_patient_ids), K), torch.nan)
+        log_assd_val = torch.full((args.epochs, len(val_patient_ids), K), torch.nan)
 
-    best_score: float = float('inf') if args.selection_metric == 'hd95' else 0
+    best_score: float = float('inf') if args.selection_metric in ['hd95', 'assd'] else 0
 
     for e in range(args.epochs):
         for m in ['train', 'val']:
@@ -287,6 +297,8 @@ def runTraining(args):
                         if compute_3d_dice:
                             assert log_dice3d_val is not None
                             assert log_hd95_val is not None
+                            assert log_hd_val is not None
+                            assert log_assd_val is not None
                             gt_class = probs2class(gt)
                             for stem, pred_slice, gt_slice in zip(data['stems'], predicted_class, gt_class):
                                 patient_id, slice_id = parse_segthor_slice_stem(stem)
@@ -296,9 +308,10 @@ def runTraining(args):
                                     assert active_patient_id not in completed_patients
                                     record_volume_dice(log_dice3d_val, e, active_patient_id,
                                                        active_patient_slices, val_patient_indexes, K)
-                                    record_volume_hd95(log_hd95_val, e, active_patient_id,
-                                                       active_patient_slices, val_patient_indexes, K,
-                                                       volume_spacing)
+                                    record_volume_surface_metrics(
+                                        log_hd95_val, log_hd_val, log_assd_val, e, active_patient_id,
+                                        active_patient_slices, val_patient_indexes, K, volume_spacing,
+                                    )
                                     completed_patients.add(active_patient_id)
                                     active_patient_id = patient_id
                                     active_patient_slices = []
@@ -319,13 +332,16 @@ def runTraining(args):
             if m == 'val' and compute_3d_dice:
                 assert log_dice3d_val is not None
                 assert log_hd95_val is not None
+                assert log_hd_val is not None
+                assert log_assd_val is not None
                 assert active_patient_id is not None
                 assert active_patient_id not in completed_patients
                 record_volume_dice(log_dice3d_val, e, active_patient_id,
                                    active_patient_slices, val_patient_indexes, K)
-                record_volume_hd95(log_hd95_val, e, active_patient_id,
-                                   active_patient_slices, val_patient_indexes, K,
-                                   volume_spacing)
+                record_volume_surface_metrics(
+                    log_hd95_val, log_hd_val, log_assd_val, e, active_patient_id,
+                    active_patient_slices, val_patient_indexes, K, volume_spacing,
+                )
                 completed_patients.add(active_patient_id)
                 assert completed_patients == set(val_patient_indexes)
 
@@ -338,15 +354,27 @@ def runTraining(args):
             np.save(args.dest / "dice3d_val.npy", log_dice3d_val)
         if log_hd95_val is not None:
             np.save(args.dest / "hd95_val.npy", log_hd95_val)
+        if log_hd_val is not None:
+            np.save(args.dest / "hd_val.npy", log_hd_val)
+        if log_assd_val is not None:
+            np.save(args.dest / "assd_val.npy", log_assd_val)
 
         dice2d: float = log_dice_val[e, :, 1:].mean().item()
         dice3d: float | None = None
         if log_dice3d_val is not None:
             dice3d = log_dice3d_val[e, :, 1:].mean().item()
         hd95: float | None = None
+        hd: float | None = None
+        assd: float | None = None
         if log_hd95_val is not None:
             hd95 = torch.nanmean(log_hd95_val[e, :, 1:]).item()
-            print(f">>> Validation 3D metrics at epoch {e}: Dice={dice3d:05.3f}, HD95={hd95:05.2f} mm")
+        if log_hd_val is not None:
+            hd = torch.nanmean(log_hd_val[e, :, 1:]).item()
+        if log_assd_val is not None:
+            assd = torch.nanmean(log_assd_val[e, :, 1:]).item()
+        if hd95 is not None and hd is not None and assd is not None:
+            print(f">>> Validation 3D metrics at epoch {e}: Dice={dice3d:05.3f}, "
+                  f"HD95={hd95:05.2f} mm, HD={hd:05.2f} mm, ASSD={assd:05.2f} mm")
 
         match args.selection_metric:
             case 'dice2d':
@@ -359,17 +387,26 @@ def runTraining(args):
                 if hd95 is None:
                     raise ValueError('--selection-metric hd95 is only available for SegTHOR datasets')
                 current_score = hd95
+            case 'assd':
+                if assd is None:
+                    raise ValueError('--selection-metric assd is only available for SegTHOR datasets')
+                current_score = assd
             case _:
                 raise ValueError(f"Unsupported selection metric: {args.selection_metric}")
 
-        improved = current_score < best_score if args.selection_metric == 'hd95' else current_score > best_score
+        improved = (current_score < best_score if args.selection_metric in ['hd95', 'assd']
+                    else current_score > best_score)
         if improved:
             score_details = f"2D={dice2d:05.3f}"
             if dice3d is not None:
                 score_details += f", 3D={dice3d:05.3f}"
             if hd95 is not None:
                 score_details += f", HD95={hd95:05.2f} mm"
-            score_unit = 'mm' if args.selection_metric == 'hd95' else 'DSC'
+            if hd is not None:
+                score_details += f", HD={hd:05.2f} mm"
+            if assd is not None:
+                score_details += f", ASSD={assd:05.2f} mm"
+            score_unit = 'mm' if args.selection_metric in ['hd95', 'assd'] else 'DSC'
             previous_score = 'initial' if best_score == float('inf') else f"{best_score:05.3f}"
             message = (f">>> Improved {args.selection_metric} at epoch {e}: "
                        f"{previous_score}->{current_score:05.3f} {score_unit} "
@@ -396,9 +433,10 @@ def main():
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--loss', default='ce', choices=['ce', 'dice', 'dicece'])
-    parser.add_argument('--selection-metric', default='dice2d', choices=['dice2d', 'dice3d', 'hd95'],
+    parser.add_argument('--selection-metric', default='dice2d', choices=['dice2d', 'dice3d', 'hd95', 'assd'],
                         help='Validation metric used to select and save the best model. '
-                             '3D Dice and HD95 are available for SegTHOR datasets; HD95 is minimized.')
+                             '3D Dice, HD95, and ASSD are available for SegTHOR datasets; '
+                             'HD95 and ASSD are minimized.')
     parser.add_argument('--architecture', default='baseline',
                         choices=['baseline', 'enet', 'swin_unet'],
                         help='Network architecture. The default preserves the dataset-specific baseline network.')

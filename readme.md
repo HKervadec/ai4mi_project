@@ -258,6 +258,35 @@ boundary definition, percentile rule, and empty-mask policy. Use
 `--selection-metric hd95` to select the checkpoint with the lowest mean
 foreground 3D HD95; `dice2d` and `dice3d` continue to select the highest Dice.
 
+### 3D Hausdorff-distance diagnostic metric
+
+Full Hausdorff distance (HD) will be recorded as a diagnostic metric, not used
+for checkpoint selection. Like HD95, it will be computed per foreground class
+and validation patient on reconstructed preprocessed 3D volumes, in millimetres,
+using the same target spacing, 6-connected voxel-centre surface definition,
+and empty-mask policy. Background will be `NaN`.
+
+For each class, the two directed surface-distance sets are computed as for HD95,
+but HD retains the largest distance in either direction rather than the 95th
+percentile. This makes it useful for detecting worst-case boundary failures,
+such as a small distant false-positive island, but too sensitive to isolated
+outliers for best-model selection. Results will be saved in `hd_val.npy` with
+shape `(epochs, validation_patients, classes)`.
+
+### 3D ASSD validation metric
+
+The `assd_val.npy` metric measures the typical 3D boundary discrepancy. It has
+shape `(epochs, validation_patients, classes)`, uses the same preprocessed
+volumes, spacing, 6-connected voxel-centre surfaces, and empty-mask policy as
+HD95 and HD, and stores background as `NaN`.
+
+For each foreground class, ASSD pools both directed surface-distance sets and
+takes their combined mean. Thus each direction is weighted by its number of
+surface voxels, rather than treating the two directional means equally. Use
+`--selection-metric assd` to choose the checkpoint with the lowest mean
+foreground ASSD. The default remains `dice2d`; for SegTHOR, `dice3d` remains
+the recommended default selection metric.
+
 
 <a id="submission-and-scoring"></a>
 ## Submission and scoring

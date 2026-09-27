@@ -218,14 +218,14 @@ def physical_volume_diagonal(shape: tuple[int, int, int],
     return float(np.linalg.norm(np.asarray(shape) * np.asarray(spacing)))
 
 
-def hd95_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
-                spacing: tuple[float, float, float]) -> float:
-    """Compute symmetric 3D HD95 in mm for one binary class mask.
+def surface_distance_metrics_binary(
+    pred_mask: np.ndarray, gt_mask: np.ndarray,
+    spacing: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    """Compute symmetric 3D HD95, HD, and ASSD in mm for one binary class.
 
-    Surfaces use 6-connected foreground voxel centres. HD95 is the maximum of
-    the directional 95th-percentile distances, calculated with a physical
-    Euclidean distance transform. One empty mask receives the physical volume
-    diagonal as a finite penalty; two empty masks receive zero.
+    The directed surface-distance sets are calculated once and reused for all
+    three metrics. The return order is ``(hd95, hd, assd)``.
     """
     assert pred_mask.shape == gt_mask.shape
     assert pred_mask.ndim == 3, pred_mask.shape
@@ -236,21 +236,46 @@ def hd95_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
     pred_empty = not pred_mask.any()
     gt_empty = not gt_mask.any()
     if pred_empty and gt_empty:
-        return 0.0
+        return (0.0, 0.0, 0.0)
     if pred_empty or gt_empty:
-        return physical_volume_diagonal(pred_mask.shape, spacing)
+        penalty = physical_volume_diagonal(pred_mask.shape, spacing)
+        return (penalty, penalty, penalty)
 
     pred_surface = surface_voxels(pred_mask)
     gt_surface = surface_voxels(gt_mask)
     pred_to_gt = distance_transform_edt(~gt_surface, sampling=spacing)[pred_surface]
     gt_to_pred = distance_transform_edt(~pred_surface, sampling=spacing)[gt_surface]
-    return float(max(np.percentile(pred_to_gt, 95, method="linear"),
-                     np.percentile(gt_to_pred, 95, method="linear")))
+    hd95 = max(float(np.percentile(pred_to_gt, 95, method="linear")),
+               float(np.percentile(gt_to_pred, 95, method="linear")))
+    hd = max(float(pred_to_gt.max()), float(gt_to_pred.max()))
+    assd = float(np.concatenate((pred_to_gt, gt_to_pred)).mean())
+    return (hd95, hd, assd)
 
 
-def volume_hd95_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
-                            spacing: tuple[float, float, float]) -> Tensor:
-    """Compute per-class 3D HD95 in mm from one patient's hard-label slices."""
+def hd95_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
+                spacing: tuple[float, float, float]) -> float:
+    """Compute symmetric 3D HD95 in mm for one binary class mask."""
+    return surface_distance_metrics_binary(pred_mask, gt_mask, spacing)[0]
+
+
+def hausdorff_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
+                     spacing: tuple[float, float, float]) -> float:
+    """Compute symmetric full 3D Hausdorff distance in mm for one binary class mask."""
+    return surface_distance_metrics_binary(pred_mask, gt_mask, spacing)[1]
+
+
+def assd_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
+                spacing: tuple[float, float, float]) -> float:
+    """Compute symmetric 3D ASSD in mm for one binary class mask.
+
+    ASSD is the mean over both directed surface-distance sets pooled together,
+    weighting each direction by its number of surface voxels.
+    """
+    return surface_distance_metrics_binary(pred_mask, gt_mask, spacing)[2]
+
+
+def _volumes_from_slices(slices: list[tuple[int, Tensor, Tensor]]) -> tuple[np.ndarray, np.ndarray]:
+    """Stack ordered hard-label slices into prediction and ground-truth volumes."""
     assert slices
     slices = sorted(slices, key=lambda item: item[0])
     slice_ids = [slice_id for slice_id, _, _ in slices]
@@ -258,12 +283,56 @@ def volume_hd95_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
 
     pred_volume = torch.stack([pred for _, pred, _ in slices]).cpu().numpy()
     gt_volume = torch.stack([gt for _, _, gt in slices]).cpu().numpy()
-    hd95s = torch.full((K,), torch.nan, dtype=torch.float32)
+    return pred_volume, gt_volume
+
+
+def _volume_surface_distance_from_slices(
+    slices: list[tuple[int, Tensor, Tensor]], K: int,
+    spacing: tuple[float, float, float],
+    binary_metric: Callable[[np.ndarray, np.ndarray, tuple[float, float, float]], float],
+) -> Tensor:
+    """Compute one per-class 3D surface-distance metric from patient slices."""
+    pred_volume, gt_volume = _volumes_from_slices(slices)
+    distances = torch.full((K,), torch.nan, dtype=torch.float32)
     for class_id in range(1, K):
-        hd95s[class_id] = hd95_binary(pred_volume == class_id,
-                                      gt_volume == class_id,
-                                      spacing)
-    return hd95s
+        distances[class_id] = binary_metric(pred_volume == class_id,
+                                            gt_volume == class_id,
+                                            spacing)
+    return distances
+
+
+def volume_hd95_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
+                            spacing: tuple[float, float, float]) -> Tensor:
+    """Compute per-class 3D HD95 in mm from one patient's hard-label slices."""
+    return _volume_surface_distance_from_slices(slices, K, spacing, hd95_binary)
+
+
+def volume_hausdorff_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
+                                 spacing: tuple[float, float, float]) -> Tensor:
+    """Compute per-class full 3D Hausdorff distance in mm from patient slices."""
+    return _volume_surface_distance_from_slices(slices, K, spacing, hausdorff_binary)
+
+
+def volume_assd_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
+                            spacing: tuple[float, float, float]) -> Tensor:
+    """Compute per-class 3D ASSD in mm from one patient's hard-label slices."""
+    return _volume_surface_distance_from_slices(slices, K, spacing, assd_binary)
+
+
+def volume_surface_metrics_from_slices(
+    slices: list[tuple[int, Tensor, Tensor]], K: int,
+    spacing: tuple[float, float, float],
+) -> tuple[Tensor, Tensor, Tensor]:
+    """Compute per-class 3D HD95, HD, and ASSD from one patient's slices."""
+    pred_volume, gt_volume = _volumes_from_slices(slices)
+    hd95s = torch.full((K,), torch.nan, dtype=torch.float32)
+    hds = torch.full((K,), torch.nan, dtype=torch.float32)
+    assds = torch.full((K,), torch.nan, dtype=torch.float32)
+    for class_id in range(1, K):
+        hd95s[class_id], hds[class_id], assds[class_id] = surface_distance_metrics_binary(
+            pred_volume == class_id, gt_volume == class_id, spacing,
+        )
+    return hd95s, hds, assds
 
 
 def intersection(a: Tensor, b: Tensor) -> Tensor:
