@@ -222,7 +222,7 @@ def runTraining(args):
         np.save(args.dest / "dice_val.npy", log_dice_val[:e + 1])
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
-        if current_dice > best_dice + args.min_delta:
+        if current_dice > best_dice + args.min_delta: # okay early stopping criterion
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
             print(message)
             best_dice = current_dice
@@ -252,7 +252,7 @@ def runTraining(args):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epochs', default=20, type=int,
+    parser.add_argument('--epochs', default=50, type=int,
                         help="Upper bound on the number of epochs; training can stop "
                              "earlier, see --patience.")
     parser.add_argument('--patience', default=10, type=int,
