@@ -145,6 +145,7 @@ def runTraining(args):
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
     best_dice: float = 0
+    epochs_without_improvement: int = 0
 
     for e in range(args.epochs):
         for m in ['train', 'val']:
@@ -213,16 +214,19 @@ def runTraining(args):
                     tq_iter.set_postfix(postfix_dict)
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
-        np.save(args.dest / "loss_tra.npy", log_loss_tra)
-        np.save(args.dest / "dice_tra.npy", log_dice_tra)
-        np.save(args.dest / "loss_val.npy", log_loss_val)
-        np.save(args.dest / "dice_val.npy", log_dice_val)
+        # Only the epochs actually run are saved, so early stopping (or a crash) does not
+        # leave rows of zeros behind in the .npy files
+        np.save(args.dest / "loss_tra.npy", log_loss_tra[:e + 1])
+        np.save(args.dest / "dice_tra.npy", log_dice_tra[:e + 1])
+        np.save(args.dest / "loss_val.npy", log_loss_val[:e + 1])
+        np.save(args.dest / "dice_val.npy", log_dice_val[:e + 1])
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
-        if current_dice > best_dice:
+        if current_dice > best_dice + args.min_delta: # okay early stopping criterion
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
             print(message)
             best_dice = current_dice
+            epochs_without_improvement = 0
             with open(args.dest / "best_epoch.txt", 'w') as f:
                 f.write(message)
 
@@ -233,12 +237,30 @@ def runTraining(args):
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
+        else:
+            epochs_without_improvement += 1
+            print(f">>> No improvement at epoch {e}: {current_dice:05.3f} DSC "
+                  f"(best {best_dice:05.3f} at epoch {e - epochs_without_improvement}), "
+                  f"patience {epochs_without_improvement}/{args.patience}")
+
+            if args.patience > 0 and epochs_without_improvement >= args.patience:
+                print(f">>> Early stopping at epoch {e}: no improvement for "
+                      f"{args.patience} epochs, best dice {best_dice:05.3f} DSC")
+                break
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epochs', default=20, type=int)
+    parser.add_argument('--epochs', default=50, type=int,
+                        help="Upper bound on the number of epochs; training can stop "
+                             "earlier, see --patience.")
+    parser.add_argument('--patience', default=10, type=int,
+                        help="Stop once the validation dice (mean over the classes, "
+                             "background excluded) has not improved for that many epochs. "
+                             "Set to 0 to disable early stopping and always run --epochs.")
+    parser.add_argument('--min_delta', default=0.0, type=float,
+                        help="Minimum dice increase to count as an improvement.")
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--loss', default='ce', choices=['ce', 'dice', 'dicece'])
