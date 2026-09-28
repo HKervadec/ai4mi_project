@@ -51,3 +51,27 @@ class CrossEntropy():
 class PartialCrossEntropy(CrossEntropy):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
+
+class WeightedCrossEntropy():
+    def __init__(self, **kwargs):
+        self.idk = kwargs['idk']
+        self.weights = kwargs['weights']
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        log_p = (pred_softmax[:, self.idk, ...] + 1e-10).log()
+        mask = weak_target[:, self.idk, ...].float()
+
+        weights = self.weights[self.idk].to(pred_softmax.device)
+        weights = weights.view(1, -1, 1, 1)
+
+        weighted_mask = mask * weights
+
+        loss = -einsum("bkwh,bkwh->", weighted_mask, log_p)
+        loss /= weighted_mask.sum() + 1e-10
+
+        return loss

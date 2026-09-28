@@ -50,7 +50,19 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import (CrossEntropy)
+from losses import (CrossEntropy, WeightedCrossEntropy)
+
+
+
+#!!! Inverse-square-root class-frequency weighting,
+# calculated from pixel frequencies in the corrected SEGTHOR training set.
+class_weights = torch.tensor([
+    0.0535,   # class 0: background
+    2.4610,   # class 1: esophagus
+    0.1897,   # class 2: heart
+    2.8586,   # class 3: trachea
+    0.3859    # class 4: aorta
+], dtype=torch.float32) ###!!!
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -58,6 +70,9 @@ datasets_params: dict[str, dict[str, Any]] = {}
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["SEGTHOR_CLEAN_FINAL"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+
+
 
 def img_transform(img):
         img = img.convert('L')
@@ -129,7 +144,13 @@ def runTraining(args):
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
-        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
+        loss_fn = CrossEntropy(idk=list(range(K)))  # Standard CE: background + foreground
+
+        # Weighted CE experiment:
+        # loss_fn = WeightedCrossEntropy(
+        #     idk=list(range(K)),
+        #     weights=class_weights
+        # )
     elif args.mode in ["partial"] and args.dataset == 'SEGTHOR':
         loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
     else:
