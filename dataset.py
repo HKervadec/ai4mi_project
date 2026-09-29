@@ -61,13 +61,21 @@ def parse_segthor_slice_stem(stem: str) -> tuple[str, int]:
     return patient_id, int(slice_id)
 
 
-def load_preprocessed_volume_spacing(root_dir: str | Path) -> tuple[float, float, float]:
-    """Load SegTHOR spacing as ``(depth, height, width)`` in millimetres."""
+def load_preprocessed_volume_spacing(
+    root_dir: str | Path, image_size: int = 256,
+) -> tuple[float, float, float]:
+    """Load metric spacing in ``(depth, x, y)`` order, in millimetres.
+
+    SegTHOR slices are cropped/padded at ``crop_size`` then resized to
+    ``image_size`` before validation metrics are calculated.
+    """
     with open(Path(root_dir) / "preprocess_stats.pkl", "rb") as file:
-        target_spacing = pickle.load(file)["target_spacing"]
+        stats = pickle.load(file)
+    target_spacing = stats["target_spacing"]
+    scale = stats["crop_size"] / image_size
     return (float(target_spacing["dz"]),
-            float(target_spacing["dy"]),
-            float(target_spacing["dx"]))
+            float(target_spacing["dx"]) * scale,
+            float(target_spacing["dy"]) * scale)
 
 
 class SliceDataset(Dataset):
