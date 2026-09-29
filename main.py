@@ -231,7 +231,8 @@ def runTraining(args):
         log_hd_val = torch.full((args.epochs, len(val_patient_ids), K), torch.nan)
         log_assd_val = torch.full((args.epochs, len(val_patient_ids), K), torch.nan)
 
-    best_score: float = float('inf') if args.selection_metric in ['hd95', 'assd'] else 0
+    best_score: float = float('inf') if args.selection_metric in ['hd95', 'assd'] else -float('inf')
+    epochs_without_improvement: int = 0
 
     for e in range(args.epochs):
         for m in ['train', 'val']:
@@ -345,19 +346,20 @@ def runTraining(args):
                 completed_patients.add(active_patient_id)
                 assert completed_patients == set(val_patient_indexes)
 
-        # I save it at each epochs, in case the code crashes or I decide to stop it early
-        np.save(args.dest / "loss_tra.npy", log_loss_tra)
-        np.save(args.dest / "dice_tra.npy", log_dice_tra)
-        np.save(args.dest / "loss_val.npy", log_loss_val)
-        np.save(args.dest / "dice_val.npy", log_dice_val)
+        # Only the epochs actually run are saved, so early stopping (or a crash) does not
+        # leave rows of zeros behind in the .npy files.
+        np.save(args.dest / "loss_tra.npy", log_loss_tra[:e + 1])
+        np.save(args.dest / "dice_tra.npy", log_dice_tra[:e + 1])
+        np.save(args.dest / "loss_val.npy", log_loss_val[:e + 1])
+        np.save(args.dest / "dice_val.npy", log_dice_val[:e + 1])
         if log_dice3d_val is not None:
-            np.save(args.dest / "dice3d_val.npy", log_dice3d_val)
+            np.save(args.dest / "dice3d_val.npy", log_dice3d_val[:e + 1])
         if log_hd95_val is not None:
-            np.save(args.dest / "hd95_val.npy", log_hd95_val)
+            np.save(args.dest / "hd95_val.npy", log_hd95_val[:e + 1])
         if log_hd_val is not None:
-            np.save(args.dest / "hd_val.npy", log_hd_val)
+            np.save(args.dest / "hd_val.npy", log_hd_val[:e + 1])
         if log_assd_val is not None:
-            np.save(args.dest / "assd_val.npy", log_assd_val)
+            np.save(args.dest / "assd_val.npy", log_assd_val[:e + 1])
 
         dice2d: float = log_dice_val[e, :, 1:].mean().item()
         dice3d: float | None = None
@@ -394,8 +396,9 @@ def runTraining(args):
             case _:
                 raise ValueError(f"Unsupported selection metric: {args.selection_metric}")
 
-        improved = (current_score < best_score if args.selection_metric in ['hd95', 'assd']
-                    else current_score > best_score)
+        minimizing = args.selection_metric in ['hd95', 'assd']
+        improved = (current_score < best_score - args.min_delta if minimizing
+                    else current_score > best_score + args.min_delta)
         if improved:
             score_details = f"2D={dice2d:05.3f}"
             if dice3d is not None:
@@ -407,12 +410,14 @@ def runTraining(args):
             if assd is not None:
                 score_details += f", ASSD={assd:05.2f} mm"
             score_unit = 'mm' if args.selection_metric in ['hd95', 'assd'] else 'DSC'
-            previous_score = 'initial' if best_score == float('inf') else f"{best_score:05.3f}"
+            previous_score = ('initial' if best_score in [float('inf'), -float('inf')]
+                              else f"{best_score:05.3f}")
             message = (f">>> Improved {args.selection_metric} at epoch {e}: "
                        f"{previous_score}->{current_score:05.3f} {score_unit} "
                        f"({score_details})")
             print(message)
             best_score = current_score
+            epochs_without_improvement = 0
             with open(args.dest / "best_epoch.txt", 'w') as f:
                 f.write(message)
 
@@ -421,6 +426,18 @@ def runTraining(args):
 
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
+        else:
+            epochs_without_improvement += 1
+            score_unit = 'mm' if minimizing else 'DSC'
+            print(f">>> No improvement at epoch {e}: {current_score:05.3f} {score_unit} "
+                  f"(best {best_score:05.3f} at epoch {e - epochs_without_improvement}), "
+                  f"patience {epochs_without_improvement}/{args.patience}")
+
+            if args.patience > 0 and epochs_without_improvement >= args.patience:
+                print(f">>> Early stopping at epoch {e}: no improvement for "
+                      f"{args.patience} epochs, best {args.selection_metric} "
+                      f"{best_score:05.3f} {score_unit}")
+                break
 
         if scheduler is not None:
             scheduler.step()
@@ -429,7 +446,15 @@ def runTraining(args):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epochs', default=20, type=int)
+    parser.add_argument('--epochs', default=50, type=int,
+                        help="Upper bound on the number of epochs; training can stop "
+                             "earlier, see --patience.")
+    parser.add_argument('--patience', default=10, type=int,
+                        help="Stop once the selected validation metric has not improved for "
+                             "that many epochs. "
+                             "Set to 0 to disable early stopping and always run --epochs.")
+    parser.add_argument('--min_delta', default=0.0, type=float,
+                        help="Minimum absolute selected-metric change to count as an improvement.")
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--loss', default='ce', choices=['ce', 'dice', 'dicece'])
@@ -463,6 +488,10 @@ def main():
         parser.error('--lr must be positive')
     if args.weight_decay < 0:
         parser.error('--weight-decay must be non-negative')
+    if args.patience < 0:
+        parser.error('--patience must be non-negative')
+    if args.min_delta < 0:
+        parser.error('--min_delta must be non-negative')
 
     pprint(args)
 
