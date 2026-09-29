@@ -4,12 +4,13 @@
 # This file currently includes the following changes from the original baseline:
 # - Updated target_spacing to [1.95, 1.95, 2.5]
 # - HU windowing is applied (window: [40, 400])
+# - Full 40-patient dataset (data/segthor_full) with the holdout40 split (32 train / 8 val)
 data:
-  gt: data/gt/watershed_refined
+  gt: data/segthor_full # full 40-patient release (clean GT); was data/gt/watershed_refined (20 patients, repaired)
   window: [40, 400]     # HU [level, width] used when slicing; null = per-volume min-max
   target_spacing: [1.95, 1.95, 2.5]  # [sx, sy, sz] mm to resample every volume + center crop/pad; null = resize each slice (original)
   shape: [256, 256]
-  split: holdout        # holdout | cv4
+  split: holdout40      # holdout40 | cv5_40 (40 patients); holdout | cv4 are the old 20-patient splits
   fold: 0
 
 input:

@@ -1,0 +1,13 @@
+# Plain baseline on the full 40-patient dataset: the starter-code setup with none of
+# our additions. Undoes the two preprocessing choices in current.yaml (HU window,
+# voxel-spacing resampling) -> per-volume min-max + per-slice resize to 256x256,
+# as in the original slice_segthor.py. Everything else is already the starter
+# default in current.yaml (ENet, CE, Adam 5e-4, no augmentation, no regularizers).
+# Reference point for measuring what each of our choices adds on the full data.
+base: ../current.yaml
+owner: Elena
+idea: "Starter-code baseline on the full 40-patient data: no HU window, no resampling, ENet + CE + Adam, no augmentation."
+
+data:
+  window: null
+  target_spacing: null
