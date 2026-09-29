@@ -252,28 +252,6 @@ def surface_distance_metrics_binary(
     return (hd95, hd, assd)
 
 
-def hd95_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
-                spacing: tuple[float, float, float]) -> float:
-    """Compute symmetric 3D HD95 in mm for one binary class mask."""
-    return surface_distance_metrics_binary(pred_mask, gt_mask, spacing)[0]
-
-
-def hausdorff_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
-                     spacing: tuple[float, float, float]) -> float:
-    """Compute symmetric full 3D Hausdorff distance in mm for one binary class mask."""
-    return surface_distance_metrics_binary(pred_mask, gt_mask, spacing)[1]
-
-
-def assd_binary(pred_mask: np.ndarray, gt_mask: np.ndarray,
-                spacing: tuple[float, float, float]) -> float:
-    """Compute symmetric 3D ASSD in mm for one binary class mask.
-
-    ASSD is the mean over both directed surface-distance sets pooled together,
-    weighting each direction by its number of surface voxels.
-    """
-    return surface_distance_metrics_binary(pred_mask, gt_mask, spacing)[2]
-
-
 def _volumes_from_slices(slices: list[tuple[int, Tensor, Tensor]]) -> tuple[np.ndarray, np.ndarray]:
     """Stack ordered hard-label slices into prediction and ground-truth volumes."""
     assert slices
@@ -284,39 +262,6 @@ def _volumes_from_slices(slices: list[tuple[int, Tensor, Tensor]]) -> tuple[np.n
     pred_volume = torch.stack([pred for _, pred, _ in slices]).cpu().numpy()
     gt_volume = torch.stack([gt for _, _, gt in slices]).cpu().numpy()
     return pred_volume, gt_volume
-
-
-def _volume_surface_distance_from_slices(
-    slices: list[tuple[int, Tensor, Tensor]], K: int,
-    spacing: tuple[float, float, float],
-    binary_metric: Callable[[np.ndarray, np.ndarray, tuple[float, float, float]], float],
-) -> Tensor:
-    """Compute one per-class 3D surface-distance metric from patient slices."""
-    pred_volume, gt_volume = _volumes_from_slices(slices)
-    distances = torch.full((K,), torch.nan, dtype=torch.float32)
-    for class_id in range(1, K):
-        distances[class_id] = binary_metric(pred_volume == class_id,
-                                            gt_volume == class_id,
-                                            spacing)
-    return distances
-
-
-def volume_hd95_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
-                            spacing: tuple[float, float, float]) -> Tensor:
-    """Compute per-class 3D HD95 in mm from one patient's hard-label slices."""
-    return _volume_surface_distance_from_slices(slices, K, spacing, hd95_binary)
-
-
-def volume_hausdorff_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
-                                 spacing: tuple[float, float, float]) -> Tensor:
-    """Compute per-class full 3D Hausdorff distance in mm from patient slices."""
-    return _volume_surface_distance_from_slices(slices, K, spacing, hausdorff_binary)
-
-
-def volume_assd_from_slices(slices: list[tuple[int, Tensor, Tensor]], K: int,
-                            spacing: tuple[float, float, float]) -> Tensor:
-    """Compute per-class 3D ASSD in mm from one patient's hard-label slices."""
-    return _volume_surface_distance_from_slices(slices, K, spacing, assd_binary)
 
 
 def volume_surface_metrics_from_slices(
