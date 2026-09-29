@@ -1,0 +1,6 @@
+base: ../current.yaml
+owner: Junis
+idea: "transformer after the first upsampling stack"
+model:
+  name: enet_transformer
+  params: {transformer_at: [decoder1], num_layers: 1, kernels: 8, factor: 2}
