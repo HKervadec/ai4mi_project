@@ -4,7 +4,7 @@
 # watershed_window baseline to isolate the resampling effect on the basic fix.
 # See preprocessing.py for the resampling rationale (1.95/1.95/2.5 mm, crop/pad).
 base: ../current.yaml
-owner:
+owner: Elena
 idea: "Watershed GT fix + HU window + resampling to 1.95/1.95/2.5 mm (crop/pad)."
 
 data:

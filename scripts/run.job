@@ -3,7 +3,7 @@
 #SBATCH --gpus=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=9
-#SBATCH --time=04:00:00
+#SBATCH --time=02:00:00
 #SBATCH --output=slurm_logs/%x_%j.out
 #SBATCH --error=slurm_logs/%x_%j.err
 #SBATCH --job-name=run_experiment
@@ -12,6 +12,9 @@
 # Create slurm_logs/ first (mkdir -p slurm_logs): SLURM needs it before the job starts.
 
 set -euo pipefail
+
+START_TIME=$(date +%s)
+trap 'END_TIME=$(date +%s); echo "total elapsed time: $((END_TIME - START_TIME)) seconds"' EXIT
 
 PROJECT_DIR="$HOME/ai_medical_imaging_group28/"
 VENV_DIR="${PROJECT_DIR}/ai4mi"

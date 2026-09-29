@@ -1,0 +1,5 @@
+base: enet_tf_stage2.yaml
+owner: Junis
+idea: "combines the two individual wins: stage2 placement + 2 stacked transformer layers"
+model:
+  params: {transformer_at: [stage2], num_layers: 2, kernels: 8, factor: 2}

@@ -8,7 +8,7 @@
 # 2.5 mm z is the cohort median. Chosen so the A/B isolates cross-patient spatial
 # *consistency* rather than a change in overall resolution. See preprocessing.py.
 base: ../current.yaml
-owner:
+owner: Elena
 idea: "Voxel-spacing resampling to 1.95/1.95/2.5 mm (crop/pad) vs per-slice resize."
 
 data:
