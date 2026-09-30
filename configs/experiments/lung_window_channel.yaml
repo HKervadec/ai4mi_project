@@ -1,0 +1,17 @@
+# Lung window as a second input channel, on top of `current` (mediastinal window +
+# resampling). The mediastinal window [40, 400] clips everything below -160 HU to 0,
+# so the air in the trachea lumen looks the same as the lungs and the air outside
+# the body; the trachea can only be learned from its wall. A lung window
+# (level -600, width 1500 -> [-1350, 150] HU) keeps the air/lung/wall contrast.
+# Channel 0 = mediastinal (unchanged), channel 1 = lung. Only the input changes, so
+# the difference with `current` is the value of the extra window. Expected to help
+# the trachea most; watch the esophagus too (air in its lumen is also visible now).
+#
+# Note: the `combined` augmentation's contrast step only supports 1 or 3 channels,
+# so do not combine this with `augment: [combined]` until that is made per-channel.
+base: ../current.yaml
+owner: Elena
+idea: "Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window, to see the trachea lumen (air) and airway wall."
+
+data:
+  extra_windows: [[-600, 1500]]

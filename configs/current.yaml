@@ -8,6 +8,7 @@
 data:
   gt: data/segthor_full # full 40-patient release (clean GT); was data/gt/watershed_refined (20 patients, repaired)
   window: [40, 400]     # HU [level, width] used when slicing; null = per-volume min-max
+  extra_windows: []     # more HU [level, width] windows, one extra input channel each (e.g. [[-600, 1500]] = lung)
   target_spacing: [1.95, 1.95, 2.5]  # [sx, sy, sz] mm to resample every volume + center crop/pad; null = resize each slice (original)
   shape: [256, 256]
   split: holdout40      # holdout40 | cv5_40 (40 patients); holdout | cv4 are the old 20-patient splits

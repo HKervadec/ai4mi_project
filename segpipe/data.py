@@ -40,7 +40,15 @@ def cache_dir(cfg) -> Path:
     # with the same gt/window/shape would share a folder and reuse the wrong slices.
     spacing = cfg.data.get("target_spacing")
     spatial = f"{h}x{w}" if spacing is None else f"sp{spacing[0]:g}_{spacing[1]:g}_{spacing[2]:g}_{h}x{w}"
+    # Extra windows add img1/, img2/, ... folders, so they also get their own cache folder.
+    for level, width in extra_windows(cfg):
+        intensity += f"+window{level:g}_{width:g}"
     return Path(cfg.data.get("cache_root", "data/cache")) / f"{Path(cfg.data.gt).name}_{intensity}_{spatial}"
+
+
+def extra_windows(cfg) -> tuple[tuple[float, float], ...]:
+    # data.extra_windows: [[level, width], ...] -> one extra input channel per window
+    return tuple(tuple(w) for w in cfg.data.get("extra_windows") or [])
 
 
 def build_cache(cfg) -> Path:
@@ -61,8 +69,9 @@ def build_cache(cfg) -> Path:
         # slice_patient returns the voxel spacing; evaluate_3d re-reads it from each
         # GT header when scoring, so there's nothing to persist here.
         slice_patient(pid, dest_path=tmp, source_path=src, shape=tuple(cfg.data.shape),
-                      window=window, target_spacing=target_spacing)
+                      window=window, target_spacing=target_spacing, extra_windows=extra_windows(cfg))
     (tmp / "done.json").write_text(json.dumps({"gt": str(cfg.data.gt), "window": window,
+                                                "extra_windows": extra_windows(cfg),
                                                 "target_spacing": target_spacing,
                                                 "shape": list(cfg.data.shape), "patients": patients}, indent=2))
     shutil.rmtree(dest, ignore_errors=True)
@@ -71,7 +80,7 @@ def build_cache(cfg) -> Path:
 
 
 def n_channels(cfg) -> int:
-    return 2 * cfg.input.get("context_slices", 0) + 1
+    return (2 * cfg.input.get("context_slices", 0) + 1) * (1 + len(extra_windows(cfg)))
 
 
 class SliceDataset(Dataset):
@@ -84,6 +93,8 @@ class SliceDataset(Dataset):
         wanted = set(patient_ids)
         images = sorted(p for p in (root / "img").glob("*.png") if p.stem.rsplit("_", 1)[0] in wanted)
         self.files = [(p, root / "gt" / p.name) for p in images]
+        # Channel order: img/ (data.window), then img1/, img2/, ... (data.extra_windows)
+        self.channel_dirs = [root / f"img{i}" for i in range(1, len(extra_windows(cfg)) + 1)]
         if debug:
             self.files = self.files[:10]
 
@@ -106,6 +117,8 @@ class SliceDataset(Dataset):
     def __getitem__(self, index: int) -> dict:
         img_path, gt_path = self.files[index]
         img = img_transform(Image.open(img_path))
+        if self.channel_dirs:
+            img = torch.cat([img] + [img_transform(Image.open(d / img_path.name)) for d in self.channel_dirs])
         gt = self.gt_transform(Image.open(gt_path))
 
         if self.augment is not None:
