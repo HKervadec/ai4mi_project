@@ -78,6 +78,11 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
 
     best_dice: float = 0
     best_epoch: int = -1
+    # Stop when val Dice has not improved by more than min_delta for `patience` epochs (patience null = off)
+    es = tc.get("early_stopping") or {}
+    patience, min_delta = es.get("patience"), es.get("min_delta", 0.0)
+    since_improvement: int = 0
+    stopped_epoch: int | None = None
     start = time.time()
     for e in range(E):
         epoch_start = time.time()
@@ -140,10 +145,11 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
         if scheduler is not None:
             scheduler.step()
 
-        np.save(run_dir / "loss_tra.npy", logs["train"][0])
-        np.save(run_dir / "dice_tra.npy", logs["train"][1])
-        np.save(run_dir / "loss_val.npy", logs["val"][0])
-        np.save(run_dir / "dice_val.npy", logs["val"][1])
+        # Only the epochs run so far, so an early-stopped run has no trailing zero rows
+        np.save(run_dir / "loss_tra.npy", logs["train"][0][:e + 1])
+        np.save(run_dir / "dice_tra.npy", logs["train"][1][:e + 1])
+        np.save(run_dir / "loss_val.npy", logs["val"][0][:e + 1])
+        np.save(run_dir / "dice_val.npy", logs["val"][1][:e + 1])
         np.save(run_dir / "dice_tra_patient.npy", torch.stack(dice_patient["train"]))
         np.save(run_dir / "dice_val_patient.npy", torch.stack(dice_patient["val"]))
 
@@ -158,6 +164,7 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
                            val_dice=current_dice, lr=lr, seconds=time.time() - epoch_start,
                            **{f"val_dice_{n}": v for n, v in zip(CLASS_NAMES[1:], val_dice_per_class.tolist())})
 
+        since_improvement = 0 if current_dice > best_dice + min_delta else since_improvement + 1
         if current_dice > best_dice:
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
             print(message)
@@ -173,9 +180,17 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
             torch.save(model, run_dir / "bestmodel.pkl")
             torch.save(model.state_dict(), run_dir / "bestweights.pt")
 
+        if patience is not None and since_improvement >= patience:
+            stopped_epoch = e
+            print(f">>> Early stopping at epoch {e}: no val Dice gain > {min_delta} for {patience} epochs "
+                  f"(best {best_dice:05.3f} at epoch {best_epoch})")
+            break
+
     best_per_class = (dice_patient["val"][best_epoch][:, 1:].mean(dim=0).tolist()
                       if best_epoch >= 0 else [None] * (K - 1))
     return {"best_epoch": best_epoch,
+            "epochs_run": e + 1,
+            "stopped_early": stopped_epoch is not None,
             "val_dice_2d": round(best_dice, 4),
             "val_dice_2d_per_class": {n: (round(v, 4) if v is not None else None)
                                       for n, v in zip(CLASS_NAMES[1:], best_per_class)},
