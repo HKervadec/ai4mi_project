@@ -1,0 +1,3 @@
+base: ../current.yaml
+owner: Githa
+idea: "NO Data augmentation, with new metrics and preprocessing, to compare to data-augmentation."

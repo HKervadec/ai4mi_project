@@ -36,7 +36,7 @@ DECISIONS.md                  <- what we chose, why, when to revisit
 |---|---|---|
 | Additional pre-processing | `segpipe/data.py` | `data`, `input` |
 | Data augmentation | `segpipe/augment.py` | `augment` |
-| 2.5D network | `segpipe/data.py` (not implemented yet) | `input.context_slices` |
+| 2.5D network | `segpipe/data.py` | `input.context_slices` |
 | Different optimizer | `segpipe/optim.py` | `optimizer`, `scheduler` |
 | Non-CNN architecture (Transformer / ViT) | `segpipe/models.py` | `model` |
 | Different network architecture | `segpipe/models.py` | `model` |

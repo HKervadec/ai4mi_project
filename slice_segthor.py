@@ -85,7 +85,8 @@ resize_: Callable = partial(resize, mode="constant", preserve_range=True, anti_a
 def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int, int],
                   test_mode: bool = False,
                   window: tuple[float, float] | None = MEDIASTINAL,
-                  target_spacing: tuple[float, float, float] | None = None) -> tuple[float, float, float]:
+                  target_spacing: tuple[float, float, float] | None = None,
+                  extra_windows: tuple[tuple[float, float], ...] = ()) -> tuple[float, float, float]:
     id_path: Path = source_path / ("train" if not test_mode else "test") / id_
 
     ct_path: Path = (id_path / f"{id_}.nii.gz") if not test_mode else (source_path / "test" / f"{id_}.nii.gz")
@@ -125,28 +126,33 @@ def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int
     else:
         norm_ct = norm_arr(ct)
 
+    # Extra HU windows (e.g. the lung window) as additional input channels, saved to
+    # img1/, img2/, ... next to img/. Same (resampled) CT, so the channels stay aligned.
+    extra_cts: list[np.ndarray] = [apply_hu_window(ct, level=level, width=width) for level, width in extra_windows]
+
     to_slice_ct = norm_ct
     to_slice_gt = gt
     # z may have changed after resampling; slice over the current depth.
     depth: int = to_slice_ct.shape[2]
 
-    for idz in range(depth):
+    def to_2d(volume: np.ndarray, idz: int, order: int = 1) -> np.ndarray:
         if target_spacing is not None:
             # Resampling already set the mm/pixel; crop/pad (not resize) keeps it.
-            img_slice = center_crop_pad(to_slice_ct[:, :, idz], shape, pad_value=0).astype(np.uint8)
-            gt_slice = center_crop_pad(to_slice_gt[:, :, idz], shape, pad_value=0).astype(np.uint8)
-        else:
-            img_slice = resize_(to_slice_ct[:, :, idz], shape).astype(np.uint8)
-            gt_slice = resize_(to_slice_gt[:, :, idz], shape, order=0).astype(np.uint8)
+            return center_crop_pad(volume[:, :, idz], shape, pad_value=0).astype(np.uint8)
+        return resize_(volume[:, :, idz], shape, order=order).astype(np.uint8)
+
+    for idz in range(depth):
+        img_slice = to_2d(to_slice_ct, idz)
+        gt_slice = to_2d(to_slice_gt, idz, order=0)
         assert img_slice.shape == gt_slice.shape
         gt_slice *= 63
         assert gt_slice.dtype == np.uint8, gt_slice.dtype
         # assert set(np.unique(gt_slice)) <= set(range(5))
         assert set(np.unique(gt_slice)) <= set([0, 63, 126, 189, 252]), np.unique(gt_slice)
 
-        arrays: list[np.ndarray] = [img_slice, gt_slice]
+        arrays: list[np.ndarray] = [img_slice, gt_slice] + [to_2d(extra, idz) for extra in extra_cts]
 
-        subfolders: list[str] = ["img", "gt"]
+        subfolders: list[str] = ["img", "gt"] + [f"img{i}" for i in range(1, len(extra_cts) + 1)]
         assert len(arrays) == len(subfolders)
         for save_subfolder, data in zip(subfolders,
                                         arrays):

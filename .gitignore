@@ -13,3 +13,5 @@ slurm_logs/
 *.log
 
 projects
+.env
+wandb/
