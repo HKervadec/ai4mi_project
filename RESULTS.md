@@ -9,9 +9,13 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | augmentation | holdout | 1 | Githa | 0.812 | +0.094 | 0.663 | +0.095 | 0.291 | 0.905 | 0.671 | 0.787 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | augmentation-snellius | holdout | 1 | Githa | 0.750 | +0.031 | 0.465 | -0.104 | 0.179 | 0.927 | 0.005 | 0.749 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | current | holdout | 3 |  | 0.719 ± 0.078 |  | 0.569 ± 0.124 |  | 0.276 ± 0.205 | 0.874 ± 0.014 | 0.413 ± 0.292 | 0.712 ± 0.031 |  |
+| enet_25d | holdout | 1 | David | 0.777 | +0.058 | 0.504 | -0.065 | 0.401 | 0.875 | 0.000 | 0.740 | 2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current |
+| enet_25d | holdout40 | 1 | David | 0.792 |  | 0.789 |  | 0.570 | 0.914 | 0.822 | 0.850 | 2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current |
+| enet_25d_metrics3d | holdout | 3 | David | 0.526 ± 0.098 | -0.193 | 0.524 ± 0.098 | -0.044 | 0.280 ± 0.202 | 0.880 ± 0.012 | 0.206 ± 0.292 | 0.731 ± 0.019 | 2.5D input (slice + 1 neighbour above/below stacked as channels, 3 -> ENet), identical to enet_25d but scored with the full 3D metric suite (dice, hd, hd95, assd, nsd) instead of 3D Dice alone |
 | enet_tf_bottleneck | holdout | 3 | Junis | 0.734 ± 0.026 | +0.015 | 0.434 ± 0.054 | -0.135 | 0.099 ± 0.140 | 0.885 ± 0.004 | 0.050 ± 0.070 | 0.703 ± 0.028 | transformer at the ENet bottleneck (baseline placement) |
 | enet_tf_bottleneck_2layer | holdout | 3 | Junix | 0.798 ± 0.017 | +0.080 | 0.632 ± 0.047 | +0.063 | 0.407 ± 0.041 | 0.870 ± 0.021 | 0.532 ± 0.112 | 0.717 ± 0.015 | same as enet_tf_bottleneck, but 2 stacked transformer layers instead of 1 to check if  depth helps |
 | enet_tf_bottleneck_posembed | holdout | 3 | Junis | 0.751 ± 0.036 | +0.032 | 0.522 ± 0.097 | -0.047 | 0.122 ± 0.172 | 0.879 ± 0.012 | 0.380 ± 0.270 | 0.706 ± 0.011 | same placement, ablates sinusoidal positional embedding |
+| enet_tf_decoder1 | holdout | 1 | Junis | 0.595 | -0.123 | 0.592 | +0.023 | 0.000 | 0.917 | 0.685 | 0.764 | transformer after the first upsampling stack |
 | enet_tf_stage1 | holdout | 3 | Junis | 0.593 ± 0.137 | -0.125 | 0.590 ± 0.136 | +0.021 | 0.282 ± 0.200 | 0.884 ± 0.005 | 0.468 ± 0.331 | 0.725 ± 0.023 | transformer after the first bottleneck stack |
 | enet_tf_stage2 | holdout | 3 |  | 0.809 ± 0.002 | +0.090 | 0.666 ± 0.013 | +0.098 | 0.402 ± 0.041 | 0.889 ± 0.008 | 0.667 ± 0.021 | 0.707 ± 0.004 | transformer earlier, end of stage2 (H/8, K*8 channels) |
 | enet_tf_stage2_2layer | holdout | 3 | Junis | 0.772 ± 0.062 | +0.053 | 0.573 ± 0.146 | +0.004 | 0.272 ± 0.206 | 0.891 ± 0.008 | 0.437 ± 0.312 | 0.693 ± 0.068 | combines the two individual wins: stage2 placement + 2 stacked transformer layers |
@@ -27,9 +31,13 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | augmentation | holdout | 1 |  |  |  |  |  |  |
 | augmentation-snellius | holdout | 1 |  |  |  |  |  |  |
 | current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |
+| enet_25d | holdout | 1 |  |  |  |  |  |  |
+| enet_25d | holdout40 | 1 | 22.50 |  | 3.96 |  | 0.440 |  |
+| enet_25d_metrics3d | holdout | 3 | 30.99 ± 8.48 | -12.35 | 5.99 ± 1.24 | -1.70 | 0.294 ± 0.016 | +0.045 |
 | enet_tf_bottleneck | holdout | 3 | 20.55 | -22.79 | 6.24 | -1.45 | 0.208 | -0.041 |
 | enet_tf_bottleneck_2layer | holdout | 3 |  |  |  |  |  |  |
 | enet_tf_bottleneck_posembed | holdout | 3 |  |  |  |  |  |  |
+| enet_tf_decoder1 | holdout | 1 | 12.63 | -30.71 | 3.34 | -4.35 | 0.382 | +0.133 |
 | enet_tf_stage1 | holdout | 3 | 35.66 ± 11.38 | -7.68 | 5.32 ± 0.64 | -2.37 | 0.304 ± 0.018 | +0.055 |
 | enet_tf_stage2 | holdout | 3 |  |  |  |  |  |  |
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |
@@ -44,9 +52,13 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | augmentation | holdout | 1 |  |  |  |  |
 | augmentation-snellius | holdout | 1 |  |  |  |  |
 | current | holdout | 3 | 59.80 | 67.00 | 24.94 | 21.62 |
+| enet_25d | holdout | 1 |  |  |  |  |
+| enet_25d | holdout40 | 1 | 12.32 | 33.42 | 20.17 | 24.11 |
+| enet_25d_metrics3d | holdout | 3 | nan ± nan | 24.44 ± 0.67 | nan ± nan | 20.65 ± 6.39 |
 | enet_tf_bottleneck | holdout | 3 | 22.07 | 12.41 | 30.70 | 17.03 |
 | enet_tf_bottleneck_2layer | holdout | 3 |  |  |  |  |
 | enet_tf_bottleneck_posembed | holdout | 3 |  |  |  |  |
+| enet_tf_decoder1 | holdout | 1 | nan | 9.07 | 14.95 | 13.87 |
 | enet_tf_stage1 | holdout | 3 | nan ± nan | 48.64 ± 28.73 | nan ± nan | 19.94 ± 1.30 |
 | enet_tf_stage2 | holdout | 3 |  |  |  |  |
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |
@@ -63,6 +75,11 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | current | holdout-f0-s42 | 0.621 | 0.622 | 43.34 | 24 / 25 | 129.9 | 6849221* | mps |
 | current | holdout-f0-s43 | 0.812 | 0.687 |  | 24 / 25 | 58.4 | ce978f2* | cuda |
 | current | holdout-f0-s44 | 0.723 | 0.398 |  | 19 / 25 | 57.9 | ce978f2* | cuda |
+| enet_25d | holdout-f0-s42 | 0.777 | 0.504 |  | 21 / 25 | 56.8 | a1ea44e* | cuda |
+| enet_25d | holdout40-f0-s42 | 0.792 | 0.789 | 22.50 | 22 / 25 | 103.4 | 16cc381* | cuda |
+| enet_25d_metrics3d | holdout-f0-s42 | 0.512 | 0.512 | 38.88 | 22 / 25 | 57.2 | 4e7e7e7* | cuda |
+| enet_25d_metrics3d | holdout-f0-s43 | 0.652 | 0.650 | 34.86 | 24 / 25 | 55.3 | be872ab | cuda |
+| enet_25d_metrics3d | holdout-f0-s44 | 0.413 | 0.411 | 19.23 | 21 / 25 | 57.9 | be872ab* | cuda |
 | enet_tf_bottleneck | holdout-f0-s42 | 0.768 | 0.510 | 20.55 | 24 / 25 | 58.9 | ce978f2* | cuda |
 | enet_tf_bottleneck | holdout-f0-s43 | 0.731 | 0.406 |  | 18 / 25 | 61.3 | ce978f2* | cuda |
 | enet_tf_bottleneck | holdout-f0-s44 | 0.704 | 0.386 |  | 24 / 25 | 61.0 | ce978f2* | cuda |
@@ -72,6 +89,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_bottleneck_posembed | holdout-f0-s42 | 0.802 | 0.636 |  | 20 / 25 | 61.3 | ce978f2* | cuda |
 | enet_tf_bottleneck_posembed | holdout-f0-s43 | 0.727 | 0.400 |  | 21 / 25 | 61.3 | ce978f2* | cuda |
 | enet_tf_bottleneck_posembed | holdout-f0-s44 | 0.723 | 0.529 |  | 24 / 25 | 57.9 | ce978f2* | cuda |
+| enet_tf_decoder1 | holdout-f0-s42 | 0.595 | 0.592 | 12.63 | 24 / 25 | 59.3 | 98670d0* | cuda |
 | enet_tf_stage1 | holdout-f0-s42 | 0.680 | 0.676 | 28.36 | 24 / 25 | 50.5 | 636a87a* | cuda |
 | enet_tf_stage1 | holdout-f0-s43 | 0.700 | 0.696 | 26.89 | 24 / 25 | 51.3 | 98670d0* | cuda |
 | enet_tf_stage1 | holdout-f0-s44 | 0.400 | 0.397 | 51.73 | 24 / 25 | 51.5 | 98670d0* | cuda |

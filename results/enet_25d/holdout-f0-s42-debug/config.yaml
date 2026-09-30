@@ -1,0 +1,53 @@
+data:
+  gt: data/gt/watershed_refined
+  window:
+  - 40
+  - 400
+  target_spacing: null
+  shape:
+  - 256
+  - 256
+  split: holdout
+  fold: 0
+input:
+  context_slices: 1
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+owner: null
+idea: '2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 ->
+  ENet), everything else as current'
+experiment: enet_25d
+_run:
+  config_file: configs/experiments/enet_25d.yaml
+  overrides: []
+  device: mps
+  debug: true
+  started: '2026-09-21T11:01:09'
+  git:
+    commit: da026c9
+    branch: 2.5D
+    dirty: true

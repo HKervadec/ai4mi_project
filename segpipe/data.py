@@ -70,27 +70,49 @@ def build_cache(cfg) -> Path:
     return dest
 
 
+def context_slices(cfg) -> int:
+    """2.5D: how many neighbouring slices to stack on *each* side of the center slice (0 = plain 2D)."""
+    return int((cfg.get("input") or {}).get("context_slices", 0) or 0)
+
+
 def n_channels(cfg) -> int:
-    return 2 * cfg.input.get("context_slices", 0) + 1
+    return 2 * context_slices(cfg) + 1
+
+
+def parse_stem(stem: str) -> tuple[str, int]:
+    """'Patient_01_0123' -> ('Patient_01', 123). The cache writes this name in slice_patient."""
+    pid, _, idz = stem.rpartition("_")
+    return pid, int(idz)
 
 
 class SliceDataset(Dataset):
     def __init__(self, cfg, patient_ids: list[str], augment=None, debug: bool = False):
-        if cfg.input.get("context_slices", 0) > 0:
-            raise NotImplementedError("2.5D (context_slices > 0) is not implemented yet")
         root = cache_dir(cfg)
         assert (root / "done.json").exists(), f"cache {root} missing: python -m segpipe.data --config <config>"
 
         wanted = set(patient_ids)
         images = sorted(p for p in (root / "img").glob("*.png") if p.stem.rsplit("_", 1)[0] in wanted)
         self.files = [(p, root / "gt" / p.name) for p in images]
+
+        # 2.5D: a sample is the center slice plus `context` neighbours on each side, stacked as
+        # input channels (the GT stays the center slice only, so the task is unchanged). The z range
+        # is taken from the *full* volume, before --debug truncates the sample list.
+        self.img_dir = root / "img"
+        self.context = context_slices(cfg)
+        self.z_range: dict[str, tuple[int, int]] = {}
+        for path in images:
+            pid, idz = parse_stem(path.stem)
+            lo, hi = self.z_range.get(pid, (idz, idz))
+            self.z_range[pid] = (min(lo, idz), max(hi, idz))
+
         if debug:
             self.files = self.files[:10]
 
         self.gt_transform = partial(gt_transform, K)
         self.augment = augment
         self._rng = None
-        print(f">> Dataset: {len(patient_ids)} patients, {len(self.files)} slices")
+        print(f">> Dataset: {len(patient_ids)} patients, {len(self.files)} slices, "
+              f"{2 * self.context + 1} input channel(s)")
 
     def __len__(self) -> int:
         return len(self.files)
@@ -103,9 +125,23 @@ class SliceDataset(Dataset):
             self._rng = np.random.default_rng(seed % 2 ** 32)
         return self._rng
 
+    def _load_stack(self, img_path: Path) -> torch.Tensor:
+        """The slice itself (1 x H x W), or the 2.5D stack (2*context+1 x H x W), center channel in the middle.
+
+        At the top/bottom of a volume there is no neighbour, so the edge slice is repeated
+        (clamping) -- every sample keeps the same number of channels as the network expects.
+        """
+        if not self.context:
+            return img_transform(Image.open(img_path))
+
+        pid, idz = parse_stem(img_path.stem)
+        lo, hi = self.z_range[pid]
+        neighbours = [min(max(idz + offset, lo), hi) for offset in range(-self.context, self.context + 1)]
+        return torch.cat([img_transform(Image.open(self.img_dir / f"{pid}_{z:04d}.png")) for z in neighbours])
+
     def __getitem__(self, index: int) -> dict:
         img_path, gt_path = self.files[index]
-        img = img_transform(Image.open(img_path))
+        img = self._load_stack(img_path)
         gt = self.gt_transform(Image.open(gt_path))
 
         if self.augment is not None:

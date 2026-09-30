@@ -1,0 +1,59 @@
+data:
+  gt: data/gt/watershed_refined
+  window:
+  - 40
+  - 400
+  target_spacing: null
+  shape:
+  - 256
+  - 256
+  split: holdout
+  fold: 0
+input:
+  context_slices: 1
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 44
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+owner: David
+idea: 2.5D input (slice + 1 neighbour above/below stacked as channels, 3 -> ENet),
+  identical to enet_25d but scored with the full 3D metric suite (dice, hd, hd95,
+  assd, nsd) instead of 3D Dice alone
+experiment: enet_25d_metrics3d
+_run:
+  config_file: configs/experiments/enet_25d_metrics3d.yaml
+  overrides:
+  - train.seed=44
+  device: cuda
+  debug: false
+  started: '2026-09-21T19:11:03'
+  git:
+    commit: be872ab
+    branch: 2.5D
+    dirty: true

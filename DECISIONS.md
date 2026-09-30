@@ -8,7 +8,7 @@ choice, edit the line in `current.yaml` and add a new entry below.
 |---|---|---|---|
 | Additional pre-processing | | not started | |
 | Data augmentation (online or offline) | | not started | |
-| 2.5D network | | not started | |
+| 2.5D network | | implemented (`configs/experiments/enet_25d.yaml`), not run | |
 | Different optimizer | | not started | |
 | Non-CNN architecture (Transformer / ViT) | | not started | |
 | Different network architecture (modular) | | not started | |
