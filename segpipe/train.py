@@ -52,11 +52,12 @@ def pick_device(name: str = "auto") -> torch.device:
     return torch.device("cpu")
 
 
-def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir: Path, device) -> dict:
+def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir: Path, device, gpu_augment=None) -> dict:
     tc = cfg.train
     E = tc.epochs
     generator = torch.Generator()
     generator.manual_seed(tc.seed)
+    main_rng = np.random.default_rng(tc.seed)  # <-- ADD THIS LINE
     loaders = {
         "train": DataLoader(train_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=True,
                             worker_init_fn=seed_worker, generator=generator),
@@ -94,6 +95,11 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
                 for i, data in tq_iter:
                     img = data["images"].to(device)
                     gt = data["gts"].to(device)
+
+                    # --- NEW CODE: Apply GPU augmentations only during training ---
+                    if is_train and gpu_augment is not None:
+                        img, gt = gpu_augment(img, gt, main_rng)
+                    # --------------------------------------------------------------
 
                     if is_train:
                         optimizer.zero_grad()

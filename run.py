@@ -65,10 +65,15 @@ def main() -> None:
     optimizer = build_optimizer(model, cfg.optimizer)
     scheduler = build_scheduler(optimizer, cfg.get("scheduler"), cfg.train.epochs)
 
-    train_set = SliceDataset(cfg, train_ids, augment=build_augment(cfg.get("augment")), debug=args.debug)
+    # 1. Build the dataset WITHOUT the augmentations
+    train_set = SliceDataset(cfg, train_ids, augment=None, debug=args.debug)
     val_set = SliceDataset(cfg, val_ids, debug=args.debug)
 
-    train_summary = train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir, device)
+    # 2. Build the augmenter separately
+    gpu_augmenter = build_augment(cfg.get("augment"))
+
+    # 3. Pass the augmenter into the train function (you will modify train.py to accept this)
+    train_summary = train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir, device, gpu_augment=gpu_augmenter)
 
     summary = {
         "experiment": cfg.experiment, "run": run_name,
