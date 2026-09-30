@@ -50,7 +50,19 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import (CrossEntropy, DiceLoss, CEDice)
+from losses import (CrossEntropy, WeightedCrossEntropy, DiceLoss, CEDice)
+
+
+
+#!!! Inverse-square-root class-frequency weighting,
+# calculated from pixel frequencies in the corrected SEGTHOR training set.
+class_weights = torch.tensor([
+    0.0535,   # class 0: background
+    2.4610,   # class 1: esophagus
+    0.1897,   # class 2: heart
+    2.8586,   # class 3: trachea
+    0.3859    # class 4: aorta
+], dtype=torch.float32) ###!!!
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -58,6 +70,9 @@ datasets_params: dict[str, dict[str, Any]] = {}
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["SEGTHOR_CLEAN_FINAL"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+
+
 
 def img_transform(img):
         img = img.convert('L')
@@ -140,6 +155,10 @@ def setup_loss(args, K: int):
     match args.loss:
         case 'ce':
             return CrossEntropy(idk=idk)
+        case 'wce':
+            # The weighted CE experiment, reachable through --loss instead of
+            # by uncommenting it here
+            return WeightedCrossEntropy(idk=idk, weights=class_weights)
         case 'dice':
             return DiceLoss(idk=foreground)
         case 'cedice':
@@ -257,9 +276,9 @@ def main():
     parser.add_argument('--epochs', default=20, type=int)
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
-    parser.add_argument('--loss', default='ce', choices=['ce', 'dice', 'cedice'],
-                        help="Training objective: cross-entropy (the baseline), soft Dice, "
-                             "or their equally weighted sum.")
+    parser.add_argument('--loss', default='ce', choices=['ce', 'wce', 'dice', 'cedice'],
+                        help="Training objective: cross-entropy (the baseline), class-weighted "
+                             "cross-entropy, soft Dice, or an equally weighted sum of CE and Dice.")
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
 
