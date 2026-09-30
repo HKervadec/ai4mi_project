@@ -14,7 +14,7 @@ choice, edit the line in `current.yaml` and add a new entry below.
 | Different network architecture (modular) | | not started | |
 | Post-processing | Elena | implemented (`largest_cc`, options `min_fraction`, `skip`); experiments `post_lcc_min_fraction`, `post_lcc_skip_esophagus` via `postprocess_run.py` | |
 | Different loss function | | not started | |
-| Other regularizer at the loss level | | not started | |
+| Other regularizer at the loss level | Britt | implemented (`boundary`: Sobel edge L1, option `per_class`); experiments `boundary{,_w1,_w5}` (merged foreground) and `boundary_per_organ{,_w1,_w5}` (per organ), weights 0.1 / 1 / 5, not run | |
 | Pre-training / hybrid supervision (public dataset) | | not started | |
 
 ## Log
