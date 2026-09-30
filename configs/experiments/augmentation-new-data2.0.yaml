@@ -1,0 +1,5 @@
+base: ../current.yaml
+owner: Githa
+idea: "Data augmentation from Testing-data-augmentation, with new, correct data (try 2)."
+
+augment: [combined]

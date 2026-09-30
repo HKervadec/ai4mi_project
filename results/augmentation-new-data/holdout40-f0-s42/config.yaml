@@ -1,0 +1,60 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  target_spacing:
+  - 1.95
+  - 1.95
+  - 2.5
+  shape:
+  - 256
+  - 256
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- combined
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+owner: Githa
+idea: Data augmentation from Testing-data-augmentation, with new, correct data.
+experiment: augmentation-new-data
+_run:
+  config_file: configs/experiments/augmentation-new-data.yaml
+  overrides: []
+  device: cuda
+  debug: false
+  started: '2026-09-30T09:33:48'
+  git:
+    commit: b5f1be1
+    branch: Testing-data-augmentation
+    dirty: true

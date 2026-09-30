@@ -18,7 +18,7 @@ def per_slice(op, img, factor):
 
 
 class Combined:
-    # affine, roll (SULBA), elastic, brightness, contrast (from branch Testing-data-augmentation).
+    # affine, roll, elastic, brightness, contrast (from branch Testing-data-augmentation).
     # Draws all randomness from the per-worker `rng` seeded in run.py, so augmentation
     # is reproducible for a given train.seed.
     def __call__(self, img, gt, rng):
@@ -35,7 +35,7 @@ class Combined:
             empty_pixels = gt.sum(dim=0) == 0
             gt[0, empty_pixels] = 1
 
-        # adding SULBA (Stepwise Upper and Lowe Boundaries Augmentation)
+        # adding random roll
         if rng.random() > 0.5:
             # get image dimensions
             _, W, H = img.shape
