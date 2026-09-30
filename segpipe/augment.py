@@ -5,6 +5,18 @@ import torch
 import torchvision.transforms.functional as TF
 import torchvision.transforms as T
 
+
+def per_slice(op, img, factor):
+    """Apply an intensity op to every channel on its own.
+
+    torchvision's intensity ops only accept 1- or 3-channel images, and a 2.5D stack
+    (input.context_slices > 0) is neither a grayscale slice nor an RGB image. Treating each
+    channel as its own grayscale slice keeps them usable, and for the plain 2D case (1 channel)
+    it is exactly what they did before.
+    """
+    return torch.cat([op(channel[None], factor) for channel in img])
+
+
 class Combined:
     # affine, roll (SULBA), elastic, brightness, contrast (from branch Testing-data-augmentation).
     # Draws all randomness from the per-worker `rng` seeded in run.py, so augmentation
@@ -61,12 +73,12 @@ class Combined:
         if rng.random() > 0.5:
             # adjust brightness
             brightness_factor = float(rng.uniform(0.8, 1.2))
-            img = TF.adjust_brightness(img, brightness_factor)
+            img = per_slice(TF.adjust_brightness, img, brightness_factor)
 
         if rng.random() > 0.5:
             # adjust contrast
             contrast_factor = float(rng.uniform(0.8, 1.2))
-            img = TF.adjust_contrast(img, contrast_factor)
+            img = per_slice(TF.adjust_contrast, img, contrast_factor)
 
         return img, gt
 

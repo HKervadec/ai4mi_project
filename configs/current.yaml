@@ -15,7 +15,7 @@ data:
   fold: 0
 
 input:
-  context_slices: 0     # 2.5D, not implemented yet
+  context_slices: 0     # 2.5D: neighbours per side stacked as input channels (0 = plain 2D)
 
 model:
   name: enet

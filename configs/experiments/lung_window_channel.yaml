@@ -6,9 +6,6 @@
 # Channel 0 = mediastinal (unchanged), channel 1 = lung. Only the input changes, so
 # the difference with `current` is the value of the extra window. Expected to help
 # the trachea most; watch the esophagus too (air in its lumen is also visible now).
-#
-# Note: the `combined` augmentation's contrast step only supports 1 or 3 channels,
-# so do not combine this with `augment: [combined]` until that is made per-channel.
 base: ../current.yaml
 owner: Elena
 idea: "Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window, to see the trachea lumen (air) and airway wall."
