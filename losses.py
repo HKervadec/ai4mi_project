@@ -115,9 +115,9 @@ class TverskyLoss():
         target = target * supervised
 
         # Aggregate each class across the current batch and all spatial pixels.
-        true_positive = einsum("bkwh,bkwh-&gt;k", probs, target)
-        false_positive = einsum("bkwh,bkwh-&gt;k", probs, 1 - target)
-        false_negative = einsum("bkwh,bkwh-&gt;k", 1 - probs, target)
+        true_positive = einsum("bkwh,bkwh->k", probs, target)
+        false_positive = einsum("bkwh,bkwh->k", probs, 1 - target)
+        false_negative = einsum("bkwh,bkwh->k", 1 - probs, target)
 
         tversky_per_class = (true_positive + self.eps) / (
             true_positive

@@ -1,10 +1,12 @@
 """Loss functions and loss-level regularizers."""
 
-from losses import CrossEntropy
+from losses import CrossEntropy, CrossEntropyDice, CrossEntropyTversky
 
 # name -> class with __init__(idk, **params) and __call__(probs, onehot_target) -> scalar
 LOSSES: dict = {
     "ce": CrossEntropy,
+    "ce_dice": CrossEntropyDice,
+    "ce_tversky": CrossEntropyTversky,
 }
 
 # Not used by build_loss yet
