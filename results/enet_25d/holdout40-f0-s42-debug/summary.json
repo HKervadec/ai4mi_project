@@ -1,0 +1,26 @@
+{
+  "experiment": "enet_25d",
+  "run": "holdout40-f0-s42-debug",
+  "owner": "David",
+  "idea": "2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current",
+  "split": "holdout40",
+  "fold": 0,
+  "seed": 42,
+  "epochs": 1,
+  "debug": true,
+  "device": "cpu",
+  "git": {
+    "commit": "16cc381",
+    "branch": "master",
+    "dirty": true
+  },
+  "best_epoch": -1,
+  "val_dice_2d": 0,
+  "val_dice_2d_per_class": {
+    "esophagus": null,
+    "heart": null,
+    "trachea": null,
+    "aorta": null
+  },
+  "train_minutes": 1.9
+}

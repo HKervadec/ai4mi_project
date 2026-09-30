@@ -11,6 +11,10 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | augmentation-preprocessing | holdout | 1 | Githa | 0.724 | +0.006 | 0.721 | +0.152 | 0.429 | 0.923 | 0.731 | 0.801 | Data augmentation from Testing-data-augmentation, with new metrics and preprocessing. |
 | augmentation-snellius | holdout | 1 | Githa | 0.750 | +0.031 | 0.465 | -0.104 | 0.179 | 0.927 | 0.005 | 0.749 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | current | holdout | 3 |  | 0.719 ± 0.078 |  | 0.569 ± 0.124 |  | 0.276 ± 0.205 | 0.874 ± 0.014 | 0.413 ± 0.292 | 0.712 ± 0.031 |  |
+| current | holdout40 | 1 |  | 0.789 |  | 0.787 |  | 0.561 | 0.915 | 0.808 | 0.865 |  |
+| enet_25d | holdout | 1 | David | 0.777 | +0.058 | 0.504 | -0.065 | 0.401 | 0.875 | 0.000 | 0.740 | 2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current |
+| enet_25d | holdout40 | 1 | David | 0.792 | +0.003 | 0.789 | +0.002 | 0.570 | 0.914 | 0.822 | 0.850 | 2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current |
+| enet_25d_metrics3d | holdout | 3 | David | 0.526 ± 0.098 | -0.193 | 0.524 ± 0.098 | -0.044 | 0.280 ± 0.202 | 0.880 ± 0.012 | 0.206 ± 0.292 | 0.731 ± 0.019 | 2.5D input (slice + 1 neighbour above/below stacked as channels, 3 -> ENet), identical to enet_25d but scored with the full 3D metric suite (dice, hd, hd95, assd, nsd) instead of 3D Dice alone |
 | enet_tf_bottleneck | holdout | 3 | Junis | 0.734 ± 0.026 | +0.015 | 0.434 ± 0.054 | -0.135 | 0.099 ± 0.140 | 0.885 ± 0.004 | 0.050 ± 0.070 | 0.703 ± 0.028 | transformer at the ENet bottleneck (baseline placement) |
 | enet_tf_bottleneck_2layer | holdout | 3 | Junix | 0.798 ± 0.017 | +0.080 | 0.632 ± 0.047 | +0.063 | 0.407 ± 0.041 | 0.870 ± 0.021 | 0.532 ± 0.112 | 0.717 ± 0.015 | same as enet_tf_bottleneck, but 2 stacked transformer layers instead of 1 to check if  depth helps |
 | enet_tf_bottleneck_posembed | holdout | 3 | Junis | 0.751 ± 0.036 | +0.032 | 0.522 ± 0.097 | -0.047 | 0.122 ± 0.172 | 0.879 ± 0.012 | 0.380 ± 0.270 | 0.706 ± 0.011 | same placement, ablates sinusoidal positional embedding |
@@ -18,6 +22,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage1 | holdout | 3 | Junis | 0.593 ± 0.137 | -0.125 | 0.590 ± 0.136 | +0.021 | 0.282 ± 0.200 | 0.884 ± 0.005 | 0.468 ± 0.331 | 0.725 ± 0.023 | transformer after the first bottleneck stack |
 | enet_tf_stage2 | holdout | 3 |  | 0.809 ± 0.002 | +0.090 | 0.666 ± 0.013 | +0.098 | 0.402 ± 0.041 | 0.889 ± 0.008 | 0.667 ± 0.021 | 0.707 ± 0.004 | transformer earlier, end of stage2 (H/8, K*8 channels) |
 | enet_tf_stage2_2layer | holdout | 3 | Junis | 0.772 ± 0.062 | +0.053 | 0.573 ± 0.146 | +0.004 | 0.272 ± 0.206 | 0.891 ± 0.008 | 0.437 ± 0.312 | 0.693 ± 0.068 | combines the two individual wins: stage2 placement + 2 stacked transformer layers |
+| full_data_baseline | holdout40 | 1 | Elena | 0.709 | -0.080 | 0.703 | -0.084 | 0.468 | 0.840 | 0.786 | 0.720 | Starter-code baseline on the full 40-patient data: no HU window, no resampling, ENet + CE + Adam, no augmentation. |
 | no-augmentation | holdout | 1 | Githa | 0.773 | +0.055 | 0.609 | +0.040 | 0.331 | 0.868 | 0.609 | 0.628 | Current settings to compare with augmented data. |
 | no-augmentation-preprocessing | holdout | 1 | Githa | 0.690 | -0.029 | 0.685 | +0.116 | 0.423 | 0.886 | 0.685 | 0.745 | NO Data augmentation, with new metrics and preprocessing, to compare to data-augmentation. |
 | no_hu_window | holdout | 1 | Elena | 0.457 | -0.261 | 0.456 | -0.113 | 0.234 | 0.700 | 0.509 | 0.379 | Does HU windowing add value? This run disables the mediastinal HU window and falls back to legacy per-volume min-max intensity normalisation. Compare it against the baseline (current.yaml, which uses data.window [40, 400]). Same GT (watershed_refined), split (holdout), and seed (42), so the only variable is the intensity normalisation -> the Dice/HD95/NSD difference is the value of HU windowing.
@@ -29,10 +34,12 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | Experiment | Split | Runs | HD95 (mm) | Δ HD95 (mm) | ASSD (mm) | Δ ASSD (mm) | NSD@1mm | Δ NSD@1mm |
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |  |  |
-| augmentation-new-data | holdout40 | 1 | 11.58 |  | 2.76 |  | 0.428 |  |
-| augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |  |  |
 | current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |
+| current | holdout40 | 1 | 14.48 |  | 2.93 |  | 0.440 |  |
+| enet_25d | holdout | 1 |  |  |  |  |  |  |
+| enet_25d | holdout40 | 1 | 22.50 | +8.02 | 3.96 | +1.03 | 0.440 | -0.000 |
+| enet_25d_metrics3d | holdout | 3 | 30.99 ± 8.48 | -12.35 | 5.99 ± 1.24 | -1.70 | 0.294 ± 0.016 | +0.045 |
 | enet_tf_bottleneck | holdout | 3 | 20.55 | -22.79 | 6.24 | -1.45 | 0.208 | -0.041 |
 | enet_tf_bottleneck_2layer | holdout | 3 |  |  |  |  |  |  |
 | enet_tf_bottleneck_posembed | holdout | 3 |  |  |  |  |  |  |
@@ -40,6 +47,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage1 | holdout | 3 | 35.66 ± 11.38 | -7.68 | 5.32 ± 0.64 | -2.37 | 0.304 ± 0.018 | +0.055 |
 | enet_tf_stage2 | holdout | 3 |  |  |  |  |  |  |
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |
+| full_data_baseline | holdout40 | 1 | 23.31 | +8.82 | 5.43 | +2.50 | 0.360 | -0.080 |
 | no-augmentation | holdout | 1 |  |  |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 26.89 | -16.45 | 4.40 | -3.29 | 0.299 | +0.050 |
 | no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |
@@ -54,6 +62,10 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | augmentation-preprocessing | holdout | 1 | 17.57 | 21.30 | 14.77 | 14.80 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |
 | current | holdout | 3 | 59.80 | 67.00 | 24.94 | 21.62 |
+| current | holdout40 | 1 | 13.57 | 11.48 | 15.91 | 16.97 |
+| enet_25d | holdout | 1 |  |  |  |  |
+| enet_25d | holdout40 | 1 | 12.32 | 33.42 | 20.17 | 24.11 |
+| enet_25d_metrics3d | holdout | 3 | nan ± nan | 24.44 ± 0.67 | nan ± nan | 20.65 ± 6.39 |
 | enet_tf_bottleneck | holdout | 3 | 22.07 | 12.41 | 30.70 | 17.03 |
 | enet_tf_bottleneck_2layer | holdout | 3 |  |  |  |  |
 | enet_tf_bottleneck_posembed | holdout | 3 |  |  |  |  |
@@ -61,6 +73,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage1 | holdout | 3 | nan ± nan | 48.64 ± 28.73 | nan ± nan | 19.94 ± 1.30 |
 | enet_tf_stage2 | holdout | 3 |  |  |  |  |
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |
+| full_data_baseline | holdout40 | 1 | 16.32 | 36.73 | 20.90 | 19.27 |
 | no-augmentation | holdout | 1 |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 19.61 | 11.67 | 54.75 | 21.52 |
 | no_hu_window | holdout | 1 | 36.75 | 49.10 | 39.69 | 52.02 |
@@ -77,6 +90,12 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | current | holdout-f0-s42 | 0.621 | 0.622 | 43.34 | 24 / 25 | 129.9 | 6849221* | mps |
 | current | holdout-f0-s43 | 0.812 | 0.687 |  | 24 / 25 | 58.4 | ce978f2* | cuda |
 | current | holdout-f0-s44 | 0.723 | 0.398 |  | 19 / 25 | 57.9 | ce978f2* | cuda |
+| current | holdout40-f0-s42 | 0.789 | 0.787 | 14.48 | 22 / 25 | 222.2 | 16cc381* | mps |
+| enet_25d | holdout-f0-s42 | 0.777 | 0.504 |  | 21 / 25 | 56.8 | a1ea44e* | cuda |
+| enet_25d | holdout40-f0-s42 | 0.792 | 0.789 | 22.50 | 22 / 25 | 103.4 | 16cc381* | cuda |
+| enet_25d_metrics3d | holdout-f0-s42 | 0.512 | 0.512 | 38.88 | 22 / 25 | 57.2 | 4e7e7e7* | cuda |
+| enet_25d_metrics3d | holdout-f0-s43 | 0.652 | 0.650 | 34.86 | 24 / 25 | 55.3 | be872ab | cuda |
+| enet_25d_metrics3d | holdout-f0-s44 | 0.413 | 0.411 | 19.23 | 21 / 25 | 57.9 | be872ab* | cuda |
 | enet_tf_bottleneck | holdout-f0-s42 | 0.768 | 0.510 | 20.55 | 24 / 25 | 58.9 | ce978f2* | cuda |
 | enet_tf_bottleneck | holdout-f0-s43 | 0.731 | 0.406 |  | 18 / 25 | 61.3 | ce978f2* | cuda |
 | enet_tf_bottleneck | holdout-f0-s44 | 0.704 | 0.386 |  | 24 / 25 | 61.0 | ce978f2* | cuda |
@@ -96,6 +115,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2_2layer | holdout-f0-s42 | 0.803 | 0.636 |  | 21 / 25 | 52.9 | da026c9* | cuda |
 | enet_tf_stage2_2layer | holdout-f0-s43 | 0.828 | 0.713 |  | 23 / 25 | 54.4 | da026c9* | cuda |
 | enet_tf_stage2_2layer | holdout-f0-s44 | 0.685 | 0.371 |  | 23 / 25 | 54.6 | da026c9* | cuda |
+| full_data_baseline | holdout40-f0-s42 | 0.709 | 0.703 | 23.31 | 14 / 25 | 237.3 | 16cc381* | mps |
 | no-augmentation | holdout-f0-s42 | 0.773 | 0.609 |  | 24 / 25 | 59.3 | e974bc0* | cuda |
 | no-augmentation-preprocessing | holdout-f0-s42 | 0.690 | 0.685 | 26.89 | 22 / 25 | 36.4 | 636a87a* | cuda |
 | no_hu_window | holdout-f0-s42 | 0.457 | 0.456 | 44.39 | 23 / 25 | 129.0 | 6849221* | mps |

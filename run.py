@@ -19,6 +19,7 @@ from segpipe.losses import build_loss
 from segpipe.optim import build_optimizer, build_scheduler
 from segpipe.train import pick_device, seed_everything, train
 from segpipe.evaluate import evaluate_3d
+from segpipe import tracking
 
 
 def git_info() -> dict:
@@ -30,6 +31,17 @@ def git_info() -> dict:
     status = git("status", "--porcelain")
     return {"commit": git("rev-parse", "--short", "HEAD"), "branch": git("rev-parse", "--abbrev-ref", "HEAD"),
             "dirty": bool(status) if status is not None else None}
+
+
+def _flat(d: dict, prefix: str = "") -> dict:
+    """Flatten nested summary dicts to 'a/b' keys for W&B."""
+    out = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            out.update(_flat(v, f"{prefix}{k}/"))
+        else:
+            out[f"{prefix}{k}"] = v
+    return out
 
 
 def main() -> None:
@@ -55,6 +67,7 @@ def main() -> None:
                 "started": datetime.now().isoformat(timespec="seconds"), "git": git_info()}
     save_config({**cfg.to_dict(), "_run": run_info}, run_dir / "config.yaml")
     print(f">>> Experiment '{cfg.experiment}' -> {run_dir} on {device}")
+    tracking.init(cfg, run_dir, run_name, run_info, args.debug)
 
     build_cache(cfg)
     train_ids, val_ids = load_split(cfg.data.split, cfg.data.fold)
@@ -91,6 +104,7 @@ def main() -> None:
         summary["metrics_3d"] = evaluate_3d(run_dir, cfg, val_ids, metrics_3d)
 
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
+    tracking.finish(_flat(summary), run_dir)
     print(f">>> Best 2D val Dice {summary['val_dice_2d']} at epoch {summary['best_epoch']}")
     for name, m in summary.get("metrics_3d", {}).items():
         print(f">>> 3D {name}: {m['mean']}")
