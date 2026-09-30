@@ -7,6 +7,8 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | Experiment | Split | Runs | Owner | 2D val Dice | Δ 2D | 3D Dice | Δ 3D | 3D esophagus | 3D heart | 3D trachea | 3D aorta | Idea |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 | Githa | 0.812 | +0.094 | 0.663 | +0.095 | 0.291 | 0.905 | 0.671 | 0.787 | Data augmentation from Testing-data-augmentation, to compare against current. |
+| augmentation-new-data | holdout40 | 1 | Githa | 0.788 | -0.001 | 0.784 | -0.003 | 0.583 | 0.909 | 0.801 | 0.845 | Data augmentation from Testing-data-augmentation, with new, correct data. |
+| augmentation-preprocessing | holdout | 1 | Githa | 0.724 | +0.006 | 0.721 | +0.152 | 0.429 | 0.923 | 0.731 | 0.801 | Data augmentation from Testing-data-augmentation, with new metrics and preprocessing. |
 | augmentation-snellius | holdout | 1 | Githa | 0.750 | +0.031 | 0.465 | -0.104 | 0.179 | 0.927 | 0.005 | 0.749 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | current | holdout | 3 |  | 0.719 ± 0.078 |  | 0.569 ± 0.124 |  | 0.276 ± 0.205 | 0.874 ± 0.014 | 0.413 ± 0.292 | 0.712 ± 0.031 |  |
 | current | holdout40 | 1 |  | 0.789 |  | 0.787 |  | 0.561 | 0.915 | 0.808 | 0.865 |  |
@@ -22,6 +24,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2_2layer | holdout | 3 | Junis | 0.772 ± 0.062 | +0.053 | 0.573 ± 0.146 | +0.004 | 0.272 ± 0.206 | 0.891 ± 0.008 | 0.437 ± 0.312 | 0.693 ± 0.068 | combines the two individual wins: stage2 placement + 2 stacked transformer layers |
 | full_data_baseline | holdout40 | 1 | Elena | 0.709 | -0.080 | 0.703 | -0.084 | 0.468 | 0.840 | 0.786 | 0.720 | Starter-code baseline on the full 40-patient data: no HU window, no resampling, ENet + CE + Adam, no augmentation. |
 | no-augmentation | holdout | 1 | Githa | 0.773 | +0.055 | 0.609 | +0.040 | 0.331 | 0.868 | 0.609 | 0.628 | Current settings to compare with augmented data. |
+| no-augmentation-preprocessing | holdout | 1 | Githa | 0.690 | -0.029 | 0.685 | +0.116 | 0.423 | 0.886 | 0.685 | 0.745 | NO Data augmentation, with new metrics and preprocessing, to compare to data-augmentation. |
 | no_hu_window | holdout | 1 | Elena | 0.457 | -0.261 | 0.456 | -0.113 | 0.234 | 0.700 | 0.509 | 0.379 | Does HU windowing add value? This run disables the mediastinal HU window and falls back to legacy per-volume min-max intensity normalisation. Compare it against the baseline (current.yaml, which uses data.window [40, 400]). Same GT (watershed_refined), split (holdout), and seed (42), so the only variable is the intensity normalisation -> the Dice/HD95/NSD difference is the value of HU windowing.
  |
 | refined_window_resampled | holdout | 1 |  | 0.687 | -0.032 | 0.683 | +0.115 | 0.435 | 0.890 | 0.678 | 0.730 | Voxel-spacing resampling to 1.95/1.95/2.5 mm (crop/pad) vs per-slice resize. |
@@ -31,6 +34,8 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | Experiment | Split | Runs | HD95 (mm) | Δ HD95 (mm) | ASSD (mm) | Δ ASSD (mm) | NSD@1mm | Δ NSD@1mm |
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |  |  |
+| augmentation-new-data | holdout40 | 1 | 11.58 | -2.90 | 2.76 | -0.17 | 0.428 | -0.012 |
+| augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |  |  |
 | current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |
 | current | holdout40 | 1 | 14.48 |  | 2.93 |  | 0.440 |  |
@@ -46,6 +51,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 23.31 | +8.82 | 5.43 | +2.50 | 0.360 | -0.080 |
 | no-augmentation | holdout | 1 |  |  |  |  |  |  |
+| no-augmentation-preprocessing | holdout | 1 | 26.89 | -16.45 | 4.40 | -3.29 | 0.299 | +0.050 |
 | no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |
 | refined_window_resampled | holdout | 1 | 30.20 | -13.14 | 5.30 | -2.39 | 0.305 | +0.057 |
 
@@ -54,6 +60,8 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | Experiment | Split | Runs | HD95 esophagus | HD95 heart | HD95 trachea | HD95 aorta |
 |---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |
+| augmentation-new-data | holdout40 | 1 | 8.68 | 12.21 | 10.24 | 15.20 |
+| augmentation-preprocessing | holdout | 1 | 17.57 | 21.30 | 14.77 | 14.80 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |
 | current | holdout | 3 | 59.80 | 67.00 | 24.94 | 21.62 |
 | current | holdout40 | 1 | 13.57 | 11.48 | 15.91 | 16.97 |
@@ -69,6 +77,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 16.32 | 36.73 | 20.90 | 19.27 |
 | no-augmentation | holdout | 1 |  |  |  |  |
+| no-augmentation-preprocessing | holdout | 1 | 19.61 | 11.67 | 54.75 | 21.52 |
 | no_hu_window | holdout | 1 | 36.75 | 49.10 | 39.69 | 52.02 |
 | refined_window_resampled | holdout | 1 | 22.70 | 44.11 | 34.15 | 19.83 |
 
@@ -77,6 +86,8 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | Experiment | Run | 2D val Dice | 3D Dice | 3D HD95 | Best epoch | Minutes | Commit | Device |
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout-f0-s42 | 0.812 | 0.663 |  | 23 / 25 | 429.4 | e974bc0* | mps |
+| augmentation-new-data | holdout40-f0-s42 | 0.788 | 0.784 | 11.58 | 24 / 25 | 300.2 | b5f1be1* | cuda |
+| augmentation-preprocessing | holdout-f0-s42 | 0.724 | 0.721 | 17.11 | 23 / 25 | 47.7 | 636a87a* | cuda |
 | augmentation-snellius | holdout-f0-s42 | 0.750 | 0.465 |  | 24 / 25 | 153.8 | e974bc0* | cuda |
 | current | holdout-f0-s42 | 0.621 | 0.622 | 43.34 | 24 / 25 | 129.9 | 6849221* | mps |
 | current | holdout-f0-s43 | 0.812 | 0.687 |  | 24 / 25 | 58.4 | ce978f2* | cuda |
@@ -108,6 +119,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2_2layer | holdout-f0-s44 | 0.685 | 0.371 |  | 23 / 25 | 54.6 | da026c9* | cuda |
 | full_data_baseline | holdout40-f0-s42 | 0.709 | 0.703 | 23.31 | 14 / 25 | 237.3 | 16cc381* | mps |
 | no-augmentation | holdout-f0-s42 | 0.773 | 0.609 |  | 24 / 25 | 59.3 | e974bc0* | cuda |
+| no-augmentation-preprocessing | holdout-f0-s42 | 0.690 | 0.685 | 26.89 | 22 / 25 | 36.4 | 636a87a* | cuda |
 | no_hu_window | holdout-f0-s42 | 0.457 | 0.456 | 44.39 | 23 / 25 | 129.0 | 6849221* | mps |
 | refined_window_resampled | holdout-f0-s42 | 0.687 | 0.683 | 30.20 | 23 / 25 | 122.4 | 6849221* | mps |
 
