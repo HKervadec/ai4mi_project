@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 from pathlib import Path
+import pickle
 from typing import Callable, Union
 
 from torch import Tensor
@@ -47,6 +48,34 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
         full_labels = [None] * len(images)
 
     return list(zip(images, full_labels))
+
+
+def parse_segthor_slice_stem(stem: str) -> tuple[str, int]:
+    """Split a SegTHOR slice stem such as ``Patient_01_0042``."""
+    patient_id, separator, slice_id = stem.rpartition('_')
+    if not separator or not patient_id or not slice_id.isdigit():
+        raise ValueError(
+            "SegTHOR slice names must end in a numeric slice index; "
+            f"got {stem!r}"
+        )
+    return patient_id, int(slice_id)
+
+
+def load_preprocessed_volume_spacing(
+    root_dir: str | Path, image_size: int = 256,
+) -> tuple[float, float, float]:
+    """Load metric spacing in ``(depth, x, y)`` order, in millimetres.
+
+    SegTHOR slices are cropped/padded at ``crop_size`` then resized to
+    ``image_size`` before validation metrics are calculated.
+    """
+    with open(Path(root_dir) / "preprocess_stats.pkl", "rb") as file:
+        stats = pickle.load(file)
+    target_spacing = stats["target_spacing"]
+    scale = stats["crop_size"] / image_size
+    return (float(target_spacing["dz"]),
+            float(target_spacing["dx"]) * scale,
+            float(target_spacing["dy"]) * scale)
 
 
 class SliceDataset(Dataset):
