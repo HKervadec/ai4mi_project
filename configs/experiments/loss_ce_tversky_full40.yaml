@@ -1,0 +1,9 @@
+base: ../current.yaml
+owner: Puck
+idea: "Cross-entropy plus false-negative-weighted Tversky loss with full 40-patient data, HU windowing and voxel-spacing resampling."
+
+loss:
+  name: ce_tversky
+  alpha: 0.3
+  beta: 0.7
+  tversky_weight: 1.0

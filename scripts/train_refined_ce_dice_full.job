@@ -1,0 +1,31 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=02:00:00
+#SBATCH --job-name=ce_dice_full
+#SBATCH --output=slurm_logs/%x_%j.out
+#SBATCH --error=slurm_logs/%x_%j.err
+
+set -euo pipefail
+
+PROJECT_DIR="$HOME/ai_medical_imaging_group28"
+VENV_DIR="${PROJECT_DIR}/ai4mi"
+
+module purge
+module load 2025
+module load Python-bundle-PyPI/2025.04-GCCcore-14.2.0
+module load CUDA/12.9.1
+
+cd "${PROJECT_DIR}"
+source "${VENV_DIR}/bin/activate"
+
+echo "Git commit: $(git rev-parse --short HEAD)"
+
+srun python -u main.py \
+  --experiment refined_ce_dice \
+  --epochs 20 \
+  --seed 42 \
+  --gpu \
+  --dest results/refined_ce_dice_seed42_e20

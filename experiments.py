@@ -151,6 +151,25 @@ register(Experiment(
     train=TrainConfig(mode="full", loss="ce", augment=False),
 ))
 
+# Refined GT fix + HU windowing + CE/Dice combined loss.
+# Compared with refined_window, only the training loss changes.
+register(Experiment(
+    name="refined_ce_dice",
+    description=(
+        "Refined GT fix + HU mediastinal windowing + "
+        "cross-entropy/Dice combined loss."
+    ),
+    slice=SliceConfig(
+        source_dir="data/gt/watershed_refined",
+        window=MEDIASTINAL,
+    ),
+    train=TrainConfig(
+        mode="full",
+        loss="ce_dice",
+        augment=False,
+    ),
+))
+
 """ Preprocessing experiments: HU windowing + voxel-spacing resampling. Per data """
 # 5 
 # Watershed GT fix + HU window + voxel-spacing resampling. vs watershed_window
@@ -176,4 +195,24 @@ register(Experiment(
     slice=SliceConfig(source_dir="data/gt/watershed_refined", window=MEDIASTINAL,
                       target_spacing=(1.95, 1.95, 2.5)),
     train=TrainConfig(mode="full", loss="ce", augment=False),
+))
+
+# Refined GT fix + HU windowing + CE/Tversky combined loss.
+# Compared with refined_ce_dice, only Dice is replaced by asymmetric Tversky.
+register(Experiment(
+    name="refined_ce_tversky",
+    description=(
+        "Refined GT fix + HU mediastinal windowing + "
+        "cross-entropy/Tversky combined loss "
+        "(alpha=0.3, beta=0.7, weight=1.0)."
+    ),
+    slice=SliceConfig(
+        source_dir="data/gt/watershed_refined",
+        window=MEDIASTINAL,
+    ),
+    train=TrainConfig(
+        mode="full",
+        loss="ce_tversky",
+        augment=False,
+    ),
 ))

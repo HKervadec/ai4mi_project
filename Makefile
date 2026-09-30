@@ -83,6 +83,11 @@ data/experiments/refined_window: | data/gt/watershed_refined
 	python $(CFLAGS) slice_segthor.py --experiment refined_window --dest_dir $@_tmp
 	mv $@_tmp $@
 
+data/experiments/refined_ce_dice: | data/gt/watershed_refined
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --experiment refined_ce_dice --dest_dir $@_tmp
+	mv $@_tmp $@
+
 data/experiments/refined_window_resampled: | data/gt/watershed_refined
 	rm -rf $@_tmp $@
 	python $(CFLAGS) slice_segthor.py --experiment refined_window_resampled --dest_dir $@_tmp
