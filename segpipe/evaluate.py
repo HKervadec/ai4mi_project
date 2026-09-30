@@ -161,21 +161,26 @@ def stitch_to_native(images: list[Path], idxes: list[int],
     return np.rint(out).astype(np.int16)
 
 
-def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names, postprocess=None) -> dict:
+def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names, postprocess=None,
+                raw: bool = True) -> dict:
     """Reconstruct best_epoch/val onto the native grid and score against the GT volumes.
 
     Returns {"metrics_3d": ...}. With a ``postprocess`` callable (segpipe.postprocess.build_postprocess)
     the post-processed volumes are scored too, as {"metrics_3d_post": ...}; the raw scores are unchanged.
+    raw=False (post-processing experiments, postprocess_run.py) scores only the post-processed volumes,
+    and reports them as "metrics_3d".
     """
     for name in metric_names:
         if name not in METRICS:
             raise KeyError(f"unknown metric '{name}'. Known: {sorted(METRICS)}")
+    assert raw or postprocess is not None, "raw=False needs a postprocess"
 
     images = sorted((run_dir / "best_epoch" / "val").glob("*.png"))
-    variants = {"": run_dir / "volumes" / "val"}  # suffix -> volume folder
-    if postprocess is not None:
-        variants["_post"] = run_dir / "volumes" / "val_post"
-    for volume_dir in variants.values():
+    # suffix -> (volume folder, post-processing or None)
+    variants = {"": (run_dir / "volumes" / "val", None if raw else postprocess)}
+    if raw and postprocess is not None:
+        variants["_post"] = (run_dir / "volumes" / "val_post", postprocess)
+    for volume_dir, _ in variants.values():
         volume_dir.mkdir(parents=True, exist_ok=True)
     source_pattern = str(Path(cfg.data.gt) / "train" / "{id_}" / "GT.nii.gz")
 
@@ -188,13 +193,10 @@ def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names, postpr
 
         pred = stitch_to_native(images, idxes, gt.shape, spacing, cfg)
         assert pred.shape == gt.shape, (pred.shape, gt.shape)
-        preds = {"": pred}
-        if postprocess is not None:
-            preds["_post"] = postprocess(pred, spacing)
-
-        for suffix, volume in preds.items():
+        for suffix, (volume_dir, step) in variants.items():
+            volume = pred if step is None else step(pred, spacing)
             nib.save(nib.nifti1.Nifti1Image(volume, affine=gt_nib.affine, header=gt_nib.header),
-                     str(variants[suffix] / f"{pid}.nii.gz"))
+                     str(volume_dir / f"{pid}.nii.gz"))
             for name in metric_names:
                 scores[suffix][name][pid] = np.array([METRICS[name](volume == k, gt == k, spacing)
                                                       for k in range(K)])

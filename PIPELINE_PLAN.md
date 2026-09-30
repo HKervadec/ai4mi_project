@@ -70,6 +70,7 @@ segpipe/
   train.py                     training loop (from main.py)
   pretrain.py                  empty
 run.py                         one experiment end-to-end
+postprocess_run.py             post-processing experiment: rescore a `source:` run, no training
 compare.py                     all summaries -> RESULTS.md
 scripts/run.job                Snellius: sbatch scripts/run.job <config> [--set ...]
 RESULTS.md                     generated

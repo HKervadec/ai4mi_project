@@ -8,25 +8,35 @@ ones are stored next to them (summary.json: metrics_3d_post), so one run gives b
 import numpy as np
 from scipy.ndimage import generate_binary_structure, label
 
+from segpipe.data import CLASS_NAMES
 
-def largest_cc(volume: np.ndarray, spacing, connectivity: int = 3) -> np.ndarray:
+
+def largest_cc(volume: np.ndarray, spacing, connectivity: int = 3, min_fraction: float = 0.0,
+               skip: list[str] = ()) -> np.ndarray:
     """Keep only the largest 3D connected component of every organ; the rest becomes background.
 
     Each SegTHOR organ is one connected structure, so smaller components are false positives
     (e.g. stray blobs far from the heart, which barely move Dice but blow up HD95).
     connectivity: 1 = 6-, 2 = 18-, 3 = 26-neighbourhood.
+    min_fraction: also keep every component at least this fraction of the largest one's size, so a
+        prediction broken into big pieces (the thin esophagus often is, along z) keeps its pieces.
+    skip: organ names (segpipe.data.CLASS_NAMES) left untouched, e.g. [esophagus].
     """
+    unknown = set(skip) - set(CLASS_NAMES[1:])
+    assert not unknown, f"unknown organ(s) in skip: {sorted(unknown)}. Known: {CLASS_NAMES[1:]}"
     structure = generate_binary_structure(3, connectivity)
     out = volume.copy()
     for k in np.unique(volume):
-        if k == 0:
+        if k == 0 or CLASS_NAMES[k] in skip:
             continue
         components, n = label(volume == k, structure=structure)
         if n <= 1:
             continue
         sizes = np.bincount(components.ravel())
         sizes[0] = 0  # label 0 is everything outside this organ
-        out[(components > 0) & (components != sizes.argmax())] = 0
+        keep = sizes >= min_fraction * sizes.max() if min_fraction > 0 else np.zeros(len(sizes), dtype=bool)
+        keep[sizes.argmax()] = True  # the largest is always kept
+        out[(components > 0) & ~keep[components]] = 0
     return out
 
 

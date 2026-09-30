@@ -1,0 +1,12 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): rescore current's predictions, keeping only the largest 3D
+  connected component of heart, trachea and aorta, and leaving the esophagus as predicted. Plain
+  largest-CC helped those three but cut the esophagus, which the model predicts as several fragments.
+
+source: current   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: largest_cc, skip: [esophagus]}

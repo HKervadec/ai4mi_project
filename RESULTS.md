@@ -27,6 +27,8 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | no-augmentation-preprocessing | holdout | 1 | Githa | 0.690 | -0.029 | 0.685 | +0.116 | 0.423 | 0.886 | 0.685 | 0.745 | NO Data augmentation, with new metrics and preprocessing, to compare to data-augmentation. |
 | no_hu_window | holdout | 1 | Elena | 0.457 | -0.261 | 0.456 | -0.113 | 0.234 | 0.700 | 0.509 | 0.379 | Does HU windowing add value? This run disables the mediastinal HU window and falls back to legacy per-volume min-max intensity normalisation. Compare it against the baseline (current.yaml, which uses data.window [40, 400]). Same GT (watershed_refined), split (holdout), and seed (42), so the only variable is the intensity normalisation -> the Dice/HD95/NSD difference is the value of HU windowing.
  |
+| post_lcc_min_fraction | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.789 | +0.002 | 0.562 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping per organ every 3D connected component at least 10% the size of the largest one. Plain largest-CC cut the esophagus, which the model predicts as several big fragments along z; the threshold should keep those while still removing the small stray blobs that inflate HD95. |
+| post_lcc_skip_esophagus | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.788 | +0.001 | 0.561 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping only the largest 3D connected component of heart, trachea and aorta, and leaving the esophagus as predicted. Plain largest-CC helped those three but cut the esophagus, which the model predicts as several fragments. |
 | refined_window_resampled | holdout | 1 |  | 0.687 | -0.032 | 0.683 | +0.115 | 0.435 | 0.890 | 0.678 | 0.730 | Voxel-spacing resampling to 1.95/1.95/2.5 mm (crop/pad) vs per-slice resize. |
 
 3D boundary metrics at the best epoch, mean over the 4 organs (± std over runs). HD95/ASSD are in mm (lower is better); NSD is a fraction within 1 mm (higher is better). Δ is against `current` on the same split.
@@ -53,6 +55,8 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | no-augmentation | holdout | 1 |  |  |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 26.89 | -16.45 | 4.40 | -3.29 | 0.299 | +0.050 |
 | no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |
+| post_lcc_min_fraction | holdout40 | 1 | 11.19 | -3.29 | 2.55 | -0.38 | 0.444 | +0.004 |
+| post_lcc_skip_esophagus | holdout40 | 1 | 11.35 | -3.14 | 2.56 | -0.37 | 0.443 | +0.003 |
 | refined_window_resampled | holdout | 1 | 30.20 | -13.14 | 5.30 | -2.39 | 0.305 | +0.057 |
 
 Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
@@ -79,6 +83,8 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | no-augmentation | holdout | 1 |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 19.61 | 11.67 | 54.75 | 21.52 |
 | no_hu_window | holdout | 1 | 36.75 | 49.10 | 39.69 | 52.02 |
+| post_lcc_min_fraction | holdout40 | 1 | 12.95 | 10.73 | 10.51 | 10.57 |
+| post_lcc_skip_esophagus | holdout40 | 1 | 13.57 | 10.73 | 10.51 | 10.57 |
 | refined_window_resampled | holdout | 1 | 22.70 | 44.11 | 34.15 | 19.83 |
 
 ## Runs
@@ -121,6 +127,8 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | no-augmentation | holdout-f0-s42 | 0.773 | 0.609 |  | 24 / 25 | 59.3 | e974bc0* | cuda |
 | no-augmentation-preprocessing | holdout-f0-s42 | 0.690 | 0.685 | 26.89 | 22 / 25 | 36.4 | 636a87a* | cuda |
 | no_hu_window | holdout-f0-s42 | 0.457 | 0.456 | 44.39 | 23 / 25 | 129.0 | 6849221* | mps |
+| post_lcc_min_fraction | holdout40-f0-s42 | 0.789 | 0.789 | 11.19 | 22 / 25 | 222.2 | b77b794* | mps |
+| post_lcc_skip_esophagus | holdout40-f0-s42 | 0.789 | 0.788 | 11.35 | 22 / 25 | 222.2 | b77b794* | mps |
 | refined_window_resampled | holdout-f0-s42 | 0.687 | 0.683 | 30.20 | 23 / 25 | 122.4 | 6849221* | mps |
 
 `*` = run made with uncommitted changes.
