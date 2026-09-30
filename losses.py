@@ -51,3 +51,52 @@ class CrossEntropy():
 class PartialCrossEntropy(CrossEntropy):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
+
+class DiceLoss():
+    def __init__(self, **kwargs):
+        self.idk = kwargs['idk']
+        self.eps = kwargs.get('eps', 1e-6)
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        # Keep only the classes selected for supervision
+        probs = pred_softmax[:, self.idk, ...]
+        target = weak_target[:, self.idk, ...].float()
+
+        # Ignore pixels belonging to classes not included in self.idk
+        # When all classes are selected, this mask is 1 everywhere
+        supervised = target.sum(dim=1, keepdim=True) > 0
+        probs = probs * supervised
+        target = target * supervised
+
+        # One dice score per selected class, aggregated across batch and pixels.
+        intersection = einsum("bkwh,bkwh->k", probs, target)
+        denominator = probs.sum(dim=(0, 2, 3)) + target.sum(dim=(0, 2, 3))
+
+        dice_per_class = (2 * intersection + self.eps) / (denominator + self.eps)
+
+        return 1 - dice_per_class.mean()
+
+
+class CrossEntropyDice():
+    def __init__(self, **kwargs):
+        self.idk = kwargs['idk']
+        self.dice_weight = kwargs.get('dice_weight', 1.0)
+
+        self.cross_entropy = CrossEntropy(idk=self.idk)
+        self.dice = DiceLoss(idk=self.idk)
+
+        print(
+            f"Initialized {self.__class__.__name__} "
+            f"with idk={self.idk}, dice_weight={self.dice_weight}"
+        )
+
+    def __call__(self, pred_softmax, weak_target):
+        cross_entropy_loss = self.cross_entropy(pred_softmax, weak_target)
+        dice_loss = self.dice(pred_softmax, weak_target)
+
+        return cross_entropy_loss + self.dice_weight * dice_loss

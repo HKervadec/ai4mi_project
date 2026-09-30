@@ -53,7 +53,7 @@ from utils import (Dcm,
                    save_images,
                    iou_coef)
 
-from losses import (CrossEntropy)
+from losses import (CrossEntropy, DiceLoss, CrossEntropyDice)
 
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
@@ -107,17 +107,19 @@ def build_loss(name: str, K: int, mode: str):
     Keeping this here means a new loss is one branch, and every existing
     experiment keeps using exactly the loss it used before.
     """
-    if name != "ce":
+    losses = {"ce": CrossEntropy, "dice": DiceLoss, "ce_dice": CrossEntropyDice}
+    if name not in losses:
         raise NotImplementedError(f"loss '{name}' is not implemented yet; add it in build_loss")
+    loss_cls = losses[name]
     if mode == "full":
-        return CrossEntropy(idk=list(range(K)))       # supervise all classes
+        return loss_cls(idk=list(range(K)))           # supervise all classes
     if mode == "partial":
         # SEGTHOR-specific (skip heart, class 2). Guard so it can't silently
         # produce a wrong loss on a non-5-class dataset (matches master, which
         # only allowed partial for SEGTHOR).
         if K != 5:
             raise ValueError(f"partial mode is SEGTHOR-specific (K=5), got K={K}")
-        return CrossEntropy(idk=[0, 1, 3, 4])
+        return loss_cls(idk=[0, 1, 3, 4])
     raise ValueError(f"unknown mode: {mode}")
 
 
