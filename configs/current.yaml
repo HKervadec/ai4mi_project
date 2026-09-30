@@ -29,4 +29,6 @@ scheduler: {name: none}
 augment: []
 
 train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5}
-eval: {metrics_3d: [dice, hd, hd95, assd, nsd]}   # 3D metrics after training (overlap + boundary, in mm); best epoch still chosen on 2D val Dice
+eval:
+  metrics_3d: [dice, hd, hd95, assd, nsd]   # 3D metrics after training (overlap + boundary, in mm); best epoch still chosen on 2D val Dice
+  postprocess: []   # e.g. [largest_cc]: also score post-processed volumes (summary.json: metrics_3d_post); raw scores are kept

@@ -12,7 +12,7 @@ choice, edit the line in `current.yaml` and add a new entry below.
 | Different optimizer | | not started | |
 | Non-CNN architecture (Transformer / ViT) | | not started | |
 | Different network architecture (modular) | | not started | |
-| Post-processing | | not started | |
+| Post-processing | | implemented (`eval.postprocess: [largest_cc]`, or `eval_run.py --postprocess largest_cc` on an existing run) | |
 | Different loss function | | not started | |
 | Other regularizer at the loss level | | not started | |
 | Pre-training / hybrid supervision (public dataset) | | not started | |

@@ -161,18 +161,25 @@ def stitch_to_native(images: list[Path], idxes: list[int],
     return np.rint(out).astype(np.int16)
 
 
-def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names) -> dict:
-    """Reconstruct best_epoch/val onto the native grid and score against the GT volumes."""
+def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names, postprocess=None) -> dict:
+    """Reconstruct best_epoch/val onto the native grid and score against the GT volumes.
+
+    Returns {"metrics_3d": ...}. With a ``postprocess`` callable (segpipe.postprocess.build_postprocess)
+    the post-processed volumes are scored too, as {"metrics_3d_post": ...}; the raw scores are unchanged.
+    """
     for name in metric_names:
         if name not in METRICS:
             raise KeyError(f"unknown metric '{name}'. Known: {sorted(METRICS)}")
 
     images = sorted((run_dir / "best_epoch" / "val").glob("*.png"))
-    volume_dir = run_dir / "volumes" / "val"
-    volume_dir.mkdir(parents=True, exist_ok=True)
+    variants = {"": run_dir / "volumes" / "val"}  # suffix -> volume folder
+    if postprocess is not None:
+        variants["_post"] = run_dir / "volumes" / "val_post"
+    for volume_dir in variants.values():
+        volume_dir.mkdir(parents=True, exist_ok=True)
     source_pattern = str(Path(cfg.data.gt) / "train" / "{id_}" / "GT.nii.gz")
 
-    scores = {name: {} for name in metric_names}  # metric -> patient -> K values
+    scores = {suffix: {name: {} for name in metric_names} for suffix in variants}  # -> metric -> patient -> K values
     for pid in patient_ids:
         idxes = [i for i, p in enumerate(images) if p.stem.rsplit("_", 1)[0] == pid]
         gt_nib = nib.load(source_pattern.format(id_=pid))
@@ -181,13 +188,23 @@ def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names) -> dic
 
         pred = stitch_to_native(images, idxes, gt.shape, spacing, cfg)
         assert pred.shape == gt.shape, (pred.shape, gt.shape)
-        nib.save(nib.nifti1.Nifti1Image(pred, affine=gt_nib.affine, header=gt_nib.header),
-                 str(volume_dir / f"{pid}.nii.gz"))
+        preds = {"": pred}
+        if postprocess is not None:
+            preds["_post"] = postprocess(pred, spacing)
 
-        for name in metric_names:
-            scores[name][pid] = np.array([METRICS[name](pred == k, gt == k, spacing) for k in range(K)])
+        for suffix, volume in preds.items():
+            nib.save(nib.nifti1.Nifti1Image(volume, affine=gt_nib.affine, header=gt_nib.header),
+                     str(variants[suffix] / f"{pid}.nii.gz"))
+            for name in metric_names:
+                scores[suffix][name][pid] = np.array([METRICS[name](volume == k, gt == k, spacing)
+                                                      for k in range(K)])
 
-    out_dir = run_dir / "metrics_3d"
+    return {f"metrics_3d{suffix}": _summarise(scores[suffix], run_dir / f"metrics_3d{suffix}")
+            for suffix in variants}
+
+
+def _summarise(scores: dict, out_dir: Path) -> dict:
+    """metric -> patient -> K values: save them as npz and reduce to mean / per class / per patient."""
     out_dir.mkdir(exist_ok=True)
     summary = {}
     for name, per_patient in scores.items():

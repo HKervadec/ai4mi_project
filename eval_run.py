@@ -3,6 +3,7 @@
 
     python eval_run.py results/<experiment>/<run>
     python eval_run.py results/<experiment>/<run> --metrics dice hd95
+    python eval_run.py results/<experiment>/<run> --postprocess largest_cc
 """
 
 import argparse
@@ -12,6 +13,7 @@ from pathlib import Path
 from segpipe.config import load_config
 from segpipe.data import load_split
 from segpipe.evaluate import METRICS, evaluate_3d
+from segpipe.postprocess import POSTPROCESS, build_postprocess
 
 
 def main() -> None:
@@ -19,6 +21,9 @@ def main() -> None:
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("--metrics", nargs="+", choices=sorted(METRICS), default=None,
                         help="metrics to compute (default: all current 3D metrics)")
+    parser.add_argument("--postprocess", nargs="*", choices=sorted(POSTPROCESS), default=None,
+                        help="also score post-processed volumes (default: the run's eval.postprocess; "
+                             "pass the flag without names to turn it off)")
     args = parser.parse_args()
 
     run_dir = args.run_dir
@@ -32,14 +37,22 @@ def main() -> None:
     cfg = load_config(config_path)
     _, val_ids = load_split(cfg.data.split, cfg.data.fold)
     metrics = args.metrics or list(METRICS)
-    print(f">> 3D evaluation ({', '.join(metrics)}) of {run_dir}")
-    metrics_3d = evaluate_3d(run_dir, cfg, val_ids, metrics)
+    postprocess = args.postprocess if args.postprocess is not None else (cfg.get("eval", {}).get("postprocess") or [])
+    print(f">> 3D evaluation ({', '.join(metrics)}) of {run_dir}"
+          + (f", post-processing: {', '.join(map(str, postprocess))}" if postprocess else ""))
+    results = evaluate_3d(run_dir, cfg, val_ids, metrics, build_postprocess(postprocess))
 
     summary = json.loads(summary_path.read_text())
-    summary["metrics_3d"] = metrics_3d
+    # Drop post-processed scores from an earlier evaluation so they never go stale.
+    summary.pop("metrics_3d_post", None)
+    summary.pop("postprocess", None)
+    summary.update(results)
+    if postprocess:
+        summary["postprocess"] = postprocess
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
-    for name, values in metrics_3d.items():
-        print(f">>> 3D {name}: {values['mean']}")
+    for key, metrics_3d in results.items():
+        for name, values in metrics_3d.items():
+            print(f">>> 3D {name}{' (post)' if key.endswith('post') else ''}: {values['mean']}")
     print(f">>> Updated: {summary_path}")
 
 

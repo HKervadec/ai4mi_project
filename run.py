@@ -19,6 +19,7 @@ from segpipe.losses import build_loss
 from segpipe.optim import build_optimizer, build_scheduler
 from segpipe.train import pick_device, seed_everything, train
 from segpipe.evaluate import evaluate_3d
+from segpipe.postprocess import build_postprocess
 
 
 def git_info() -> dict:
@@ -79,16 +80,20 @@ def main() -> None:
     }
 
     metrics_3d = cfg.get("eval", {}).get("metrics_3d") or []
+    postprocess = cfg.get("eval", {}).get("postprocess") or []
     if args.debug or train_summary["best_epoch"] < 0 or not metrics_3d:
         print(">> Skipping 3D evaluation (debug run, no best epoch, or no eval.metrics_3d)")
     else:
         print(f">> 3D evaluation ({', '.join(metrics_3d)}) of best_epoch/val")
-        summary["metrics_3d"] = evaluate_3d(run_dir, cfg, val_ids, metrics_3d)
+        summary.update(evaluate_3d(run_dir, cfg, val_ids, metrics_3d, build_postprocess(postprocess)))
+        if postprocess:
+            summary["postprocess"] = postprocess
 
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     print(f">>> Best 2D val Dice {summary['val_dice_2d']} at epoch {summary['best_epoch']}")
-    for name, m in summary.get("metrics_3d", {}).items():
-        print(f">>> 3D {name}: {m['mean']}")
+    for key in ("metrics_3d", "metrics_3d_post"):
+        for name, m in summary.get(key, {}).items():
+            print(f">>> 3D {name}{' (post)' if key.endswith('post') else ''}: {m['mean']}")
     print(f">>> Done: {run_dir / 'summary.json'}  (then: python compare.py)")
 
 

@@ -40,7 +40,7 @@ DECISIONS.md                  <- what we chose, why, when to revisit
 | Different optimizer | `segpipe/optim.py` | `optimizer`, `scheduler` |
 | Non-CNN architecture (Transformer / ViT) | `segpipe/models.py` | `model` |
 | Different network architecture | `segpipe/models.py` | `model` |
-| Post-processing | `segpipe/postprocess.py` (not wired in yet) | |
+| Post-processing | `segpipe/postprocess.py` | `eval.postprocess` |
 | Different loss function | `segpipe/losses.py` | `loss` |
 | Regularizer at the loss level | `segpipe/losses.py` | `regularizers` |
 | Pre-training / hybrid supervision | `segpipe/pretrain.py` | `model.init_from` |
@@ -65,7 +65,7 @@ segpipe/
   models.py                    MODELS
   losses.py                    LOSSES, REGULARIZERS
   optim.py                     OPTIMIZERS, SCHEDULERS
-  postprocess.py               POSTPROCESS (not wired in yet)
+  postprocess.py               POSTPROCESS (3D, applied in evaluate_3d; raw scores kept)
   evaluate.py                  METRICS, 3D evaluation of best_epoch/val
   train.py                     training loop (from main.py)
   pretrain.py                  empty
