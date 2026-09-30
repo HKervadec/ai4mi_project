@@ -8,3 +8,4 @@ scikit-image
 scipy
 matplotlib
 pyyaml
+wandb

@@ -30,3 +30,6 @@ augment: []
 
 train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5}
 eval: {metrics_3d: [dice, hd, hd95, assd, nsd]}   # 3D metrics after training (overlap + boundary, in mm); best epoch still chosen on 2D val Dice
+
+# Weights & Biases logging: automatic when WANDB_API_KEY is set (env var or .env file). Set the shared names once.
+wandb: {enabled: true, entity: ai4migroup28, project: ai4mi-segthor}

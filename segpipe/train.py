@@ -12,6 +12,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+from segpipe import tracking
 from segpipe.data import CLASS_NAMES, K
 from utils import dice_from_parts, dice_parts, probs2class, probs2one_hot, save_images, tqdm_
 
@@ -152,6 +153,10 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
             csv.writer(f).writerow([e, f"{logs['train'][0][e].mean():.5f}", f"{logs['val'][0][e].mean():.5f}",
                                     f"{current_dice:.4f}"] + [f"{v:.4f}" for v in val_dice_per_class.tolist()]
                                    + [f"{lr:.3e}", f"{time.time() - epoch_start:.0f}"])
+
+        tracking.log_epoch(e, train_loss=logs["train"][0][e].mean().item(), val_loss=logs["val"][0][e].mean().item(),
+                           val_dice=current_dice, lr=lr, seconds=time.time() - epoch_start,
+                           **{f"val_dice_{n}": v for n, v in zip(CLASS_NAMES[1:], val_dice_per_class.tolist())})
 
         if current_dice > best_dice:
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
