@@ -193,12 +193,14 @@ class SwinStage(nn.Module):
 
 class SwinUNet(nn.Module):
     """Tiny, pure-Transformer Swin-Unet for fixed 256x256 2D inputs."""
-    def __init__(self, in_dim: int, out_dim: int, **kwargs):
+    def __init__(self, in_dim: int, out_dim: int, *, embed_dim: int = 12, patch_size: int = 4,
+                 window_size: int = 8, image_size: int = 256):
         super().__init__()
-        self.image_size = kwargs.get('image_size', 256)
-        self.patch_size = kwargs.get('patch_size', 4)
-        self.embed_dim = kwargs.get('embed_dim', 12)
-        self.window_size = kwargs.get('window_size', 8)
+        self.in_dim = in_dim
+        self.image_size = image_size
+        self.patch_size = patch_size
+        self.embed_dim = embed_dim
+        self.window_size = window_size
         assert self.image_size % self.patch_size == 0
 
         base_resolution = self.image_size // self.patch_size
@@ -235,7 +237,7 @@ class SwinUNet(nn.Module):
 
     def _patchify(self, x: Tensor) -> Tensor:
         batch_size, channels, height, width = x.shape
-        assert (channels, height, width) == (1, self.image_size, self.image_size)
+        assert (channels, height, width) == (self.in_dim, self.image_size, self.image_size)
         patches = F.unfold(x, kernel_size=self.patch_size, stride=self.patch_size).transpose(1, 2)
         return self.patch_embedding(patches)
 

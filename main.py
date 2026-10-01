@@ -22,9 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import argparse
 import warnings
-from typing import Any
+from typing import Any, Callable
 from pathlib import Path
 from pprint import pprint
 from operator import itemgetter
@@ -44,6 +45,7 @@ from dataset import (SliceDataset,
                      parse_segthor_slice_stem)
 from ShallowNet import shallowCNN
 from ENet import ENet
+from UNet import UNet
 from SwinUNet import SwinUNet
 from utils import (Dcm,
                    class2one_hot,
@@ -60,9 +62,20 @@ from losses import (CrossEntropy, DiceLoss, DiceCELoss)
 datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
 # Avoids the classes with C (often used for the number of Channel)
-datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'factor': 2}
-datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
-datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["TOY2"] = {'K': 2, 'B': 2}
+datasets_params["SEGTHOR"] = {'K': 5, 'B': 8}
+datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'B': 8}
+
+# Network constructor, picked by --net. Defaults live in each class signature;
+# the baselines are pinned to their original settings. --net_kwargs overrides at runtime.
+#
+# 2D vs 2.5D is controlled via --adjacent_slices 
+# (number of adjacent slices from each side, added as channels).
+nets: dict[str, Callable[..., nn.Module]] = {}
+nets["shallow"] = partial(shallowCNN, kernels=8, factor=2)
+nets["enet"] = partial(ENet, kernels=8, factor=2)
+nets["unet"] = UNet
+nets["swin_unet"] = SwinUNet
 
 def img_transform(img):
         img = img.convert('L')
@@ -120,18 +133,14 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Any |
     device = torch.device("cuda") if gpu else torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
-    K: int = datasets_params[args.dataset]['K']
-    kernels: int = datasets_params[args.dataset]['kernels'] if 'kernels' in datasets_params[args.dataset] else 8
-    factor: int = datasets_params[args.dataset]['factor'] if 'factor' in datasets_params[args.dataset] else 2
-    match args.architecture:
-        case 'baseline':
-            net = datasets_params[args.dataset]['net'](1, K, kernels=kernels, factor=factor)
-        case 'enet':
-            net = ENet(1, K, kernels=kernels, factor=factor)
-        case 'swin_unet':
-            net = SwinUNet(1, K)
-        case _:
-            raise ValueError(f"Unsupported architecture: {args.architecture}")
+    params: dict[str, Any] = datasets_params[args.dataset]
+
+    K: int = params['K']
+    adjacent_slices: int = args.adjacent_slices
+
+    # 2.5D feeds the adjacent_slices as extra input channels; 2D is the n=0 case
+    in_dim: int = 2 * adjacent_slices + 1
+    net = nets[args.net](in_dim, K, **args.net_kwargs)
     net.init_weights()
     net.to(device)
     print(f">> Model has {sum(parameter.numel() for parameter in net.parameters()):,} trainable parameters")
@@ -160,16 +169,15 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Any |
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=polynomial_decay)
 
     # Dataset part
-    B: int = datasets_params[args.dataset]['B']
+    B: int = params['B']
     root_dir = Path("data") / args.dataset
-
-
 
     train_set = SliceDataset('train',
                              root_dir,
                              img_transform=img_transform,
                              gt_transform= partial(gt_transform, K),
-                             debug=args.debug)
+                             debug=args.debug,
+                             adjacent_slices=adjacent_slices)
     train_loader = DataLoader(train_set,
                               batch_size=B,
                               num_workers=5,
@@ -179,13 +187,15 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Any |
                            root_dir,
                            img_transform=img_transform,
                            gt_transform=partial(gt_transform, K),
-                           debug=args.debug)
+                           debug=args.debug,
+                           adjacent_slices=adjacent_slices)
     val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=5,
                             shuffle=False)
 
     args.dest.mkdir(parents=True, exist_ok=True)
+    (args.dest / "args.json").write_text(json.dumps(vars(args), indent=2, default=str))  # Run config, for sweeps
 
     return (net, optimizer, device, train_loader, val_loader, K, scheduler)
 
@@ -270,7 +280,7 @@ def runTraining(args):
 
                     # Sanity tests to see we loaded and encoded the data correctly
                     assert 0 <= img.min() and img.max() <= 1
-                    B, _, W, H = img.shape
+                    B = img.shape[0]  # (B, 2n+1, W, H): n=0 for 2D, n>0 for 2.5D
 
                     pred_logits = net(img)
                     pred_probs = F.softmax(1 * pred_logits, dim=1)  # 1 is the temperature parameter
@@ -456,15 +466,20 @@ def main():
     parser.add_argument('--min_delta', default=0.0, type=float,
                         help="Minimum absolute selected-metric change to count as an improvement.")
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
+    parser.add_argument('--net', default='enet', choices=nets.keys(),
+                        help="Network to train. Use 'shallow' for the original TOY2 baseline.")
+    parser.add_argument('--net_kwargs', type=json.loads, default={},
+                        help='JSON overrides of the chosen net\'s constructor kwargs, '
+                             'e.g. \'{"kernels": 16, "depth": 3}\'')
+    parser.add_argument('--adjacent_slices', default=0, type=int,
+                        help="Adjacent slices on each side stacked as input channels: "
+                             "0 is 2D, n > 0 is 2.5D with 2n+1 channels.")
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--loss', default='ce', choices=['ce', 'dice', 'dicece'])
     parser.add_argument('--selection-metric', default='dice2d', choices=['dice2d', 'dice3d', 'hd95', 'assd'],
                         help='Validation metric used to select and save the best model. '
                              '3D Dice, HD95, and ASSD are available for SegTHOR datasets; '
                              'HD95 and ASSD are minimized.')
-    parser.add_argument('--architecture', default='baseline',
-                        choices=['baseline', 'enet', 'swin_unet'],
-                        help='Network architecture. The default preserves the dataset-specific baseline network.')
     parser.add_argument('--optimizer', default='adam',
                         choices=['adam', 'adamw', 'sgd_nesterov'],
                         help='Optimizer to use. The default reproduces the original Adam baseline.')
@@ -492,6 +507,10 @@ def main():
         parser.error('--patience must be non-negative')
     if args.min_delta < 0:
         parser.error('--min_delta must be non-negative')
+    if not isinstance(args.net_kwargs, dict):
+        parser.error('--net_kwargs must be a JSON object')
+    if args.adjacent_slices < 0:
+        parser.error('--adjacent_slices must be non-negative')
 
     pprint(args)
 

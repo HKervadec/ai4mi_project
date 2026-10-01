@@ -23,8 +23,6 @@
 # SOFTWARE.
 
 
-from torch import einsum
-
 from utils import simplex, sset
 
 
@@ -42,7 +40,8 @@ class CrossEntropy():
         log_p = (pred_softmax[:, self.idk, ...] + 1e-10).log()
         mask = weak_target[:, self.idk, ...].float()
 
-        loss = - einsum("bkwh,bkwh->", mask, log_p)
+        # 2D and 2.5D share the same (b k w h) target: 2.5D only widens the input.
+        loss = - (mask * log_p).sum()
         loss /= mask.sum() + 1e-10
 
         return loss
@@ -64,8 +63,9 @@ class DiceLoss():
         mask = weak_target[:, self.idk, ...].float()
 
         #one Dice per class, summed over the whole batch
-        inter = einsum("bkwh,bkwh->k", p, mask)
-        sizes = einsum("bkwh->k", p) + einsum("bkwh->k", mask)
+        axes = (0, *range(2, p.ndim))  # everything but the class axis
+        inter = (p * mask).sum(dim=axes)
+        sizes = p.sum(dim=axes) + mask.sum(dim=axes)
 
         dices = (2 * inter + self.smooth) / (sizes + self.smooth)
         loss = 1 - dices.mean()

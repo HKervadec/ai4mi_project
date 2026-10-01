@@ -1,0 +1,43 @@
+#!/bin/bash
+#SBATCH --job-name=ai4mi-unet
+#SBATCH --partition=gpu_a100
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --gpus=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=06:00:00
+#SBATCH --output=jobs/%x_%A.out
+
+set -euo pipefail
+
+NET=${1:-unet2d}
+LOSS=${2:-dicece}
+EPOCHS=${3:-25}
+DATASET=${4:-SEGTHOR}
+
+module purge
+module load 2023
+module load Python/3.11.3-GCCcore-12.3.0
+
+source ai4mi/bin/activate
+
+mkdir -p jobs
+DEST="results/${DATASET,,}/${NET}_${LOSS}_${SLURM_JOB_ID}"
+
+echo ">>> ${NET} / ${LOSS} / ${EPOCHS} epochs -> ${DEST}"
+nvidia-smi
+
+srun python -u main.py \
+    --dataset "${DATASET}" \
+    --net "${NET}" \
+    --loss "${LOSS}" \
+    --mode full \
+    --epochs "${EPOCHS}" \
+    --dest "${DEST}" \
+    --gpu
+
+python -u stitch.py --data_folder "${DEST}/best_epoch/val" \
+    --dest_folder "volumes/${NET}_${SLURM_JOB_ID}" \
+    --num_classes 255 --grp_regex "(Patient_\d\d)_\d\d\d\d" \
+    --source_scan_pattern "data/segthor_part1/train/{id_}/{id_}.nii.gz" \
+    --preprocess_stats "data/${DATASET}/preprocess_stats.pkl"
