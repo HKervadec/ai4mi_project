@@ -33,10 +33,11 @@ def conv_block(in_dim, out_dim):
 
 
 class UNet(nn.Module):
-        def __init__(self, in_dim: int, out_dim: int, *, depth: int = 4, **kwargs):
+        def __init__(self, in_dim: int, out_dim: int, *,
+                     kernels: int = 32, factor: int = 2, depth: int = 4):
                 super().__init__()
-                K: int = kwargs.get("kernels", 16)  # base width
-                F_: int = kwargs.get("factor", 2)  # width growth per level
+                K: int = kernels  # base width
+                F_: int = factor  # width growth per level
 
                 widths: list[int] = [K * F_ ** i for i in range(depth + 1)]
 

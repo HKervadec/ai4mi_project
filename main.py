@@ -22,9 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import argparse
 import warnings
-from typing import Any
+from typing import Any, Callable
 from pathlib import Path
 from pprint import pprint
 from operator import itemgetter
@@ -65,14 +66,16 @@ datasets_params["TOY2"] = {'K': 2, 'B': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'B': 8}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'B': 8}
 
-# Network class and its constructor kwargs, picked by --net.
+# Network constructor, picked by --net. Defaults live in each class signature;
+# the baselines are pinned to their original settings. --net_kwargs overrides at runtime.
+#
 # 2D vs 2.5D is controlled via --adjacent_slices 
 # (number of adjacent slices from each side, added as channels).
-nets_params: dict[str, tuple[type[nn.Module], dict[str, Any]]] = {}
-nets_params["shallow"] = (shallowCNN, {'kernels': 8, 'factor': 2})
-nets_params["enet"] = (ENet, {'kernels': 8, 'factor': 2})
-nets_params["unet"] = (UNet, {'kernels': 32})
-nets_params["swin_unet"] = (SwinUNet, {})
+nets: dict[str, Callable[..., nn.Module]] = {}
+nets["shallow"] = partial(shallowCNN, kernels=8, factor=2)
+nets["enet"] = partial(ENet, kernels=8, factor=2)
+nets["unet"] = UNet
+nets["swin_unet"] = SwinUNet
 
 def img_transform(img):
         img = img.convert('L')
@@ -131,14 +134,13 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Any |
     print(f">> Picked {device} to run experiments")
 
     params: dict[str, Any] = datasets_params[args.dataset]
-    net_cls, net_kwargs = nets_params[args.net]
 
     K: int = params['K']
     adjacent_slices: int = args.adjacent_slices
 
     # 2.5D feeds the adjacent_slices as extra input channels; 2D is the n=0 case
     in_dim: int = 2 * adjacent_slices + 1
-    net = net_cls(in_dim, K, **net_kwargs)
+    net = nets[args.net](in_dim, K, **args.net_kwargs)
     net.init_weights()
     net.to(device)
     print(f">> Model has {sum(parameter.numel() for parameter in net.parameters()):,} trainable parameters")
@@ -193,6 +195,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int, Any |
                             shuffle=False)
 
     args.dest.mkdir(parents=True, exist_ok=True)
+    (args.dest / "args.json").write_text(json.dumps(vars(args), indent=2, default=str))  # Run config, for sweeps
 
     return (net, optimizer, device, train_loader, val_loader, K, scheduler)
 
@@ -463,8 +466,11 @@ def main():
     parser.add_argument('--min_delta', default=0.0, type=float,
                         help="Minimum absolute selected-metric change to count as an improvement.")
     parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
-    parser.add_argument('--net', default='enet', choices=nets_params.keys(),
+    parser.add_argument('--net', default='enet', choices=nets.keys(),
                         help="Network to train. Use 'shallow' for the original TOY2 baseline.")
+    parser.add_argument('--net_kwargs', type=json.loads, default={},
+                        help='JSON overrides of the chosen net\'s constructor kwargs, '
+                             'e.g. \'{"kernels": 16, "depth": 3}\'')
     parser.add_argument('--adjacent_slices', default=0, type=int,
                         help="Adjacent slices on each side stacked as input channels: "
                              "0 is 2D, n > 0 is 2.5D with 2n+1 channels.")
@@ -501,6 +507,8 @@ def main():
         parser.error('--patience must be non-negative')
     if args.min_delta < 0:
         parser.error('--min_delta must be non-negative')
+    if not isinstance(args.net_kwargs, dict):
+        parser.error('--net_kwargs must be a JSON object')
     if args.adjacent_slices < 0:
         parser.error('--adjacent_slices must be non-negative')
 
