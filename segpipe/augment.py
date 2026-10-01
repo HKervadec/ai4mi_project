@@ -10,6 +10,9 @@ class Combined:
     # Draws all randomness from the per-worker `rng` seeded in run.py, so augmentation
     # is reproducible for a given train.seed.
     def __call__(self, img, gt, rng):
+        # img is now [Batch, Channels, Height, Width]
+        # gt is now [Batch, Classes, Height, Width]
+        
         # spatial transforms are applied to both image and ground truth
         if rng.random() > 0.5:
             # rotating and scaling
@@ -20,27 +23,24 @@ class Combined:
             gt = TF.affine(gt, angle=angle, translate=[0, 0], scale=scale, shear=0, interpolation=TF.InterpolationMode.NEAREST)
 
             # make sure that the ground truth is not empty after the transformation
-            empty_pixels = gt.sum(dim=0) == 0
-            gt[0, empty_pixels] = 1
+            empty_pixels = gt.sum(dim=1) == 0
+            gt[:, 0][empty_pixels] = 1
 
         # adding random roll
         if rng.random() > 0.5:
             # get image dimensions
-            _, W, H = img.shape
+            B, C, H, W = img.shape
 
             # pick a random shift amount (up to 25% of the image size)
             shift_w = int(rng.integers(-W // 4, W // 4 + 1))
             shift_h = int(rng.integers(-H // 4, H // 4 + 1))
 
-            # roll the image and ground truth
-            img = torch.roll(img, shifts=(shift_w, shift_h), dims=(1, 2))
-            gt = torch.roll(gt, shifts=(shift_w, shift_h), dims=(1, 2))
+            # roll the image and ground truth (using -2 and -1 to always target H and W)
+            img = torch.roll(img, shifts=(shift_h, shift_w), dims=(-2, -1))
+            gt = torch.roll(gt, shifts=(shift_h, shift_w), dims=(-2, -1))
 
         # adding elastic deformation
         if rng.random() > 0.5:
-            # ElasticTransform samples its displacement field from torch's global RNG
-            # and gives no generator hook, so we seed it deterministically from `rng`
-            # and reuse the same seed for image and GT to keep their geometry aligned.
             seed = int(rng.integers(0, 2 ** 31))
 
             # apply to image
@@ -54,8 +54,8 @@ class Combined:
             gt = elastic_transform_gt(gt)
 
             # make sure that the ground truth is not empty after the transformation
-            empty_pixels = gt.sum(dim=0) == 0
-            gt[0, empty_pixels] = 1
+            empty_pixels = gt.sum(dim=1) == 0
+            gt[:, 0][empty_pixels] = 1
 
         # intensity transforms are applied only to the image
         if rng.random() > 0.5:
