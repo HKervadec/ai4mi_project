@@ -4,7 +4,7 @@
 slices in the channel dimension.
 
     2D    : in_dim=1                  input (B, 1, W, H)
-    2.5D  : in_dim=2 * neighbours + 1 input (B, 2n+1, W, H)
+    2.5D  : in_dim=2 * adjacent_slices + 1 input (B, 2n+1, W, H)
 """
 
 import torch

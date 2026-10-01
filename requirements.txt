@@ -7,4 +7,3 @@ tqdm
 pillow
 scikit-image
 matplotlib
-scipy

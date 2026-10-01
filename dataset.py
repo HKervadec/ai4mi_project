@@ -80,20 +80,20 @@ def load_preprocessed_volume_spacing(
 
 
 class SliceDataset(Dataset):
-    """Gives 2D slices or 2.5D stacks, depending on the 'neighbours' param.
+    """Gives 2D slices or 2.5D stacks, depending on the 'adjacent_slices' param.
 
-        neighbours=0  -> 2D    img (1, W, H)
-        neighbours=n  -> 2.5D  img (2n+1, W, H), gt of the centre slice
+        adjacent_slices=0  -> 2D    img (1, W, H)
+        adjacent_slices=n  -> 2.5D  img (2n+1, W, H), gt of the centre slice
     """
     def __init__(self, subset, root_dir, img_transform=None,
                  gt_transform=None, augment=False, equalize=False, debug=False,
-                 neighbours: int = 0):
+                 adjacent_slices: int = 0):
         self.root_dir: str = root_dir
         self.img_transform: Callable = img_transform
         self.gt_transform: Callable = gt_transform
         self.augmentation: bool = augment
         self.equalize: bool = equalize
-        self.neighbours: int = neighbours
+        self.adjacent_slices: int = adjacent_slices
 
         self.test_mode: bool = subset == 'test'
 
@@ -117,11 +117,11 @@ class SliceDataset(Dataset):
         # Clamped at the volume edges: the first slice is simply repeated
         lo, hi = self.bounds[self.files[index][0].stem.rsplit('_', 1)[0]]
         return [min(max(j, lo), hi)
-                for j in range(index - self.neighbours, index + self.neighbours + 1)]
+                for j in range(index - self.adjacent_slices, index + self.adjacent_slices + 1)]
 
     def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
         img_path, gt_path = self.files[index]
-        idxs: list[int] = self.window(index) if self.neighbours else [index]
+        idxs: list[int] = self.window(index) if self.adjacent_slices else [index]
 
         imgs: list[Tensor] = [self.img_transform(Image.open(self.files[j][0])) for j in idxs]
         img: Tensor = torch.cat(imgs, dim=0)
@@ -143,7 +143,7 @@ class SliceDataset(Dataset):
 if __name__ == '__main__':
     # The windows must clamp at the volume edges and never cross into another patient
     ds = SliceDataset.__new__(SliceDataset)
-    ds.neighbours = 2
+    ds.adjacent_slices = 2
     ds.files = [(Path(f"{pid}_{z:04d}.png"), None)
                 for pid in ['Patient_01', 'Patient_02'] for z in range(5)]
     ds.bounds = {'Patient_01': (0, 4), 'Patient_02': (5, 9)}
@@ -152,5 +152,5 @@ if __name__ == '__main__':
     assert ds.window(2) == [0, 1, 2, 3, 4]  # middle
     assert ds.window(4) == [2, 3, 4, 4, 4]  # end, does not leak into Patient_02
     assert ds.window(5) == [5, 5, 5, 6, 7]  # start of the next volume
-    assert all(ds.window(i)[ds.neighbours] == i for i in range(10))  # centre is the slice itself
+    assert all(ds.window(i)[ds.adjacent_slices] == i for i in range(10))  # centre is the slice itself
     print("windowing ok")
