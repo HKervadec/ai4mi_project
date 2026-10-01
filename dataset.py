@@ -101,12 +101,16 @@ class SliceDataset(Dataset):
         if debug:
             self.files = self.files[:10]
 
-        # First and last index of each patient, so a window never crosses volumes
+        # First and last index of each patient, so a window never crosses volumes.
+        # Only for 2.5D: it needs volume slices (Patient_XX_ZZZZ), TOY2's independent images have none.
+        self.pids: list[str] = []
         self.bounds: dict[str, tuple[int, int]] = {}
-        for i, (img_path, _) in enumerate(self.files):
-            pid: str = img_path.stem.rsplit('_', 1)[0]
-            lo, _ = self.bounds.get(pid, (i, i))
-            self.bounds[pid] = (lo, i)
+        if adjacent_slices:
+            for i, (img_path, _) in enumerate(self.files):
+                pid, _ = parse_segthor_slice_stem(img_path.stem)  # Raises on non-volume stems
+                self.pids.append(pid)
+                lo, _ = self.bounds.get(pid, (i, i))
+                self.bounds[pid] = (lo, i)
 
         print(f">> Created {subset} dataset with {len(self)} images...")
 
@@ -115,7 +119,7 @@ class SliceDataset(Dataset):
 
     def window(self, index: int) -> list[int]:
         # Clamped at the volume edges: the first slice is simply repeated
-        lo, hi = self.bounds[self.files[index][0].stem.rsplit('_', 1)[0]]
+        lo, hi = self.bounds[self.pids[index]]
         return [min(max(j, lo), hi)
                 for j in range(index - self.adjacent_slices, index + self.adjacent_slices + 1)]
 
@@ -130,8 +134,7 @@ class SliceDataset(Dataset):
                      "stems": img_path.stem}  # Always the stem of the centre slice
 
         if not self.test_mode:
-            gts: list[Tensor] = [self.gt_transform(Image.open(self.files[j][1])) for j in idxs]
-            gt: Tensor = gts[len(gts) // 2]
+            gt: Tensor = self.gt_transform(Image.open(gt_path))  # Centre slice only
 
             assert gt.shape[1:] == img.shape[1:], (gt.shape, img.shape)
 
@@ -147,10 +150,16 @@ if __name__ == '__main__':
     ds.files = [(Path(f"{pid}_{z:04d}.png"), None)
                 for pid in ['Patient_01', 'Patient_02'] for z in range(5)]
     ds.bounds = {'Patient_01': (0, 4), 'Patient_02': (5, 9)}
+    ds.pids = [parse_segthor_slice_stem(p.stem)[0] for p, _ in ds.files]
 
     assert ds.window(0) == [0, 0, 0, 1, 2]  # start of a volume
     assert ds.window(2) == [0, 1, 2, 3, 4]  # middle
     assert ds.window(4) == [2, 3, 4, 4, 4]  # end, does not leak into Patient_02
     assert ds.window(5) == [5, 5, 5, 6, 7]  # start of the next volume
     assert all(ds.window(i)[ds.adjacent_slices] == i for i in range(10))  # centre is the slice itself
+    try:  # Independent images (TOY2) have no volume to take adjacent slices from
+        parse_segthor_slice_stem("00000")
+        raise AssertionError("numeric stems must be rejected for 2.5D")
+    except ValueError:
+        pass
     print("windowing ok")
