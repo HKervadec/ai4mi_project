@@ -300,3 +300,13 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+def nsw(scores: Tensor, dim: int = -1) -> Tensor:
+     """
+     Computes the geometric mean of the per organ Dice scores for each class.
+
+     """
+     if scores.shape[dim] == 0:
+          raise ValueError
+     
+     return torch.exp((torch.log(scores)).mean(dim))
