@@ -47,15 +47,15 @@ eval:
   - nsd
 owner: Githa
 idea: Data augmentation from Testing-data-augmentation, with new, correct data (try
-  2).
+  2). Testing on GPU
 experiment: augmentation-new-data2.0
 _run:
   config_file: configs/experiments/augmentation-new-data2.0.yaml
   overrides: []
-  device: cuda
+  device: mps
   debug: false
-  started: '2026-09-30T07:36:00'
+  started: '2026-10-01T13:25:10'
   git:
-    commit: b5f1be1
+    commit: 82737ce
     branch: Testing-data-augmentation
     dirty: true
