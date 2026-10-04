@@ -79,10 +79,12 @@ def main() -> None:
     optimizer = build_optimizer(model, cfg.optimizer)
     scheduler = build_scheduler(optimizer, cfg.get("scheduler"), cfg.train.epochs)
 
-    train_set = SliceDataset(cfg, train_ids, augment=build_augment(cfg.get("augment")), debug=args.debug)
+    # augmentation is applied per batch on the GPU inside train(), not in the dataset workers
+    train_set = SliceDataset(cfg, train_ids, augment=None, debug=args.debug)
     val_set = SliceDataset(cfg, val_ids, debug=args.debug)
+    gpu_augmenter = build_augment(cfg.get("augment"))
 
-    train_summary = train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir, device)
+    train_summary = train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir, device, gpu_augment=gpu_augmenter)
 
     summary = {
         "experiment": cfg.experiment, "run": run_name,

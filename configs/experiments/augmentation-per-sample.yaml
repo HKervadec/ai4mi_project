@@ -1,0 +1,5 @@
+base: ../current.yaml
+owner: Githa
+idea: "Same combined GPU augmentation as augmentation-new-data2.0, but with an independent random draw per slice instead of one per batch."
+
+augment: [{name: combined, per_sample: true}]
