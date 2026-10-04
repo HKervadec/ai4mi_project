@@ -1,61 +1,212 @@
-data:
-  gt: data/segthor_full
-  window:
-  - 40
-  - 400
-  target_spacing:
-  - 1.95
-  - 1.95
-  - 2.5
-  shape:
-  - 256
-  - 256
-  split: holdout40
-  fold: 0
-input:
-  context_slices: 0
-model:
-  name: enet
-  params:
-    kernels: 8
-    factor: 2
-  pretrained: false
-loss:
-  name: ce
-regularizers: []
-optimizer:
-  name: adam
-  lr: 0.0005
-  betas:
-  - 0.9
-  - 0.999
-scheduler:
-  name: none
-augment:
-- combined
-train:
-  epochs: 25
-  batch_size: 8
-  seed: 42
-  num_workers: 5
-eval:
-  metrics_3d:
-  - dice
-  - hd
-  - hd95
-  - assd
-  - nsd
-owner: Githa
-idea: Data augmentation from Testing-data-augmentation, with new, correct data (try
-  2). Testing on GPU
-experiment: augmentation-new-data2.0
 _run:
-  config_file: configs/experiments/augmentation-new-data2.0.yaml
-  overrides: []
-  device: mps
-  debug: false
-  started: '2026-10-01T13:25:10'
-  git:
-    commit: 82737ce
-    branch: Testing-data-augmentation
-    dirty: true
+    value:
+        config_file: configs/experiments/augmentation-new-data2.0.yaml
+        debug: false
+        device: cuda
+        git:
+            branch: Testing-data-augmentation
+            commit: 2c839ab
+            dirty: true
+        overrides: []
+        started: 2026-10-03T10:21:16
+_wandb:
+    value:
+        cli_version: 0.30.0
+        e:
+            kcohako1ll47hx4s5zosr7droqa5pqw1:
+                args:
+                    - --config
+                    - configs/experiments/augmentation-new-data2.0.yaml
+                    - --overwrite
+                codePath: run.py
+                codePathLocal: run.py
+                cpu_count: 72
+                cpu_count_logical: 72
+                cudaVersion: "13.4"
+                disk:
+                    /:
+                        total: "270180524032"
+                        used: "4810403840"
+                executable: /gpfs/home3/scur0171/ai_medical_imaging_group28/ai4mi/bin/python
+                git:
+                    commit: 2c839abd2f073cb7f0aabd7341b4c6e12d5e8803
+                    remote: git@github.com:DavidBorensztajnHub/ai_medical_imaging_group28.git
+                gpu: NVIDIA A100-SXM4-40GB
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Ampere
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-82f16363-e6df-5bed-3cef-c1a484831465
+                    - architecture: Ampere
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-7f81592f-2b32-bd81-2307-81243a539e04
+                    - architecture: Ampere
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-7eb5ea70-e6ed-88db-c0b7-08d594288d6b
+                    - architecture: Ampere
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-f69f57d5-0468-5793-f018-89852bd0ae5d
+                host: gcn2.local.snellius.surf.nl
+                memory:
+                    total: "540625014784"
+                os: Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34
+                program: /gpfs/home3/scur0171/ai_medical_imaging_group28/run.py
+                python: CPython 3.11.3
+                root: results/augmentation-new-data2.0/holdout40-f0-s42
+                slurm:
+                    cluster_name: snellius
+                    conf: /var/spool/slurm/slurmd/conf-cache/slurm.conf
+                    cpus_on_node: "9"
+                    cpus_per_task: "9"
+                    eclibr: "0"
+                    ecplug: "1"
+                    erlast: sbatch
+                    ersbac: "1"
+                    export_env: ALL
+                    get_user_env: "1"
+                    gpus: "1"
+                    gpus_on_node: "1"
+                    gtids: "0"
+                    job_account: gpuuva084
+                    job_cpus_per_node: "9"
+                    job_end_time: "1791058857"
+                    job_exclusive: "NO"
+                    job_gid: "61965"
+                    job_gpus: "1"
+                    job_id: "27476426"
+                    job_name: run_experiment
+                    job_nodelist: gcn2
+                    job_num_nodes: "1"
+                    job_oversubscribe: "NO"
+                    job_partition: gpu_mig
+                    job_qos: normal
+                    job_sluid: s8FXM40DN2B800
+                    job_start_time: "1791015656"
+                    job_uid: "62431"
+                    job_user: scur0171
+                    jobid: "27476426"
+                    localid: "0"
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: gcn2
+                    nprocs: "1"
+                    ntasks: "1"
+                    oom_kill_step: "0"
+                    prio_process: "0"
+                    procid: "0"
+                    script_context: prolog_task
+                    step_gres: gres/cpu:0
+                    step_id: "-5"
+                    stepid: "-5"
+                    submit_dir: /gpfs/home3/scur0171/ai_medical_imaging_group28
+                    submit_host: int4.local.snellius.surf.nl
+                    task_pid: "344847"
+                    tasks_per_node: "1"
+                    topology_addr: root.ibsw7.gcn2
+                    topology_addr_pattern: switch.switch.node
+                    tres_per_task: cpu=9
+                startedAt: "2026-10-03T08:21:20.558531Z"
+                writerId: kcohako1ll47hx4s5zosr7droqa5pqw1
+        m:
+            - "1": epoch
+              "6":
+                - 3
+              "7": []
+            - "2": '*'
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.11.3
+        t:
+            "1":
+                - 1
+                - 41
+            "2":
+                - 1
+                - 41
+            "3":
+                - 2
+                - 3
+                - 7
+                - 13
+                - 15
+                - 16
+                - 62
+            "4": 3.11.3
+            "5": 0.30.0
+            "12": 0.30.0
+            "13": linux-x86_64
+augment:
+    value:
+        - combined
+data:
+    value:
+        extra_windows: []
+        fold: 0
+        gt: data/segthor_full
+        shape:
+            - 256
+            - 256
+        split: holdout40
+        target_spacing:
+            - 1.95
+            - 1.95
+            - 2.5
+        window:
+            - 40
+            - 400
+eval:
+    value:
+        metrics_3d:
+            - dice
+            - hd
+            - hd95
+            - assd
+            - nsd
+experiment:
+    value: augmentation-new-data2.0
+idea:
+    value: Data augmentation from Testing-data-augmentation, with new, correct data (try 2). Testing on GPU
+input:
+    value:
+        context_slices: 0
+loss:
+    value:
+        name: ce
+model:
+    value:
+        name: enet
+        params:
+            factor: 2
+            kernels: 8
+        pretrained: false
+optimizer:
+    value:
+        betas:
+            - 0.9
+            - 0.999
+        lr: 0.0005
+        name: adam
+owner:
+    value: Githa
+regularizers:
+    value: []
+scheduler:
+    value:
+        name: none
+train:
+    value:
+        batch_size: 8
+        epochs: 25
+        num_workers: 5
+        seed: 42
+wandb:
+    value:
+        enabled: true
+        entity: ai4migroup28
+        project: ai4mi-segthor
