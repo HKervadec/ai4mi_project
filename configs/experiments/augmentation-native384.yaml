@@ -1,0 +1,5 @@
+base: ../current.yaml
+owner: Githa
+idea: "Combined GPU augmentation (one draw per batch, as augmentation-new-data2.0) on the native 0.98 x 0.98 x 2.0 mm, 384x384 preprocessing with largest_cc post-processing. Compare against spacing_native_384 / post_native_lcc_min_fraction (seeds 42, 43)."
+
+augment: [combined]
