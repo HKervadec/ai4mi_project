@@ -8,6 +8,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 | Githa | 0.812 | +0.094 | 0.663 | +0.095 | 0.291 | 0.905 | 0.671 | 0.787 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | augmentation-new-data | holdout40 | 1 | Githa | 0.788 | -0.001 | 0.784 | -0.003 | 0.583 | 0.909 | 0.801 | 0.845 | Data augmentation from Testing-data-augmentation, with new, correct data. |
+| augmentation-new-data2.0 | holdout40 | 1 | Githa | 0.816 | +0.027 | 0.812 | +0.025 | 0.616 | 0.927 | 0.829 | 0.876 | Data augmentation from Testing-data-augmentation, with new, correct data (try 2). Testing on GPU |
 | augmentation-preprocessing | holdout | 1 | Githa | 0.724 | +0.006 | 0.721 | +0.152 | 0.429 | 0.923 | 0.731 | 0.801 | Data augmentation from Testing-data-augmentation, with new metrics and preprocessing. |
 | augmentation-snellius | holdout | 1 | Githa | 0.750 | +0.031 | 0.465 | -0.104 | 0.179 | 0.927 | 0.005 | 0.749 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | current | holdout | 3 |  | 0.719 ± 0.078 |  | 0.569 ± 0.124 |  | 0.276 ± 0.205 | 0.874 ± 0.014 | 0.413 ± 0.292 | 0.712 ± 0.031 |  |
@@ -49,6 +50,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |  |  |
 | augmentation-new-data | holdout40 | 1 | 11.58 | -2.90 | 2.76 | -0.17 | 0.428 | -0.012 |
+| augmentation-new-data2.0 | holdout40 | 1 | 19.52 | +5.04 | 2.97 | +0.04 | 0.483 | +0.043 |
 | augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |  |  |
 | current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |
@@ -87,6 +89,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 |---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |
 | augmentation-new-data | holdout40 | 1 | 8.68 | 12.21 | 10.24 | 15.20 |
+| augmentation-new-data2.0 | holdout40 | 1 | 12.04 | 30.69 | 9.69 | 25.67 |
 | augmentation-preprocessing | holdout | 1 | 17.57 | 21.30 | 14.77 | 14.80 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |
 | current | holdout | 3 | 59.80 | 67.00 | 24.94 | 21.62 |
@@ -125,6 +128,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout-f0-s42 | 0.812 | 0.663 |  | 23 / 25 | 429.4 | e974bc0* | mps |
 | augmentation-new-data | holdout40-f0-s42 | 0.788 | 0.784 | 11.58 | 24 / 25 | 300.2 | b5f1be1* | cuda |
+| augmentation-new-data2.0 | holdout40-f0-s42 | 0.816 | 0.812 | 19.52 | 23 / 25 | 107.3 | 2c839ab* | cuda |
 | augmentation-preprocessing | holdout-f0-s42 | 0.724 | 0.721 | 17.11 | 23 / 25 | 47.7 | 636a87a* | cuda |
 | augmentation-snellius | holdout-f0-s42 | 0.750 | 0.465 |  | 24 / 25 | 153.8 | e974bc0* | cuda |
 | current | holdout-f0-s42 | 0.621 | 0.622 | 43.34 | 24 / 25 | 129.9 | 6849221* | mps |
