@@ -13,15 +13,29 @@ def per_slice(op, img, factor):
     (input.context_slices > 0) is neither a grayscale slice nor an RGB image. Treating each
     channel as its own grayscale slice keeps them usable, and for the plain 2D case (1 channel)
     it is exactly what they did before.
+
+    Works on a batch [B, C, H, W]: each channel is passed as a [B, 1, H, W] batch of grayscale
+    slices, so the per-image statistics (e.g. contrast mean) are unchanged.
     """
-    return torch.cat([op(channel[None], factor) for channel in img])
+    return torch.cat([op(img[:, c:c + 1], factor) for c in range(img.shape[1])], dim=1)
 
 
 class Combined:
     # affine, roll, elastic, brightness, contrast (from branch Testing-data-augmentation).
-    # Draws all randomness from the per-worker `rng` seeded in run.py, so augmentation
+    # Draws all randomness from `rng` (seeded from train.seed in train.py), so augmentation
     # is reproducible for a given train.seed.
+    # Default: one random draw per batch, so every slice in a batch gets the same transform.
+    # per_sample=True: an independent draw for every slice in the batch (separate experiment).
+    def __init__(self, per_sample: bool = False):
+        self.per_sample = per_sample
+
     def __call__(self, img, gt, rng):
+        if not self.per_sample:
+            return self._apply(img, gt, rng)
+        pairs = [self._apply(img[b:b + 1], gt[b:b + 1], rng) for b in range(img.shape[0])]
+        return torch.cat([i for i, _ in pairs]), torch.cat([g for _, g in pairs])
+
+    def _apply(self, img, gt, rng):
         # img is now [Batch, Channels, Height, Width]
         # gt is now [Batch, Classes, Height, Width]
         

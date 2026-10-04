@@ -58,7 +58,7 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
     E = tc.epochs
     generator = torch.Generator()
     generator.manual_seed(tc.seed)
-    main_rng = np.random.default_rng(tc.seed)  # <-- ADD THIS LINE
+    main_rng = np.random.default_rng(tc.seed)  # drives the GPU augmentation, reproducible per train.seed
     loaders = {
         "train": DataLoader(train_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=True,
                             worker_init_fn=seed_worker, generator=generator),
@@ -97,10 +97,9 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
                     img = data["images"].to(device)
                     gt = data["gts"].to(device)
 
-                    # --- NEW CODE: Apply GPU augmentations only during training ---
+                    # augmentation runs on the GPU batch, training only
                     if is_train and gpu_augment is not None:
                         img, gt = gpu_augment(img, gt, main_rng)
-                    # --------------------------------------------------------------
 
                     if is_train:
                         optimizer.zero_grad()

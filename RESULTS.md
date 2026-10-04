@@ -7,7 +7,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | Experiment | Split | Runs | Owner | 2D val Dice | Δ 2D | 3D Dice | Δ 3D | 3D esophagus | 3D heart | 3D trachea | 3D aorta | Idea |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 | Githa | 0.812 | +0.094 | 0.663 | +0.095 | 0.291 | 0.905 | 0.671 | 0.787 | Data augmentation from Testing-data-augmentation, to compare against current. |
-| augmentation-new-data | holdout40 | 1 | Githa | 0.788 |  | 0.784 |  | 0.583 | 0.909 | 0.801 | 0.845 | Data augmentation from Testing-data-augmentation, with new, correct data. |
+| augmentation-new-data | holdout40 | 1 | Githa | 0.788 | -0.001 | 0.784 | -0.003 | 0.583 | 0.909 | 0.801 | 0.845 | Data augmentation from Testing-data-augmentation, with new, correct data. |
 | augmentation-preprocessing | holdout | 1 | Githa | 0.724 | +0.006 | 0.721 | +0.152 | 0.429 | 0.923 | 0.731 | 0.801 | Data augmentation from Testing-data-augmentation, with new metrics and preprocessing. |
 | augmentation-snellius | holdout | 1 | Githa | 0.750 | +0.031 | 0.465 | -0.104 | 0.179 | 0.927 | 0.005 | 0.749 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | current | holdout | 3 |  | 0.719 ± 0.078 |  | 0.569 ± 0.124 |  | 0.276 ± 0.205 | 0.874 ± 0.014 | 0.413 ± 0.292 | 0.712 ± 0.031 |  |
@@ -34,6 +34,8 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | Experiment | Split | Runs | HD95 (mm) | Δ HD95 (mm) | ASSD (mm) | Δ ASSD (mm) | NSD@1mm | Δ NSD@1mm |
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |  |  |
+| augmentation-new-data | holdout40 | 1 | 11.58 | -2.90 | 2.76 | -0.17 | 0.428 | -0.012 |
+| augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |  |  |
 | current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |
 | current | holdout40 | 1 | 14.48 |  | 2.93 |  | 0.440 |  |
