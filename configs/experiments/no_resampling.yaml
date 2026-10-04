@@ -4,10 +4,10 @@ idea: >
   Does resampling add value? This run disables the resampling with crop & pad and
   falls back to legacy resize. Compare it
   against the baseline (current.yaml, which uses data.target_spacing: [1.95, 1.95, 2.5]). Same GT
-  (segthor_full), split (holdout), and seed (42), so the only variable is
+  (segthor_full), split (holdout40), HU window, and seed (42), so the only variable is
   the resampling method -> the Dice/HD95/NSD difference is the value of
   resampling.
 
-# Only override: turn off the HU window. Baseline keeps window: [40, 400].
+# Only override: turn off the resampling (per-slice resize to 256x256 instead). Baseline keeps the HU window.
 data:
   target_spacing: null

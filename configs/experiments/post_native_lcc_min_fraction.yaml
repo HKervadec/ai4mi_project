@@ -1,0 +1,11 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): post_lcc_min_fraction on spacing_native_384's predictions. Per organ,
+  keep every 3D connected component at least 10% the size of the largest one.
+
+source: spacing_native_384   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: largest_cc, min_fraction: 0.1}

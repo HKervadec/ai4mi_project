@@ -1,7 +1,5 @@
 data:
-  extra_windows:
-  - - -600
-    - 1500
+  extra_windows: []
   fold: 0
   gt: data/segthor_full
   shape:
@@ -12,9 +10,7 @@ data:
   - 1.95
   - 1.95
   - 2.5
-  window:
-  - 40
-  - 400
+  window: null
 input:
   context_slices: 0
 model:
@@ -53,11 +49,16 @@ wandb:
   entity: ai4migroup28
   project: ai4mi-segthor
 owner: Elena
-idea: Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window,
-  to see the trachea lumen (air) and airway wall.
-experiment: lung_window_channel
+idea: 'Does HU windowing add value? This run disables the mediastinal HU window and
+  falls back to legacy per-volume min-max intensity normalisation. Compare it against
+  the baseline (current.yaml, which uses data.window [40, 400]). Same GT (segthor_full),
+  split (holdout40), resampling, and seed (42), so the only variable is the intensity
+  normalisation -> the Dice/HD95/NSD difference is the value of HU windowing.
+
+  '
+experiment: no_hu_window
 _run:
-  config_file: configs/experiments/lung_window_channel.yaml
+  config_file: configs/experiments/no_hu_window.yaml
   debug: false
   device: mps
   git:
@@ -65,4 +66,4 @@ _run:
     commit: 65a53e7
     dirty: true
   overrides: []
-  started: 2026-10-01 06:03:04
+  started: 2026-10-02 01:53:04

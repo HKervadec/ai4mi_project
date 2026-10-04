@@ -59,7 +59,9 @@ def finish(summary: dict, run_dir: Path) -> None:
         return
     for key, value in summary.items():
         _run.summary[key] = value
-    for name in ("config.yaml", "summary.json", "log.csv"):
+    # Not config.yaml: W&B already has the config (wandb.init), and run.save symlinks the file into
+    # W&B's files/ folder, where W&B then writes its own config.yaml through the link, overwriting ours.
+    for name in ("summary.json", "log.csv"):
         if (run_dir / name).exists():
             _run.save(str(run_dir / name), base_path=str(run_dir), policy="now")
     _run.finish()

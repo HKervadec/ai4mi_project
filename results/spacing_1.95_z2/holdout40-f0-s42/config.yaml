@@ -1,7 +1,5 @@
 data:
-  extra_windows:
-  - - -600
-    - 1500
+  extra_windows: []
   fold: 0
   gt: data/segthor_full
   shape:
@@ -11,7 +9,7 @@ data:
   target_spacing:
   - 1.95
   - 1.95
-  - 2.5
+  - 2
   window:
   - 40
   - 400
@@ -53,11 +51,12 @@ wandb:
   entity: ai4migroup28
   project: ai4mi-segthor
 owner: Elena
-idea: Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window,
-  to see the trachea lumen (air) and airway wall.
-experiment: lung_window_channel
+idea: 'Slice thickness only: resample z to 2.0 mm instead of 2.5 mm, in-plane unchanged
+  (1.95 mm, 256x256), to separate the z effect from the in-plane resolution in the
+  spacing experiments.'
+experiment: spacing_1.95_z2
 _run:
-  config_file: configs/experiments/lung_window_channel.yaml
+  config_file: configs/experiments/spacing_1.95_z2.yaml
   debug: false
   device: mps
   git:
@@ -65,4 +64,4 @@ _run:
     commit: 65a53e7
     dirty: true
   overrides: []
-  started: 2026-10-01 06:03:04
+  started: 2026-10-01 10:43:58

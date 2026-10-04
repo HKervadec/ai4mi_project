@@ -1,0 +1,12 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): post_lcc_skip_esophagus on spacing_native_384's predictions. Keep only
+  the largest 3D connected component of heart, trachea and aorta; leave the esophagus as predicted. At native
+  resolution min_fraction 0.1 removed real esophagus pieces (esophagus HD95 9.3 -> 14.0 mm).
+
+source: spacing_native_384   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: largest_cc, skip: [esophagus]}

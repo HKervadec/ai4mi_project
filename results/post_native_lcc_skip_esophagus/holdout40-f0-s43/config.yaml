@@ -1,0 +1,72 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 1.95
+  - 1.95
+  - 2.5
+  shape:
+  - 256
+  - 256
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 43
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess:
+  - name: largest_cc
+    skip:
+    - esophagus
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Post-processing only (no training): post_lcc_skip_esophagus on spacing_native_384''s
+  predictions. Keep only the largest 3D connected component of heart, trachea and
+  aorta; leave the esophagus as predicted. At native resolution min_fraction 0.1 removed
+  real esophagus pieces (esophagus HD95 9.3 -> 14.0 mm).'
+source: spacing_native_384
+experiment: post_native_lcc_skip_esophagus
+_run:
+  config_file: configs/experiments/post_native_lcc_skip_esophagus.yaml
+  overrides:
+  - train.seed=43
+  source_run: results/spacing_native_384/holdout40-f0-s43
+  started: '2026-10-04T15:37:07'
+  git:
+    commit: 65a53e7
+    branch: master
+    dirty: true

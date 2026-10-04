@@ -1,0 +1,13 @@
+# Lung window as a 2nd input channel (lung_window_channel), now at native resolution (spacing_native_384).
+# At 1.95 mm the lung window traded organs against each other (trachea +0.031, 6/8 patients up; heart and
+# aorta each -0.02, 7/8 patients down; mean +0.003). At 0.98 mm the airway wall and the fat planes are
+# better resolved, so the trachea gain may remain without the heart/aorta loss.
+# Compare against spacing_native_384: only the extra input channel differs.
+base: ../current.yaml
+owner: Elena
+idea: "Lung window [-600, 1500] as a 2nd input channel, at native resolution (0.98 x 0.98 x 2.0 mm, 384x384)."
+
+data:
+  target_spacing: [0.98, 0.98, 2.0]
+  shape: [384, 384]
+  extra_windows: [[-600, 1500]]

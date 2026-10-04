@@ -1,0 +1,70 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 1.95
+  - 1.95
+  - 2.5
+  shape:
+  - 256
+  - 256
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 43
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess:
+  - name: largest_cc
+    min_fraction: 0.1
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Post-processing only (no training): post_lcc_min_fraction on spacing_native_384''s
+  predictions. Per organ, keep every 3D connected component at least 10% the size
+  of the largest one.'
+source: spacing_native_384
+experiment: post_native_lcc_min_fraction
+_run:
+  config_file: configs/experiments/post_native_lcc_min_fraction.yaml
+  overrides:
+  - train.seed=43
+  source_run: results/spacing_native_384/holdout40-f0-s43
+  started: '2026-10-04T15:28:31'
+  git:
+    commit: 65a53e7
+    branch: master
+    dirty: true

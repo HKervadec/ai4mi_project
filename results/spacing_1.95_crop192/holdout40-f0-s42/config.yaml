@@ -1,0 +1,68 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 1.95
+  - 1.95
+  - 2.0
+  shape:
+  - 192
+  - 192
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess: []
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Tight crop at the old resolution: 1.95 x 1.95 x 2.0 mm, center crop to 192x192
+  (same 375 mm field of view as spacing_native_384), to split that run''s gain into
+  crop vs resolution.'
+experiment: spacing_1.95_crop192
+_run:
+  config_file: configs/experiments/spacing_1.95_crop192.yaml
+  overrides:
+  - train.seed=42
+  device: mps
+  debug: false
+  started: '2026-10-03T21:16:38'
+  git:
+    commit: 65a53e7
+    branch: master
+    dirty: true

@@ -1,0 +1,15 @@
+# Control for spacing_native_384: the same tight field of view, at the old 1.95 mm resolution.
+# spacing_native_384 (+0.062 3D Dice vs current) changed the resolution *and* the crop: 384 px at
+# 0.98 mm = 376 mm field of view, where current sees 256 px at 1.95 mm = 499 mm. Here 192 px at
+# 1.95 mm = 374 mm, so the field of view matches spacing_native_384 and only the resolution differs.
+# The organs of all 40 patients lie within 146.5 mm of the image centre (293 mm), so nothing is cropped.
+# z = 2.0 mm as in the other spacing runs, which gives two single-variable comparisons:
+#   vs spacing_1.95_z2    (1.95 mm, 256x256): only the crop differs       -> value of the tight crop
+#   vs spacing_native_384 (0.98 mm, 384x384): only the resolution differs -> value of the resolution
+base: ../current.yaml
+owner: Elena
+idea: "Tight crop at the old resolution: 1.95 x 1.95 x 2.0 mm, center crop to 192x192 (same 375 mm field of view as spacing_native_384), to split that run's gain into crop vs resolution."
+
+data:
+  target_spacing: [1.95, 1.95, 2.0]
+  shape: [192, 192]

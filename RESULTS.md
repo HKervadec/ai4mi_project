@@ -23,13 +23,25 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2 | holdout | 3 |  | 0.809 ± 0.002 | +0.090 | 0.666 ± 0.013 | +0.098 | 0.402 ± 0.041 | 0.889 ± 0.008 | 0.667 ± 0.021 | 0.707 ± 0.004 | transformer earlier, end of stage2 (H/8, K*8 channels) |
 | enet_tf_stage2_2layer | holdout | 3 | Junis | 0.772 ± 0.062 | +0.053 | 0.573 ± 0.146 | +0.004 | 0.272 ± 0.206 | 0.891 ± 0.008 | 0.437 ± 0.312 | 0.693 ± 0.068 | combines the two individual wins: stage2 placement + 2 stacked transformer layers |
 | full_data_baseline | holdout40 | 1 | Elena | 0.709 | -0.080 | 0.703 | -0.084 | 0.468 | 0.840 | 0.786 | 0.720 | Starter-code baseline on the full 40-patient data: no HU window, no resampling, ENet + CE + Adam, no augmentation. |
+| lung_window_channel | holdout40 | 1 | Elena | 0.797 | +0.008 | 0.790 | +0.003 | 0.582 | 0.893 | 0.839 | 0.846 | Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window, to see the trachea lumen (air) and airway wall. |
 | no-augmentation | holdout | 1 | Githa | 0.773 | +0.055 | 0.609 | +0.040 | 0.331 | 0.868 | 0.609 | 0.628 | Current settings to compare with augmented data. |
 | no-augmentation-preprocessing | holdout | 1 | Githa | 0.690 | -0.029 | 0.685 | +0.116 | 0.423 | 0.886 | 0.685 | 0.745 | NO Data augmentation, with new metrics and preprocessing, to compare to data-augmentation. |
 | no_hu_window | holdout | 1 | Elena | 0.457 | -0.261 | 0.456 | -0.113 | 0.234 | 0.700 | 0.509 | 0.379 | Does HU windowing add value? This run disables the mediastinal HU window and falls back to legacy per-volume min-max intensity normalisation. Compare it against the baseline (current.yaml, which uses data.window [40, 400]). Same GT (watershed_refined), split (holdout), and seed (42), so the only variable is the intensity normalisation -> the Dice/HD95/NSD difference is the value of HU windowing.
  |
+| no_hu_window | holdout40 | 1 | Elena | 0.750 | -0.039 | 0.751 | -0.036 | 0.532 | 0.865 | 0.828 | 0.778 | Does HU windowing add value? This run disables the mediastinal HU window and falls back to legacy per-volume min-max intensity normalisation. Compare it against the baseline (current.yaml, which uses data.window [40, 400]). Same GT (segthor_full), split (holdout40), resampling, and seed (42), so the only variable is the intensity normalisation -> the Dice/HD95/NSD difference is the value of HU windowing.
+ |
+| no_resampling | holdout40 | 1 | Elena | 0.772 | -0.017 | 0.767 | -0.020 | 0.597 | 0.875 | 0.782 | 0.816 | Does resampling add value? This run disables the resampling with crop & pad and falls back to legacy resize. Compare it against the baseline (current.yaml, which uses data.target_spacing: [1.95, 1.95, 2.5]). Same GT (segthor_full), split (holdout40), HU window, and seed (42), so the only variable is the resampling method -> the Dice/HD95/NSD difference is the value of resampling.
+ |
 | post_lcc_min_fraction | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.789 | +0.002 | 0.562 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping per organ every 3D connected component at least 10% the size of the largest one. Plain largest-CC cut the esophagus, which the model predicts as several big fragments along z; the threshold should keep those while still removing the small stray blobs that inflate HD95. |
 | post_lcc_skip_esophagus | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.788 | +0.001 | 0.561 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping only the largest 3D connected component of heart, trachea and aorta, and leaving the esophagus as predicted. Plain largest-CC helped those three but cut the esophagus, which the model predicts as several fragments. |
+| post_native_lcc_min_fraction | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.840 ± 0.012 | +0.053 | 0.666 ± 0.019 | 0.923 ± 0.002 | 0.869 ± 0.014 | 0.900 ± 0.011 | Post-processing only (no training): post_lcc_min_fraction on spacing_native_384's predictions. Per organ, keep every 3D connected component at least 10% the size of the largest one. |
+| post_native_lcc_skip_esophagus | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.834 ± 0.017 | +0.047 | 0.659 ± 0.026 | 0.923 ± 0.002 | 0.862 ± 0.021 | 0.893 ± 0.018 | Post-processing only (no training): post_lcc_skip_esophagus on spacing_native_384's predictions. Keep only the largest 3D connected component of heart, trachea and aorta; leave the esophagus as predicted. At native resolution min_fraction 0.1 removed real esophagus pieces (esophagus HD95 9.3 -> 14.0 mm). |
 | refined_window_resampled | holdout | 1 |  | 0.687 | -0.032 | 0.683 | +0.115 | 0.435 | 0.890 | 0.678 | 0.730 | Voxel-spacing resampling to 1.95/1.95/2.5 mm (crop/pad) vs per-slice resize. |
+| spacing_1.5_256 | holdout40 | 1 | Elena | 0.803 | +0.014 | 0.801 | +0.014 | 0.612 | 0.902 | 0.819 | 0.871 | Finer resolution at equal cost: resample to 1.5 x 1.5 x 2.0 mm, center crop to 256x256 (vs 1.95 x 1.95 x 2.5 mm), to separate the effect of resolution from compute. |
+| spacing_1.95_crop192 | holdout40 | 1 | Elena | 0.807 | +0.018 | 0.803 | +0.016 | 0.611 | 0.915 | 0.838 | 0.849 | Tight crop at the old resolution: 1.95 x 1.95 x 2.0 mm, center crop to 192x192 (same 375 mm field of view as spacing_native_384), to split that run's gain into crop vs resolution. |
+| spacing_1.95_z2 | holdout40 | 1 | Elena | 0.786 | -0.003 | 0.780 | -0.007 | 0.564 | 0.892 | 0.792 | 0.872 | Slice thickness only: resample z to 2.0 mm instead of 2.5 mm, in-plane unchanged (1.95 mm, 256x256), to separate the z effect from the in-plane resolution in the spacing experiments. |
+| spacing_native_384 | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.835 ± 0.013 | +0.048 | 0.659 ± 0.026 | 0.923 ± 0.002 | 0.861 ± 0.013 | 0.899 ± 0.013 | Native in-plane resolution: resample to 0.98 x 0.98 x 2.0 mm and center crop to 384x384 (vs 1.95 x 1.95 x 2.5 mm, 256x256), to see the thin esophagus and trachea better. |
+| window_narrow | holdout40 | 1 | Elena | 0.765 | -0.024 | 0.762 | -0.025 | 0.524 | 0.911 | 0.755 | 0.858 | Narrower soft-tissue window [40, 300] instead of [40, 400], for more contrast between the esophagus and the surrounding fat. |
 
 3D boundary metrics at the best epoch, mean over the 4 organs (± std over runs). HD95/ASSD are in mm (lower is better); NSD is a fraction within 1 mm (higher is better). Δ is against `current` on the same split.
 
@@ -52,12 +64,22 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2 | holdout | 3 |  |  |  |  |  |  |
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 23.31 | +8.82 | 5.43 | +2.50 | 0.360 | -0.080 |
+| lung_window_channel | holdout40 | 1 | 20.97 | +6.49 | 3.56 | +0.64 | 0.451 | +0.011 |
 | no-augmentation | holdout | 1 |  |  |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 26.89 | -16.45 | 4.40 | -3.29 | 0.299 | +0.050 |
 | no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |
+| no_hu_window | holdout40 | 1 | 29.40 | +14.92 | 5.22 | +2.29 | 0.399 | -0.041 |
+| no_resampling | holdout40 | 1 | 18.79 | +4.31 | 3.82 | +0.90 | 0.420 | -0.020 |
 | post_lcc_min_fraction | holdout40 | 1 | 11.19 | -3.29 | 2.55 | -0.38 | 0.444 | +0.004 |
 | post_lcc_skip_esophagus | holdout40 | 1 | 11.35 | -3.14 | 2.56 | -0.37 | 0.443 | +0.003 |
+| post_native_lcc_min_fraction | holdout40 | 2 | 12.51 ± 2.15 | -1.97 | 2.44 ± 0.43 | -0.48 | 0.543 ± 0.023 | +0.104 |
+| post_native_lcc_skip_esophagus | holdout40 | 2 | 18.37 ± 9.19 | +3.89 | 2.99 ± 1.02 | +0.06 | 0.538 ± 0.029 | +0.098 |
 | refined_window_resampled | holdout | 1 | 30.20 | -13.14 | 5.30 | -2.39 | 0.305 | +0.057 |
+| spacing_1.5_256 | holdout40 | 1 | 13.60 | -0.89 | 2.75 | -0.18 | 0.472 | +0.032 |
+| spacing_1.95_crop192 | holdout40 | 1 | 12.88 | -1.60 | 2.67 | -0.26 | 0.488 | +0.048 |
+| spacing_1.95_z2 | holdout40 | 1 | 13.22 | -1.26 | 3.00 | +0.08 | 0.460 | +0.020 |
+| spacing_native_384 | holdout40 | 2 | 21.21 ± 5.47 | +6.73 | 3.26 ± 0.67 | +0.33 | 0.534 ± 0.026 | +0.094 |
+| window_narrow | holdout40 | 1 | 15.42 | +0.94 | 3.30 | +0.38 | 0.414 | -0.026 |
 
 Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 
@@ -80,12 +102,22 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2 | holdout | 3 |  |  |  |  |
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 16.32 | 36.73 | 20.90 | 19.27 |
+| lung_window_channel | holdout40 | 1 | 11.45 | 12.55 | 45.15 | 14.74 |
 | no-augmentation | holdout | 1 |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 19.61 | 11.67 | 54.75 | 21.52 |
 | no_hu_window | holdout | 1 | 36.75 | 49.10 | 39.69 | 52.02 |
+| no_hu_window | holdout40 | 1 | 19.31 | 36.19 | 45.68 | 16.43 |
+| no_resampling | holdout40 | 1 | 12.53 | 14.06 | 12.04 | 36.52 |
 | post_lcc_min_fraction | holdout40 | 1 | 12.95 | 10.73 | 10.51 | 10.57 |
 | post_lcc_skip_esophagus | holdout40 | 1 | 13.57 | 10.73 | 10.51 | 10.57 |
+| post_native_lcc_min_fraction | holdout40 | 2 | 22.51 ± 8.51 | 8.97 ± 0.18 | 8.24 ± 0.04 | 10.33 ± 0.11 |
+| post_native_lcc_skip_esophagus | holdout40 | 2 | 39.56 ± 30.24 | 8.97 ± 0.18 | 9.52 ± 1.32 | 15.45 ± 5.00 |
 | refined_window_resampled | holdout | 1 | 22.70 | 44.11 | 34.15 | 19.83 |
+| spacing_1.5_256 | holdout40 | 1 | 10.45 | 10.87 | 11.19 | 21.88 |
+| spacing_1.95_crop192 | holdout40 | 1 | 10.59 | 10.72 | 9.71 | 20.50 |
+| spacing_1.95_z2 | holdout40 | 1 | 10.40 | 13.25 | 13.46 | 15.80 |
+| spacing_native_384 | holdout40 | 2 | 39.56 ± 30.24 | 15.70 ± 6.35 | 14.68 ± 0.32 | 14.91 ± 1.70 |
+| window_narrow | holdout40 | 1 | 12.23 | 13.23 | 11.96 | 24.25 |
 
 ## Runs
 
@@ -124,11 +156,24 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2_2layer | holdout-f0-s43 | 0.828 | 0.713 |  | 23 / 25 | 54.4 | da026c9* | cuda |
 | enet_tf_stage2_2layer | holdout-f0-s44 | 0.685 | 0.371 |  | 23 / 25 | 54.6 | da026c9* | cuda |
 | full_data_baseline | holdout40-f0-s42 | 0.709 | 0.703 | 23.31 | 14 / 25 | 237.3 | 16cc381* | mps |
+| lung_window_channel | holdout40-f0-s42 | 0.797 | 0.790 | 20.97 | 24 / 25 | 223.5 | 65a53e7* | mps |
 | no-augmentation | holdout-f0-s42 | 0.773 | 0.609 |  | 24 / 25 | 59.3 | e974bc0* | cuda |
 | no-augmentation-preprocessing | holdout-f0-s42 | 0.690 | 0.685 | 26.89 | 22 / 25 | 36.4 | 636a87a* | cuda |
 | no_hu_window | holdout-f0-s42 | 0.457 | 0.456 | 44.39 | 23 / 25 | 129.0 | 6849221* | mps |
+| no_hu_window | holdout40-f0-s42 | 0.750 | 0.751 | 29.40 | 23 / 25 | 227.7 | 65a53e7* | mps |
+| no_resampling | holdout40-f0-s42 | 0.772 | 0.767 | 18.79 | 21 / 25 | 240.3 | 65a53e7* | mps |
 | post_lcc_min_fraction | holdout40-f0-s42 | 0.789 | 0.789 | 11.19 | 22 / 25 | 222.2 | b77b794* | mps |
 | post_lcc_skip_esophagus | holdout40-f0-s42 | 0.789 | 0.788 | 11.35 | 22 / 25 | 222.2 | b77b794* | mps |
+| post_native_lcc_min_fraction | holdout40-f0-s42 | 0.848 | 0.851 | 10.36 | 24 / 25 | 571.3 | 65a53e7* | mps |
+| post_native_lcc_min_fraction | holdout40-f0-s43 | 0.822 | 0.828 | 14.67 | 20 / 25 | 565.0 | 65a53e7* | mps |
+| post_native_lcc_skip_esophagus | holdout40-f0-s42 | 0.848 | 0.851 | 9.19 | 24 / 25 | 571.3 | 65a53e7* | mps |
+| post_native_lcc_skip_esophagus | holdout40-f0-s43 | 0.822 | 0.818 | 27.56 | 20 / 25 | 565.0 | 65a53e7* | mps |
 | refined_window_resampled | holdout-f0-s42 | 0.687 | 0.683 | 30.20 | 23 / 25 | 122.4 | 6849221* | mps |
+| spacing_1.5_256 | holdout40-f0-s42 | 0.803 | 0.801 | 13.60 | 24 / 25 | 270.8 | 65a53e7* | mps |
+| spacing_1.95_crop192 | holdout40-f0-s42 | 0.807 | 0.803 | 12.88 | 24 / 25 | 167.2 | 65a53e7* | mps |
+| spacing_1.95_z2 | holdout40-f0-s42 | 0.786 | 0.780 | 13.22 | 20 / 25 | 417.3 | 65a53e7* | mps |
+| spacing_native_384 | holdout40-f0-s42 | 0.848 | 0.849 | 15.74 | 24 / 25 | 571.3 | 65a53e7* | mps |
+| spacing_native_384 | holdout40-f0-s43 | 0.822 | 0.822 | 26.68 | 20 / 25 | 565.0 | 65a53e7* | mps |
+| window_narrow | holdout40-f0-s42 | 0.765 | 0.762 | 15.42 | 21 / 25 | 226.0 | 65a53e7* | mps |
 
 `*` = run made with uncommitted changes.
