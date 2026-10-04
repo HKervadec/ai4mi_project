@@ -68,6 +68,9 @@ datasets_params: dict[str, dict[str, Any]] = {}
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["SEGTHOR_CLEAN_BG"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["SEGTHOR_FULL"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+
 
 def resize_if_needed(img, img_size, resampling):
     if img_size is not None:

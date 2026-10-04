@@ -65,12 +65,17 @@ class SegResNetMONAI(nn.Module):
         out_channels: int = 2,
         dropout_prob: float | None = None,
         act: tuple | str = ("RELU", {"inplace": True}),
+        # act: tuple | str = ("LEAKYRELU", {"inplace": True}),
         norm: tuple | str = ("GROUP", {"num_groups": 8}),
         norm_name: str = "",
         num_groups: int = 8,
+        # num_groups: int = 16,
+        # num_groups: int = 4,
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
+        # blocks_down: tuple = (1, 2, 3, 4),
         blocks_up: tuple = (1, 1, 1),
+        # blocks_up: tuple = (1, 2, 2),
         upsample_mode: UpsampleMode | str = UpsampleMode.NONTRAINABLE,
     ):
         super().__init__()

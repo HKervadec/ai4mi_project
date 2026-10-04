@@ -37,3 +37,17 @@ data/SEGTHOR_CLEAN:
 	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1_cleaned --dest_dir $@_tmp \
 		--shape 256 256 --retain 5
 	mv $@_tmp $@
+
+data/SEGTHOR_CLEAN_BG:
+	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_part1_cleaned --dest_dir $@_tmp \
+		--shape 256 256 --retain 5
+	mv $@_tmp $@
+
+data/SEGTHOR_FULL:
+	$(info $(green)python $(CFLAGS) slice_segthor.py$(reset))
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --source_dir data/segthor_train_full --dest_dir $@_tmp \
+		--shape 256 256 --retain 5
+	mv $@_tmp $@
