@@ -25,6 +25,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2_2layer | holdout | 3 | Junis | 0.772 ± 0.062 | +0.053 | 0.573 ± 0.146 | +0.004 | 0.272 ± 0.206 | 0.891 ± 0.008 | 0.437 ± 0.312 | 0.693 ± 0.068 | combines the two individual wins: stage2 placement + 2 stacked transformer layers |
 | full_data_baseline | holdout40 | 1 | Elena | 0.709 | -0.080 | 0.703 | -0.084 | 0.468 | 0.840 | 0.786 | 0.720 | Starter-code baseline on the full 40-patient data: no HU window, no resampling, ENet + CE + Adam, no augmentation. |
 | lung_window_channel | holdout40 | 1 | Elena | 0.797 | +0.008 | 0.790 | +0.003 | 0.582 | 0.893 | 0.839 | 0.846 | Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window, to see the trachea lumen (air) and airway wall. |
+| lung_window_native_384 | holdout40 | 1 | Elena | 0.846 | +0.057 | 0.847 | +0.059 | 0.662 | 0.933 | 0.883 | 0.908 | Lung window [-600, 1500] as a 2nd input channel, at native resolution (0.98 x 0.98 x 2.0 mm, 384x384). |
 | no-augmentation | holdout | 1 | Githa | 0.773 | +0.055 | 0.609 | +0.040 | 0.331 | 0.868 | 0.609 | 0.628 | Current settings to compare with augmented data. |
 | no-augmentation-preprocessing | holdout | 1 | Githa | 0.690 | -0.029 | 0.685 | +0.116 | 0.423 | 0.886 | 0.685 | 0.745 | NO Data augmentation, with new metrics and preprocessing, to compare to data-augmentation. |
 | no_hu_window | holdout | 1 | Elena | 0.457 | -0.261 | 0.456 | -0.113 | 0.234 | 0.700 | 0.509 | 0.379 | Does HU windowing add value? This run disables the mediastinal HU window and falls back to legacy per-volume min-max intensity normalisation. Compare it against the baseline (current.yaml, which uses data.window [40, 400]). Same GT (watershed_refined), split (holdout), and seed (42), so the only variable is the intensity normalisation -> the Dice/HD95/NSD difference is the value of HU windowing.
@@ -67,6 +68,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 23.31 | +8.82 | 5.43 | +2.50 | 0.360 | -0.080 |
 | lung_window_channel | holdout40 | 1 | 20.97 | +6.49 | 3.56 | +0.64 | 0.451 | +0.011 |
+| lung_window_native_384 | holdout40 | 1 | 10.21 | -4.28 | 2.20 | -0.72 | 0.567 | +0.127 |
 | no-augmentation | holdout | 1 |  |  |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 26.89 | -16.45 | 4.40 | -3.29 | 0.299 | +0.050 |
 | no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |
@@ -106,6 +108,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 16.32 | 36.73 | 20.90 | 19.27 |
 | lung_window_channel | holdout40 | 1 | 11.45 | 12.55 | 45.15 | 14.74 |
+| lung_window_native_384 | holdout40 | 1 | 10.73 | 8.03 | 13.66 | 8.40 |
 | no-augmentation | holdout | 1 |  |  |  |  |
 | no-augmentation-preprocessing | holdout | 1 | 19.61 | 11.67 | 54.75 | 21.52 |
 | no_hu_window | holdout | 1 | 36.75 | 49.10 | 39.69 | 52.02 |
@@ -161,6 +164,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2_2layer | holdout-f0-s44 | 0.685 | 0.371 |  | 23 / 25 | 54.6 | da026c9* | cuda |
 | full_data_baseline | holdout40-f0-s42 | 0.709 | 0.703 | 23.31 | 14 / 25 | 237.3 | 16cc381* | mps |
 | lung_window_channel | holdout40-f0-s42 | 0.797 | 0.790 | 20.97 | 24 / 25 | 223.5 | 65a53e7* | mps |
+| lung_window_native_384 | holdout40-f0-s42 | 0.846 | 0.847 | 10.21 | 24 / 25 | 766.8 | 65a53e7* | mps |
 | no-augmentation | holdout-f0-s42 | 0.773 | 0.609 |  | 24 / 25 | 59.3 | e974bc0* | cuda |
 | no-augmentation-preprocessing | holdout-f0-s42 | 0.690 | 0.685 | 26.89 | 22 / 25 | 36.4 | 636a87a* | cuda |
 | no_hu_window | holdout-f0-s42 | 0.457 | 0.456 | 44.39 | 23 / 25 | 129.0 | 6849221* | mps |

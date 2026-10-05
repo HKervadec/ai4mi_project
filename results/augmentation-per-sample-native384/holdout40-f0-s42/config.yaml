@@ -1,0 +1,71 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- name: combined
+  per_sample: true
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess:
+  - name: largest_cc
+    min_fraction: 0.1
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Githa
+idea: Same as augmentation-native384, but with an independent augmentation draw per
+  slice instead of one per batch.
+experiment: augmentation-per-sample-native384
+_run:
+  config_file: configs/experiments/augmentation-per-sample-native384.yaml
+  overrides:
+  - train.seed=42
+  device: mps
+  debug: false
+  started: '2026-10-04T22:20:06'
+  git:
+    commit: df2a4ff
+    branch: master
+    dirty: true

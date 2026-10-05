@@ -5,7 +5,7 @@ import time
 import random
 import warnings
 from pathlib import Path
-from shutil import copytree, rmtree
+from shutil import rmtree
 
 import numpy as np
 import torch
@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from segpipe import tracking
-from segpipe.data import CLASS_NAMES, K
+from segpipe.data import CLASS_NAMES, K, one_hot
 from utils import dice_from_parts, dice_parts, probs2class, probs2one_hot, save_images, tqdm_
 
 
@@ -59,10 +59,14 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
     generator = torch.Generator()
     generator.manual_seed(tc.seed)
     main_rng = np.random.default_rng(tc.seed)  # drives the GPU augmentation, reproducible per train.seed
+    # persistent_workers: keep the worker processes alive between epochs instead of starting new
+    # ones for every train and val pass (on macOS each start re-imports everything, ~15 s).
+    persistent = tc.num_workers > 0
     loaders = {
         "train": DataLoader(train_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=True,
-                            worker_init_fn=seed_worker, generator=generator),
-        "val": DataLoader(val_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=False),
+                            worker_init_fn=seed_worker, generator=generator, persistent_workers=persistent),
+        "val": DataLoader(val_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=False,
+                          persistent_workers=persistent),
     }
     logs = {
         "train": (torch.zeros((E, len(loaders["train"]))), torch.zeros((E, len(train_set), K))),
@@ -89,13 +93,19 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
             loader = loaders[m]
             desc = f">> Training   ({e: 4d})" if is_train else f">> Validation ({e: 4d})"
             totals: dict[str, list] = {}  # patient -> [pooled inter (K), pooled card (K)]
+            # val predictions stay in memory and are only written to disk when the epoch improves
+            val_preds: list[torch.Tensor] = []
+            val_stems: list[str] = []
 
             with torch.set_grad_enabled(is_train):
                 j = 0
                 tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
                 for i, data in tq_iter:
+                    # checked on the CPU batch: on the device it would stall every step until the GPU
+                    # catches up (the GPU augmentations keep intensities in [0, 1])
+                    assert 0 <= data["images"].min() and data["images"].max() <= 1
                     img = data["images"].to(device)
-                    gt = data["gts"].to(device)
+                    gt = one_hot(data["gts"].to(device), K)  # uint8 class map -> one-hot, on the device
 
                     # augmentation runs on the GPU batch, training only
                     if is_train and gpu_augment is not None:
@@ -104,7 +114,6 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
                     if is_train:
                         optimizer.zero_grad()
 
-                    assert 0 <= img.min() and img.max() <= 1
                     B, _, W, H = img.shape
 
                     pred_logits = model(img)
@@ -113,10 +122,11 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
                     pred_seg = probs2one_hot(pred_probs)
                     inter, card = dice_parts(pred_seg, gt)
                     log_dice[e, j:j + B, :] = dice_from_parts(inter, card)
+                    inter_cpu, card_cpu = inter.detach().cpu(), card.detach().cpu()  # one copy per batch
                     for b, stem in enumerate(data["stems"]):
                         acc = totals.setdefault(stem.rsplit("_", 1)[0], [torch.zeros(K), torch.zeros(K)])
-                        acc[0] += inter[b].detach().cpu()
-                        acc[1] += card[b].detach().cpu()
+                        acc[0] += inter_cpu[b]
+                        acc[1] += card_cpu[b]
 
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()
@@ -130,7 +140,8 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
                             warnings.filterwarnings("ignore", category=UserWarning)
                             predicted_class = probs2class(pred_probs)
                             mult: int = 63 if K == 5 else (255 / (K - 1))
-                            save_images(predicted_class * mult, data["stems"], run_dir / f"iter{e:03d}" / m)
+                            val_preds.append((predicted_class * mult).to(torch.uint8).cpu())
+                            val_stems.extend(data["stems"])
 
                     j += B
                     running = patient_dice(totals).mean(dim=0)  # partial: patients still being filled in
@@ -170,10 +181,14 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
             with open(run_dir / "best_epoch.txt", "w") as f:
                 f.write(message)
 
+            # Only the best epoch's predictions are written (used by the 3D evaluation); the
+            # per-epoch iter###/ folders are no longer saved.
             best_folder = run_dir / "best_epoch"
             if best_folder.exists():
                 rmtree(best_folder)
-            copytree(run_dir / f"iter{e:03d}", best_folder)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                save_images(torch.cat(val_preds), val_stems, best_folder / "val")
 
             torch.save(model, run_dir / "bestmodel.pkl")
             torch.save(model.state_dict(), run_dir / "bestweights.pt")
