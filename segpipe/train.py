@@ -59,14 +59,13 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
     generator = torch.Generator()
     generator.manual_seed(tc.seed)
     main_rng = np.random.default_rng(tc.seed)  # drives the GPU augmentation, reproducible per train.seed
-    # persistent_workers: keep the worker processes alive between epochs instead of starting new
-    # ones for every train and val pass (on macOS each start re-imports everything, ~15 s).
-    persistent = tc.num_workers > 0
+    # No persistent_workers: it would save ~15 s per epoch on macOS, but it draws the worker seed from
+    # `generator` only once, so from epoch 1 on the shuffle order would differ from earlier runs of
+    # the same seed and new runs would no longer be comparable with them.
     loaders = {
         "train": DataLoader(train_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=True,
-                            worker_init_fn=seed_worker, generator=generator, persistent_workers=persistent),
-        "val": DataLoader(val_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=False,
-                          persistent_workers=persistent),
+                            worker_init_fn=seed_worker, generator=generator),
+        "val": DataLoader(val_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=False),
     }
     logs = {
         "train": (torch.zeros((E, len(loaders["train"]))), torch.zeros((E, len(train_set), K))),

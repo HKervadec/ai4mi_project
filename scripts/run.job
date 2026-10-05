@@ -3,13 +3,15 @@
 #SBATCH --gpus=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=9
-#SBATCH --time=02:00:00
+#SBATCH --time=08:00:00
 #SBATCH --output=slurm_logs/%x_%j.out
 #SBATCH --error=slurm_logs/%x_%j.err
 #SBATCH --job-name=run_experiment
 
 # Usage: sbatch scripts/run.job configs/experiments/<name>.yaml [--set key=value ...]
 # Create slurm_logs/ first (mkdir -p slurm_logs): SLURM needs it before the job starts.
+# Time limit: a 384x384 run takes ~4.5 h on gpu_mig, so 8 h leaves room for the cache build
+# and the 3D evaluation. Shorter runs only use (and are billed for) the time they need.
 
 set -euo pipefail
 
