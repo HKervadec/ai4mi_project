@@ -85,8 +85,11 @@ number is cheap to derive.
 
 ### NSD — Normalised Surface Dice (boundary tolerance, [0, 1])
 - **Definition:** the fraction of surface voxels (both directions) whose nearest
-  distance is within a tolerance `τ`. We use `NSD_TAU_MM = 1.0` mm
-  (`segpipe/evaluate.py`).
+  distance is within a tolerance `τ`. We report two tolerances
+  (`segpipe/evaluate.py`): `nsd` at `NSD_TAU_MM = 1.0` mm (strict) and `nsd3` at
+  `NSD3_TAU_MM = 3.0` mm. The GT slice spacing is 2.0 or 2.5 mm, so at 1 mm a
+  surface one slice off in z already counts as wrong; 3 mm forgives a one-slice
+  error for every patient (2 mm would not, for the 2.5 mm volumes).
 - **Interpretation:** "what share of the boundary is good enough?" It reflects
   clinical usability — small sub-tolerance wobbles don't count against you, but
   real deviations do. Higher is better.
@@ -98,7 +101,7 @@ number is cheap to derive.
 Enable the metrics per experiment in the config (`configs/current.yaml`):
 
 ```yaml
-eval: {metrics_3d: [dice, hd, hd95, assd, nsd]}
+eval: {metrics_3d: [dice, hd, hd95, assd, nsd, nsd3]}
 ```
 
 Then:
@@ -118,9 +121,14 @@ python run.py --config configs/current.yaml
      plotting / statistics / `compare.py`);
    - a JSON summary with `mean`, `per_class`, and `per_patient`.
 
-Aggregation uses `np.nanmean`: a metric is **NaN when an organ is absent** from
-either the prediction or the ground truth (boundary distance is undefined there),
-so one missing organ does not poison the mean.
+Aggregation uses `np.nanmean`. A boundary metric is **NaN only when an organ is
+absent from both** the prediction and the ground truth (nothing to measure), so
+that case is left out of the mean. When the organ is absent from **only one** of
+them (a missed organ, or one predicted that is not there) it gets the **worst
+case**: the volume's diagonal in mm for HD / HD95 / ASSD, and 0 for NSD. Earlier
+versions returned NaN here too, which silently dropped missed organs from the
+mean and made a model that misses the esophagus look better than one that
+segments it badly.
 
 ---
 
@@ -161,8 +169,9 @@ ASSD (average boundary error) and NSD (tolerance-based, clinically oriented), an
 deliberately keeps raw HD only as a contrast for HD95.
 
 **Caveats to keep in mind when reading the numbers.**
-- **Absent organs → NaN.** If a patient's GT lacks an organ, that organ's boundary
-  metrics are NaN and excluded from the mean. See the known SegTHOR issue that
+- **Absent organs → NaN, missed organs → worst case.** If a patient's GT lacks an
+  organ and the model predicts none, that organ's boundary metrics are NaN and
+  excluded from the mean; if the model predicts it anyway, it scores the worst case. See the known SegTHOR issue that
   part-1 ground truth is missing the aorta — those patients will read NaN for
   aorta, so report how many patients contribute to each organ's average.
 - **NSD tolerance is a choice.** `τ = 1.0 mm` is a reasonable default, but a thin

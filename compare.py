@@ -79,13 +79,13 @@ def build_report(runs: list[dict]) -> str:
     # 3D boundary metrics (only shown if any run has them): HD95 / ASSD in mm
     # (lower is better), NSD as a fraction (higher is better). digits: 2 for the
     # mm distances, 3 for the NSD fraction.
-    boundary = [("hd95", "HD95 (mm)", 2), ("assd", "ASSD (mm)", 2), ("nsd", "NSD@1mm", 3)]
+    boundary = [("hd95", "HD95 (mm)", 2), ("assd", "ASSD (mm)", 2), ("nsd", "NSD@1mm", 3), ("nsd3", "NSD@3mm", 3)]
     if any(metric_3d(s, name) is not None for s in runs for name, _, _ in boundary):
         header = ["Experiment", "Split", "Runs"]
         for _, label, _ in boundary:
             header += [label, f"Δ {label}"]
         lines += ["", "3D boundary metrics at the best epoch, mean over the 4 organs (± std over runs). "
-                  "HD95/ASSD are in mm (lower is better); NSD is a fraction within 1 mm (higher is better). "
+                  "HD95/ASSD are in mm (lower is better); NSD is the fraction of surface within 1 or 3 mm (higher is better). "
                   "Δ is against `current` on the same split.", "",
                   "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
         for key in sorted(groups):
@@ -118,7 +118,7 @@ def build_report(runs: list[dict]) -> str:
     post_groups = {key: [s for s in members if "metrics_3d_post" in s] for key, members in groups.items()}
     post_groups = {key: members for key, members in post_groups.items() if members}
     if post_groups:
-        post_metrics = [("dice", "Dice", 3), ("hd95", "HD95 (mm)", 2), ("assd", "ASSD (mm)", 2), ("nsd", "NSD@1mm", 3)]
+        post_metrics = [("dice", "Dice", 3), ("hd95", "HD95 (mm)", 2), ("assd", "ASSD (mm)", 2), ("nsd", "NSD@1mm", 3), ("nsd3", "NSD@3mm", 3)]
         header = ["Experiment", "Split", "Runs", "Post-processing"]
         for _, label, _ in post_metrics:
             header += [f"{label} raw", f"{label} post", "Δ"]

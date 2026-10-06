@@ -26,11 +26,11 @@ loss: {name: ce}
 regularizers: []
 optimizer: {name: adam, lr: 0.0005, betas: [0.9, 0.999]}
 scheduler: {name: none}
-augment: []
+augment: [combined]
 
 train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5}
 eval:
-  metrics_3d: [dice, hd, hd95, assd, nsd]   # 3D metrics after training (overlap + boundary, in mm); best epoch still chosen on 2D val Dice
+  metrics_3d: [dice, hd, hd95, assd, nsd, nsd3]   # 3D metrics after training (overlap + boundary, in mm); best epoch still chosen on 2D val Dice
   postprocess: [{name: largest_cc, min_fraction: 0.1}]   # e.g. [largest_cc]: also score post-processed volumes (summary.json: metrics_3d_post); raw scores are kept
   
 train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5,
