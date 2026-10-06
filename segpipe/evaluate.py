@@ -63,8 +63,22 @@ def dice(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
 #   hd95 : 95th-percentile Hausdorff -> robust worst-case
 #   assd : average symmetric surface distance -> mean boundary error
 #   nsd  : Normalised Surface Dice at NSD_TAU_MM -> fraction of surface within tau
-# All return NaN when the class is absent from pred or gt (boundary undefined).
+# When the class is absent from both pred and gt the boundary is undefined -> NaN,
+# so the organ is left out of the nanmean. When it is absent from only one of them
+# (a missed organ, or an organ predicted that is not there) the score is the worst
+# case: the volume's diagonal in mm for the distances, 0 for NSD. Returning NaN
+# there would drop the failure from the mean and make a missed organ look better
+# than a badly segmented one.
 # ---------------------------------------------------------------------------
+
+def _empty_score(pred: np.ndarray, gt: np.ndarray, spacing, worst_distance: bool) -> float:
+    """Score for a class with an empty surface in pred and/or gt (see the note above)."""
+    if not pred.any() and not gt.any():
+        return float("nan")
+    if not worst_distance:
+        return 0.0
+    return float(np.linalg.norm(np.asarray(gt.shape) * np.asarray(spacing, dtype=np.float64)))
+
 
 def _surface_distances(pred: np.ndarray, gt: np.ndarray, spacing):
     """Symmetric nearest-surface distances (mm) between two binary masks.
@@ -87,28 +101,28 @@ def _surface_distances(pred: np.ndarray, gt: np.ndarray, spacing):
 def hd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
+        return _empty_score(pred, gt, spacing, worst_distance=True)
     return float(max(d_pg.max(), d_gp.max()))
 
 
 def hd95(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
+        return _empty_score(pred, gt, spacing, worst_distance=True)
     return float(max(np.percentile(d_pg, 95), np.percentile(d_gp, 95)))
 
 
 def assd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
+        return _empty_score(pred, gt, spacing, worst_distance=True)
     return float((d_pg.sum() + d_gp.sum()) / (len(d_pg) + len(d_gp)))
 
 
 def nsd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
+        return _empty_score(pred, gt, spacing, worst_distance=False)
     within = (d_pg <= NSD_TAU_MM).sum() + (d_gp <= NSD_TAU_MM).sum()
     return float(within / (len(d_pg) + len(d_gp)))
 
@@ -212,9 +226,10 @@ def _summarise(scores: dict, out_dir: Path) -> dict:
     for name, per_patient in scores.items():
         np.savez(out_dir / f"{name}.npz", **per_patient)  # patient -> K values
         table = np.stack(list(per_patient.values()))  # patients x K; averages leave out the background
-        # nanmean: boundary metrics are NaN for organs absent in a patient, so a
-        # single missing organ must not poison the mean (no-op for dice, which
-        # never returns NaN).
+        # nanmean: boundary metrics are NaN only for organs absent from both the
+        # prediction and the GT of a patient, which must not poison the mean
+        # (no-op for dice, which never returns NaN). A missed organ is scored as
+        # the worst case, not NaN, so it does count.
         summary[name] = {
             "mean": round(float(np.nanmean(table[:, 1:])), 4),
             "per_class": {CLASS_NAMES[k]: round(float(np.nanmean(table[:, k])), 4) for k in range(1, K)},
