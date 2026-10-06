@@ -12,9 +12,21 @@ def _none(optimizer, epochs):
     return None
 
 
+def _cosine(optimizer, epochs, min_lr: float = 0.0):
+    # lr follows half a cosine from the initial lr down to min_lr over the whole run
+    return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=min_lr)
+
+
+def _poly(optimizer, epochs, exponent: float = 0.9):
+    # nnU-Net schedule: lr * (1 - epoch / epochs) ** exponent
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, lambda e: (1 - e / epochs) ** exponent)
+
+
 # name -> fn(optimizer, epochs, **kw) -> scheduler or None, stepped once per epoch
 SCHEDULERS: dict = {
     "none": _none,
+    "cosine": _cosine,
+    "poly": _poly,
 }
 
 

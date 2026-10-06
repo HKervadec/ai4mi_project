@@ -1,0 +1,11 @@
+# Two input changes at once (so a difference can't be split between them): at 1.95 mm 2.5D gave nothing
+# (enet_25d 0.789 vs current 0.787) and at native resolution the lung window gave nothing on its own
+# (lung_window_native_384 0.847 vs spacing_native_384 0.849), but the pair was never tried.
+base: ../current.yaml
+owner: David
+idea: "2.5D input (1 neighbour slice above/below) plus the lung window [-600, 1500] as extra channel per slice (6 input channels). Only the input differs from augmentation-native384 (seeds 42, 43)."
+
+input:
+  context_slices: 1
+data:
+  extra_windows: [[-600, 1500]]

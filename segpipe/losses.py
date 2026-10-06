@@ -3,7 +3,7 @@
 import torch
 import torch.nn.functional as F
 
-from losses import CrossEntropy, CrossEntropyDice, CrossEntropyTversky
+from losses import CrossEntropy, CrossEntropyDice, CrossEntropyTversky, FocalLoss, FocalDice
 
 
 class BoundaryRegularizer:
@@ -67,6 +67,8 @@ LOSSES: dict = {
     "ce": CrossEntropy,
     "ce_dice": CrossEntropyDice,
     "ce_tversky": CrossEntropyTversky,
+    "focal": FocalLoss,
+    "focal_dice": FocalDice,
 }
 
 # name -> class with __init__(**params) and __call__(probs, onehot_target) -> scalar

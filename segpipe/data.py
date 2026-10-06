@@ -216,6 +216,33 @@ class SliceDataset(Dataset):
         return {"images": img, "gts": gt, "stems": img_path.stem}
 
 
+def slice_weights(dataset: SliceDataset, empty_weight: float = 1.0, class_weights=None) -> torch.Tensor:
+    """Sampling weight per slice for train.sampler, from the organs in each slice's GT.
+
+    A slice without any organ gets `empty_weight`; a slice with organs gets the largest
+    `class_weights` entry among the organs it contains (1.0 for organs not listed).
+    `class_weights` keys are class indices or names, e.g. {esophagus: 2.0}.
+    """
+    by_class = {(CLASS_NAMES.index(k) if isinstance(k, str) else int(k)): float(v)
+                for k, v in (class_weights or {}).items()}
+    present = np.zeros((len(dataset.files), K), dtype=bool)  # slice -> which classes its GT contains
+    for i, (_, gt_path) in enumerate(tqdm_(dataset.files, desc=">> Sampler weights")):
+        present[i] = np.bincount(np.asarray(Image.open(gt_path)).ravel() // 63, minlength=K)[:K] > 0
+
+    empty = ~present[:, 1:].any(axis=1)
+    weights = np.ones(len(present))
+    for k, w in by_class.items():
+        weights[present[:, k]] = np.maximum(weights[present[:, k]], w)
+    weights[empty] = empty_weight
+
+    # Share of the slices vs. share of the draws, to check the setting does what was intended
+    drawn = lambda mask: weights[mask].sum() / weights.sum()
+    print(f">> Sampler: empty slices {empty.mean():.1%} of the data -> {drawn(empty):.1%} of the draws; "
+          + ", ".join(f"{CLASS_NAMES[k]} {present[:, k].mean():.1%} -> {drawn(present[:, k]):.1%}"
+                      for k in range(1, K)))
+    return torch.from_numpy(weights)
+
+
 def main() -> None:
     from segpipe.config import load_config
 

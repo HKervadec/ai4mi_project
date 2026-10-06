@@ -10,10 +10,10 @@ from shutil import rmtree
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from segpipe import tracking
-from segpipe.data import CLASS_NAMES, K, one_hot
+from segpipe.data import CLASS_NAMES, K, one_hot, slice_weights
 from utils import dice_from_parts, dice_parts, probs2class, probs2one_hot, save_images, tqdm_
 
 
@@ -62,9 +62,15 @@ def train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir
     # No persistent_workers: it would save ~15 s per epoch on macOS, but it draws the worker seed from
     # `generator` only once, so from epoch 1 on the shuffle order would differ from earlier runs of
     # the same seed and new runs would no longer be comparable with them.
+    # train.sampler: draw slices by weight (with replacement) instead of shuffling; the epoch keeps
+    # len(train_set) slices, so epoch length and the per-slice logs below stay the same.
+    sampler = None
+    if tc.get("sampler"):
+        sampler = WeightedRandomSampler(slice_weights(train_set, **tc.sampler), num_samples=len(train_set),
+                                        replacement=True, generator=generator)
     loaders = {
-        "train": DataLoader(train_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=True,
-                            worker_init_fn=seed_worker, generator=generator),
+        "train": DataLoader(train_set, batch_size=tc.batch_size, num_workers=tc.num_workers,
+                            shuffle=sampler is None, sampler=sampler, worker_init_fn=seed_worker, generator=generator),
         "val": DataLoader(val_set, batch_size=tc.batch_size, num_workers=tc.num_workers, shuffle=False),
     }
     logs = {
