@@ -85,8 +85,11 @@ number is cheap to derive.
 
 ### NSD — Normalised Surface Dice (boundary tolerance, [0, 1])
 - **Definition:** the fraction of surface voxels (both directions) whose nearest
-  distance is within a tolerance `τ`. We use `NSD_TAU_MM = 1.0` mm
-  (`segpipe/evaluate.py`).
+  distance is within a tolerance `τ`. We report two tolerances
+  (`segpipe/evaluate.py`): `nsd` at `NSD_TAU_MM = 1.0` mm (strict) and `nsd3` at
+  `NSD3_TAU_MM = 3.0` mm. The GT slice spacing is 2.0 or 2.5 mm, so at 1 mm a
+  surface one slice off in z already counts as wrong; 3 mm forgives a one-slice
+  error for every patient (2 mm would not, for the 2.5 mm volumes).
 - **Interpretation:** "what share of the boundary is good enough?" It reflects
   clinical usability — small sub-tolerance wobbles don't count against you, but
   real deviations do. Higher is better.
@@ -98,7 +101,7 @@ number is cheap to derive.
 Enable the metrics per experiment in the config (`configs/current.yaml`):
 
 ```yaml
-eval: {metrics_3d: [dice, hd, hd95, assd, nsd]}
+eval: {metrics_3d: [dice, hd, hd95, assd, nsd, nsd3]}
 ```
 
 Then:

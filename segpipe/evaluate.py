@@ -39,6 +39,9 @@ _LABEL_VALUES = {k * _LABEL_STEP for k in range(K)}
 
 # Tolerance (mm) for the Normalised Surface Dice.
 NSD_TAU_MM: float = 1.0
+# Looser tolerance for nsd3: the GT slice spacing is 2.0 or 2.5 mm, so at 1 mm a
+# surface one slice off in z already fails; 3 mm forgives a one-slice error.
+NSD3_TAU_MM: float = 3.0
 
 
 def dice(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
@@ -119,12 +122,16 @@ def assd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     return float((d_pg.sum() + d_gp.sum()) / (len(d_pg) + len(d_gp)))
 
 
-def nsd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
+def nsd(pred: np.ndarray, gt: np.ndarray, spacing, tau: float = NSD_TAU_MM) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
         return _empty_score(pred, gt, spacing, worst_distance=False)
-    within = (d_pg <= NSD_TAU_MM).sum() + (d_gp <= NSD_TAU_MM).sum()
+    within = (d_pg <= tau).sum() + (d_gp <= tau).sum()
     return float(within / (len(d_pg) + len(d_gp)))
+
+
+def nsd3(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
+    return nsd(pred, gt, spacing, tau=NSD3_TAU_MM)
 
 
 # name -> fn(pred_mask, gt_mask, spacing) -> float
@@ -134,6 +141,7 @@ METRICS: dict = {
     "hd95": hd95,
     "assd": assd,
     "nsd": nsd,
+    "nsd3": nsd3,
 }
 
 
