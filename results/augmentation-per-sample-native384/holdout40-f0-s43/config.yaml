@@ -38,7 +38,7 @@ augment:
 train:
   epochs: 25
   batch_size: 8
-  seed: 42
+  seed: 43
   num_workers: 5
 eval:
   metrics_3d:
@@ -60,10 +60,11 @@ idea: Same as augmentation-native384, but with an independent augmentation draw 
 experiment: augmentation-per-sample-native384
 _run:
   config_file: configs/experiments/augmentation-per-sample-native384.yaml
-  overrides: []
+  overrides:
+  - train.seed=43
   device: cuda
   debug: false
-  started: '2026-10-05T14:55:10'
+  started: '2026-10-06T08:20:09'
   git:
     commit: a5cca05
     branch: master

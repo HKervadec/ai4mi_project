@@ -7,8 +7,10 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | Experiment | Split | Runs | Owner | 2D val Dice | Δ 2D | 3D Dice | Δ 3D | 3D esophagus | 3D heart | 3D trachea | 3D aorta | Idea |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 | Githa | 0.812 | +0.094 | 0.663 | +0.095 | 0.291 | 0.905 | 0.671 | 0.787 | Data augmentation from Testing-data-augmentation, to compare against current. |
+| augmentation-native384 | holdout40 | 2 | Githa | 0.860 ± 0.001 | +0.071 | 0.861 ± 0.001 | +0.074 | 0.720 ± 0.000 | 0.938 ± 0.005 | 0.875 ± 0.005 | 0.911 ± 0.003 | Combined GPU augmentation (one draw per batch, as augmentation-new-data2.0) on the native 0.98 x 0.98 x 2.0 mm, 384x384 preprocessing with largest_cc post-processing. Compare against spacing_native_384 / post_native_lcc_min_fraction (seeds 42, 43). |
 | augmentation-new-data | holdout40 | 1 | Githa | 0.788 | -0.001 | 0.784 | -0.003 | 0.583 | 0.909 | 0.801 | 0.845 | Data augmentation from Testing-data-augmentation, with new, correct data. |
 | augmentation-new-data2.0 | holdout40 | 1 | Githa | 0.816 | +0.027 | 0.812 | +0.025 | 0.616 | 0.927 | 0.829 | 0.876 | Data augmentation from Testing-data-augmentation, with new, correct data (try 2). Testing on GPU |
+| augmentation-per-sample-native384 | holdout40 | 2 | Githa | 0.864 ± 0.005 | +0.075 | 0.865 ± 0.005 | +0.078 | 0.717 ± 0.015 | 0.943 ± 0.001 | 0.874 ± 0.001 | 0.925 ± 0.004 | Same as augmentation-native384, but with an independent augmentation draw per slice instead of one per batch. |
 | augmentation-preprocessing | holdout | 1 | Githa | 0.724 | +0.006 | 0.721 | +0.152 | 0.429 | 0.923 | 0.731 | 0.801 | Data augmentation from Testing-data-augmentation, with new metrics and preprocessing. |
 | augmentation-snellius | holdout | 1 | Githa | 0.750 | +0.031 | 0.465 | -0.104 | 0.179 | 0.927 | 0.005 | 0.749 | Data augmentation from Testing-data-augmentation, to compare against current. |
 | current | holdout | 3 |  | 0.719 ± 0.078 |  | 0.569 ± 0.124 |  | 0.276 ± 0.205 | 0.874 ± 0.014 | 0.413 ± 0.292 | 0.712 ± 0.031 |  |
@@ -50,8 +52,10 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | Experiment | Split | Runs | HD95 (mm) | Δ HD95 (mm) | ASSD (mm) | Δ ASSD (mm) | NSD@1mm | Δ NSD@1mm |
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |  |  |
+| augmentation-native384 | holdout40 | 2 | 13.87 ± 1.71 | -0.61 | 2.28 ± 0.22 | -0.65 | 0.577 ± 0.004 | +0.138 |
 | augmentation-new-data | holdout40 | 1 | 11.58 | -2.90 | 2.76 | -0.17 | 0.428 | -0.012 |
 | augmentation-new-data2.0 | holdout40 | 1 | 19.52 | +5.04 | 2.97 | +0.04 | 0.483 | +0.043 |
+| augmentation-per-sample-native384 | holdout40 | 2 | 13.07 ± 0.59 | -1.41 | 2.28 ± 0.09 | -0.65 | 0.592 ± 0.007 | +0.152 |
 | augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |  |  |
 | current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |
@@ -90,8 +94,10 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | Experiment | Split | Runs | HD95 esophagus | HD95 heart | HD95 trachea | HD95 aorta |
 |---|---|---|---|---|---|---|
 | augmentation | holdout | 1 |  |  |  |  |
+| augmentation-native384 | holdout40 | 2 | 8.20 ± 0.13 | 16.09 ± 9.21 | 9.94 ± 3.56 | 21.26 ± 1.06 |
 | augmentation-new-data | holdout40 | 1 | 8.68 | 12.21 | 10.24 | 15.20 |
 | augmentation-new-data2.0 | holdout40 | 1 | 12.04 | 30.69 | 9.69 | 25.67 |
+| augmentation-per-sample-native384 | holdout40 | 2 | 8.67 ± 0.13 | 16.39 ± 9.27 | 21.42 ± 11.88 | 5.80 ± 0.37 |
 | augmentation-preprocessing | holdout | 1 | 17.57 | 21.30 | 14.77 | 14.80 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |
 | current | holdout | 3 | 59.80 | 67.00 | 24.94 | 21.62 |
@@ -125,13 +131,24 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | spacing_native_384 | holdout40 | 2 | 39.56 ± 30.24 | 15.70 ± 6.35 | 14.68 ± 0.32 | 14.91 ± 1.70 |
 | window_narrow | holdout40 | 1 | 12.23 | 13.23 | 11.96 | 24.25 |
 
+Post-processing of the stitched 3D predictions: raw vs post-processed scores of the same runs (mean over the 4 organs). Δ = post - raw.
+
+| Experiment | Split | Runs | Post-processing | Dice raw | Dice post | Δ | HD95 (mm) raw | HD95 (mm) post | Δ | ASSD (mm) raw | ASSD (mm) post | Δ | NSD@1mm raw | NSD@1mm post | Δ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| augmentation-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.861 ± 0.001 | 0.863 ± 0.001 | +0.002 | 13.87 ± 1.71 | 8.44 ± 0.00 | -5.43 | 2.28 ± 0.22 | 1.72 ± 0.05 | -0.56 | 0.577 ± 0.004 | 0.585 ± 0.004 | +0.008 |
+| augmentation-per-sample-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.865 ± 0.005 | 0.866 ± 0.006 | +0.001 | 13.07 ± 0.59 | 8.24 ± 0.64 | -4.83 | 2.28 ± 0.09 | 1.67 ± 0.07 | -0.60 | 0.592 ± 0.007 | 0.597 ± 0.007 | +0.005 |
+
 ## Runs
 
 | Experiment | Run | 2D val Dice | 3D Dice | 3D HD95 | Best epoch | Minutes | Commit | Device |
 |---|---|---|---|---|---|---|---|---|
 | augmentation | holdout-f0-s42 | 0.812 | 0.663 |  | 23 / 25 | 429.4 | e974bc0* | mps |
+| augmentation-native384 | holdout40-f0-s42 | 0.861 | 0.862 | 12.16 | 24 / 25 | 160.8 | a5cca05 | cuda |
+| augmentation-native384 | holdout40-f0-s43 | 0.860 | 0.860 | 15.58 | 23 / 25 | 162.3 | a5cca05* | cuda |
 | augmentation-new-data | holdout40-f0-s42 | 0.788 | 0.784 | 11.58 | 24 / 25 | 300.2 | b5f1be1* | cuda |
 | augmentation-new-data2.0 | holdout40-f0-s42 | 0.816 | 0.812 | 19.52 | 23 / 25 | 107.3 | 2c839ab* | cuda |
+| augmentation-per-sample-native384 | holdout40-f0-s42 | 0.859 | 0.860 | 13.66 | 22 / 25 | 230.0 | a5cca05* | cuda |
+| augmentation-per-sample-native384 | holdout40-f0-s43 | 0.869 | 0.869 | 12.48 | 24 / 25 | 231.1 | a5cca05* | cuda |
 | augmentation-preprocessing | holdout-f0-s42 | 0.724 | 0.721 | 17.11 | 23 / 25 | 47.7 | 636a87a* | cuda |
 | augmentation-snellius | holdout-f0-s42 | 0.750 | 0.465 |  | 24 / 25 | 153.8 | e974bc0* | cuda |
 | current | holdout-f0-s42 | 0.621 | 0.622 | 43.34 | 24 / 25 | 129.9 | 6849221* | mps |

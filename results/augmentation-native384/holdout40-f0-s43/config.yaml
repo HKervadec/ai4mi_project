@@ -33,12 +33,11 @@ optimizer:
 scheduler:
   name: none
 augment:
-- name: combined
-  per_sample: true
+- combined
 train:
   epochs: 25
   batch_size: 8
-  seed: 42
+  seed: 43
   num_workers: 5
 eval:
   metrics_3d:
@@ -55,15 +54,17 @@ wandb:
   entity: ai4migroup28
   project: ai4mi-segthor
 owner: Githa
-idea: Same as augmentation-native384, but with an independent augmentation draw per
-  slice instead of one per batch.
-experiment: augmentation-per-sample-native384
+idea: Combined GPU augmentation (one draw per batch, as augmentation-new-data2.0)
+  on the native 0.98 x 0.98 x 2.0 mm, 384x384 preprocessing with largest_cc post-processing.
+  Compare against spacing_native_384 / post_native_lcc_min_fraction (seeds 42, 43).
+experiment: augmentation-native384
 _run:
-  config_file: configs/experiments/augmentation-per-sample-native384.yaml
-  overrides: []
+  config_file: configs/experiments/augmentation-native384.yaml
+  overrides:
+  - train.seed=43
   device: cuda
   debug: false
-  started: '2026-10-05T14:55:10'
+  started: '2026-10-06T08:20:16'
   git:
     commit: a5cca05
     branch: master
