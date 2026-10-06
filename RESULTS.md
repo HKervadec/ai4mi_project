@@ -36,6 +36,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
  |
 | no_resampling | holdout40 | 1 | Elena | 0.772 | -0.017 | 0.767 | -0.020 | 0.597 | 0.875 | 0.782 | 0.816 | Does resampling add value? This run disables the resampling with crop & pad and falls back to legacy resize. Compare it against the baseline (current.yaml, which uses data.target_spacing: [1.95, 1.95, 2.5]). Same GT (segthor_full), split (holdout40), HU window, and seed (42), so the only variable is the resampling method -> the Dice/HD95/NSD difference is the value of resampling.
  |
+| post_aug_native_lcc_skip_esophagus | holdout40 | 1 | Elena | 0.861 | +0.072 | 0.864 | +0.077 | 0.720 | 0.943 | 0.875 | 0.916 | Post-processing only (no training): post_native_lcc_skip_esophagus on augmentation-native384's predictions. Keep only the largest 3D connected component of heart, trachea and aorta; leave the esophagus as predicted. largest_cc with min_fraction 0.1 removed real esophagus pieces there (esophagus HD95 8.2 -> 10.8 mm, Patient_22 ~6-10 -> 24-36 mm in all runs). |
 | post_lcc_min_fraction | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.789 | +0.002 | 0.562 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping per organ every 3D connected component at least 10% the size of the largest one. Plain largest-CC cut the esophagus, which the model predicts as several big fragments along z; the threshold should keep those while still removing the small stray blobs that inflate HD95. |
 | post_lcc_skip_esophagus | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.788 | +0.001 | 0.561 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping only the largest 3D connected component of heart, trachea and aorta, and leaving the esophagus as predicted. Plain largest-CC helped those three but cut the esophagus, which the model predicts as several fragments. |
 | post_native_lcc_min_fraction | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.840 ± 0.012 | +0.053 | 0.666 ± 0.019 | 0.923 ± 0.002 | 0.869 ± 0.014 | 0.900 ± 0.011 | Post-processing only (no training): post_lcc_min_fraction on spacing_native_384's predictions. Per organ, keep every 3D connected component at least 10% the size of the largest one. |
@@ -78,6 +79,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |
 | no_hu_window | holdout40 | 1 | 29.40 | +14.92 | 5.22 | +2.29 | 0.399 | -0.041 |
 | no_resampling | holdout40 | 1 | 18.79 | +4.31 | 3.82 | +0.90 | 0.420 | -0.020 |
+| post_aug_native_lcc_skip_esophagus | holdout40 | 1 | 7.76 | -6.72 | 1.63 | -1.30 | 0.588 | +0.148 |
 | post_lcc_min_fraction | holdout40 | 1 | 11.19 | -3.29 | 2.55 | -0.38 | 0.444 | +0.004 |
 | post_lcc_skip_esophagus | holdout40 | 1 | 11.35 | -3.14 | 2.56 | -0.37 | 0.443 | +0.003 |
 | post_native_lcc_min_fraction | holdout40 | 2 | 12.51 ± 2.15 | -1.97 | 2.44 ± 0.43 | -0.48 | 0.543 ± 0.023 | +0.104 |
@@ -120,6 +122,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | no_hu_window | holdout | 1 | 36.75 | 49.10 | 39.69 | 52.02 |
 | no_hu_window | holdout40 | 1 | 19.31 | 36.19 | 45.68 | 16.43 |
 | no_resampling | holdout40 | 1 | 12.53 | 14.06 | 12.04 | 36.52 |
+| post_aug_native_lcc_skip_esophagus | holdout40 | 1 | 8.07 | 6.57 | 7.08 | 9.35 |
 | post_lcc_min_fraction | holdout40 | 1 | 12.95 | 10.73 | 10.51 | 10.57 |
 | post_lcc_skip_esophagus | holdout40 | 1 | 13.57 | 10.73 | 10.51 | 10.57 |
 | post_native_lcc_min_fraction | holdout40 | 2 | 22.51 ± 8.51 | 8.97 ± 0.18 | 8.24 ± 0.04 | 10.33 ± 0.11 |
@@ -187,6 +190,7 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 | no_hu_window | holdout-f0-s42 | 0.457 | 0.456 | 44.39 | 23 / 25 | 129.0 | 6849221* | mps |
 | no_hu_window | holdout40-f0-s42 | 0.750 | 0.751 | 29.40 | 23 / 25 | 227.7 | 65a53e7* | mps |
 | no_resampling | holdout40-f0-s42 | 0.772 | 0.767 | 18.79 | 21 / 25 | 240.3 | 65a53e7* | mps |
+| post_aug_native_lcc_skip_esophagus | holdout40-f0-s42 | 0.861 | 0.864 | 7.76 | 24 / 25 | 160.8 | e45a22c | cuda |
 | post_lcc_min_fraction | holdout40-f0-s42 | 0.789 | 0.789 | 11.19 | 22 / 25 | 222.2 | b77b794* | mps |
 | post_lcc_skip_esophagus | holdout40-f0-s42 | 0.789 | 0.788 | 11.35 | 22 / 25 | 222.2 | b77b794* | mps |
 | post_native_lcc_min_fraction | holdout40-f0-s42 | 0.848 | 0.851 | 10.36 | 24 / 25 | 571.3 | 65a53e7* | mps |
