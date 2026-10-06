@@ -33,5 +33,7 @@ eval:
   metrics_3d: [dice, hd, hd95, assd, nsd]   # 3D metrics after training (overlap + boundary, in mm); best epoch still chosen on 2D val Dice
   postprocess: [{name: largest_cc, min_fraction: 0.1}]   # e.g. [largest_cc]: also score post-processed volumes (summary.json: metrics_3d_post); raw scores are kept
   
+train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5,
+        early_stopping: {patience: null, min_delta: 0.0}}  # stop after `patience` epochs without val Dice gain > min_delta; null = off
 # Weights & Biases logging: automatic when WANDB_API_KEY is set (env var or .env file). Set the shared names once.
 wandb: {enabled: true, entity: ai4migroup28, project: ai4mi-segthor}
