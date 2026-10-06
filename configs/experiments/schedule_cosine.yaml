@@ -1,0 +1,8 @@
+# Cosine lr decay over the same 25 epochs (no extra compute). With a constant lr, val Dice jumps
+# +-0.02-0.03 between the last epochs and every run peaks at epoch 22-24; decaying the lr to ~0 should
+# let the last epochs settle. It may also slow the late learning, so the gain in Dice is uncertain.
+base: ../current.yaml
+owner: Elena
+idea: "CE with cosine lr decay (5e-4 -> 0 over 25 epochs) on the current pipeline. Only the scheduler differs from augmentation-native384 (seeds 42, 43, constant lr)."
+
+scheduler: {name: cosine}

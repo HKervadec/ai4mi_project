@@ -184,7 +184,13 @@ class ENet(nn.Module):
                 #                          conv_block)
 
                 # Initial operations
-                self.conv0 = nn.Conv2d(in_dim, K - 1, kernel_size=3, stride=2, padding=1)
+                # The initial block concatenates the conv branch with the max-pooled input, and
+                # everything downstream (bottleneck1_0, and the bottleneck5 skip) assumes that
+                # concat is exactly K wide. So the conv branch emits K - in_dim, as in the ENet
+                # paper (13 + 3 RGB channels = 16). in_dim=1 gives K-1, i.e. the 2D behavior;
+                # in_dim>1 is the 2.5D stack (input.context_slices).
+                assert in_dim < K, f"in_dim={in_dim} must be < kernels={K} for the initial block"
+                self.conv0 = nn.Conv2d(in_dim, K - in_dim, kernel_size=3, stride=2, padding=1)
                 self.maxpool0 = nn.MaxPool2d(2, return_indices=False, ceil_mode=False)
 
                 # Downsampling half

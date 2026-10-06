@@ -39,6 +39,9 @@ _LABEL_VALUES = {k * _LABEL_STEP for k in range(K)}
 
 # Tolerance (mm) for the Normalised Surface Dice.
 NSD_TAU_MM: float = 1.0
+# Looser tolerance for nsd3: the GT slice spacing is 2.0 or 2.5 mm, so at 1 mm a
+# surface one slice off in z already fails; 3 mm forgives a one-slice error.
+NSD3_TAU_MM: float = 3.0
 
 
 def dice(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
@@ -63,8 +66,22 @@ def dice(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
 #   hd95 : 95th-percentile Hausdorff -> robust worst-case
 #   assd : average symmetric surface distance -> mean boundary error
 #   nsd  : Normalised Surface Dice at NSD_TAU_MM -> fraction of surface within tau
-# All return NaN when the class is absent from pred or gt (boundary undefined).
+# When the class is absent from both pred and gt the boundary is undefined -> NaN,
+# so the organ is left out of the nanmean. When it is absent from only one of them
+# (a missed organ, or an organ predicted that is not there) the score is the worst
+# case: the volume's diagonal in mm for the distances, 0 for NSD. Returning NaN
+# there would drop the failure from the mean and make a missed organ look better
+# than a badly segmented one.
 # ---------------------------------------------------------------------------
+
+def _empty_score(pred: np.ndarray, gt: np.ndarray, spacing, worst_distance: bool) -> float:
+    """Score for a class with an empty surface in pred and/or gt (see the note above)."""
+    if not pred.any() and not gt.any():
+        return float("nan")
+    if not worst_distance:
+        return 0.0
+    return float(np.linalg.norm(np.asarray(gt.shape) * np.asarray(spacing, dtype=np.float64)))
+
 
 def _surface_distances(pred: np.ndarray, gt: np.ndarray, spacing):
     """Symmetric nearest-surface distances (mm) between two binary masks.
@@ -87,30 +104,34 @@ def _surface_distances(pred: np.ndarray, gt: np.ndarray, spacing):
 def hd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
+        return _empty_score(pred, gt, spacing, worst_distance=True)
     return float(max(d_pg.max(), d_gp.max()))
 
 
 def hd95(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
+        return _empty_score(pred, gt, spacing, worst_distance=True)
     return float(max(np.percentile(d_pg, 95), np.percentile(d_gp, 95)))
 
 
 def assd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
+        return _empty_score(pred, gt, spacing, worst_distance=True)
     return float((d_pg.sum() + d_gp.sum()) / (len(d_pg) + len(d_gp)))
 
 
-def nsd(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
+def nsd(pred: np.ndarray, gt: np.ndarray, spacing, tau: float = NSD_TAU_MM) -> float:
     d_pg, d_gp = _surface_distances(pred, gt, spacing)
     if d_pg is None:
-        return float("nan")
-    within = (d_pg <= NSD_TAU_MM).sum() + (d_gp <= NSD_TAU_MM).sum()
+        return _empty_score(pred, gt, spacing, worst_distance=False)
+    within = (d_pg <= tau).sum() + (d_gp <= tau).sum()
     return float(within / (len(d_pg) + len(d_gp)))
+
+
+def nsd3(pred: np.ndarray, gt: np.ndarray, spacing) -> float:
+    return nsd(pred, gt, spacing, tau=NSD3_TAU_MM)
 
 
 # name -> fn(pred_mask, gt_mask, spacing) -> float
@@ -120,6 +141,7 @@ METRICS: dict = {
     "hd95": hd95,
     "assd": assd,
     "nsd": nsd,
+    "nsd3": nsd3,
 }
 
 
@@ -161,18 +183,30 @@ def stitch_to_native(images: list[Path], idxes: list[int],
     return np.rint(out).astype(np.int16)
 
 
-def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names) -> dict:
-    """Reconstruct best_epoch/val onto the native grid and score against the GT volumes."""
+def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names, postprocess=None,
+                raw: bool = True) -> dict:
+    """Reconstruct best_epoch/val onto the native grid and score against the GT volumes.
+
+    Returns {"metrics_3d": ...}. With a ``postprocess`` callable (segpipe.postprocess.build_postprocess)
+    the post-processed volumes are scored too, as {"metrics_3d_post": ...}; the raw scores are unchanged.
+    raw=False (post-processing experiments, postprocess_run.py) scores only the post-processed volumes,
+    and reports them as "metrics_3d".
+    """
     for name in metric_names:
         if name not in METRICS:
             raise KeyError(f"unknown metric '{name}'. Known: {sorted(METRICS)}")
+    assert raw or postprocess is not None, "raw=False needs a postprocess"
 
     images = sorted((run_dir / "best_epoch" / "val").glob("*.png"))
-    volume_dir = run_dir / "volumes" / "val"
-    volume_dir.mkdir(parents=True, exist_ok=True)
+    # suffix -> (volume folder, post-processing or None)
+    variants = {"": (run_dir / "volumes" / "val", None if raw else postprocess)}
+    if raw and postprocess is not None:
+        variants["_post"] = (run_dir / "volumes" / "val_post", postprocess)
+    for volume_dir, _ in variants.values():
+        volume_dir.mkdir(parents=True, exist_ok=True)
     source_pattern = str(Path(cfg.data.gt) / "train" / "{id_}" / "GT.nii.gz")
 
-    scores = {name: {} for name in metric_names}  # metric -> patient -> K values
+    scores = {suffix: {name: {} for name in metric_names} for suffix in variants}  # -> metric -> patient -> K values
     for pid in patient_ids:
         idxes = [i for i, p in enumerate(images) if p.stem.rsplit("_", 1)[0] == pid]
         gt_nib = nib.load(source_pattern.format(id_=pid))
@@ -181,21 +215,29 @@ def evaluate_3d(run_dir: Path, cfg, patient_ids: list[str], metric_names) -> dic
 
         pred = stitch_to_native(images, idxes, gt.shape, spacing, cfg)
         assert pred.shape == gt.shape, (pred.shape, gt.shape)
-        nib.save(nib.nifti1.Nifti1Image(pred, affine=gt_nib.affine, header=gt_nib.header),
-                 str(volume_dir / f"{pid}.nii.gz"))
+        for suffix, (volume_dir, step) in variants.items():
+            volume = pred if step is None else step(pred, spacing)
+            nib.save(nib.nifti1.Nifti1Image(volume, affine=gt_nib.affine, header=gt_nib.header),
+                     str(volume_dir / f"{pid}.nii.gz"))
+            for name in metric_names:
+                scores[suffix][name][pid] = np.array([METRICS[name](volume == k, gt == k, spacing)
+                                                      for k in range(K)])
 
-        for name in metric_names:
-            scores[name][pid] = np.array([METRICS[name](pred == k, gt == k, spacing) for k in range(K)])
+    return {f"metrics_3d{suffix}": _summarise(scores[suffix], run_dir / f"metrics_3d{suffix}")
+            for suffix in variants}
 
-    out_dir = run_dir / "metrics_3d"
+
+def _summarise(scores: dict, out_dir: Path) -> dict:
+    """metric -> patient -> K values: save them as npz and reduce to mean / per class / per patient."""
     out_dir.mkdir(exist_ok=True)
     summary = {}
     for name, per_patient in scores.items():
         np.savez(out_dir / f"{name}.npz", **per_patient)  # patient -> K values
         table = np.stack(list(per_patient.values()))  # patients x K; averages leave out the background
-        # nanmean: boundary metrics are NaN for organs absent in a patient, so a
-        # single missing organ must not poison the mean (no-op for dice, which
-        # never returns NaN).
+        # nanmean: boundary metrics are NaN only for organs absent from both the
+        # prediction and the GT of a patient, which must not poison the mean
+        # (no-op for dice, which never returns NaN). A missed organ is scored as
+        # the worst case, not NaN, so it does count.
         summary[name] = {
             "mean": round(float(np.nanmean(table[:, 1:])), 4),
             "per_class": {CLASS_NAMES[k]: round(float(np.nanmean(table[:, k])), 4) for k in range(1, K)},

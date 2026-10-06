@@ -19,6 +19,8 @@ from segpipe.losses import build_loss
 from segpipe.optim import build_optimizer, build_scheduler
 from segpipe.train import pick_device, seed_everything, train
 from segpipe.evaluate import evaluate_3d
+from segpipe.postprocess import build_postprocess
+from segpipe import tracking
 
 
 def git_info() -> dict:
@@ -30,6 +32,17 @@ def git_info() -> dict:
     status = git("status", "--porcelain")
     return {"commit": git("rev-parse", "--short", "HEAD"), "branch": git("rev-parse", "--abbrev-ref", "HEAD"),
             "dirty": bool(status) if status is not None else None}
+
+
+def _flat(d: dict, prefix: str = "") -> dict:
+    """Flatten nested summary dicts to 'a/b' keys for W&B."""
+    out = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            out.update(_flat(v, f"{prefix}{k}/"))
+        else:
+            out[f"{prefix}{k}"] = v
+    return out
 
 
 def main() -> None:
@@ -55,6 +68,7 @@ def main() -> None:
                 "started": datetime.now().isoformat(timespec="seconds"), "git": git_info()}
     save_config({**cfg.to_dict(), "_run": run_info}, run_dir / "config.yaml")
     print(f">>> Experiment '{cfg.experiment}' -> {run_dir} on {device}")
+    tracking.init(cfg, run_dir, run_name, run_info, args.debug)
 
     build_cache(cfg)
     train_ids, val_ids = load_split(cfg.data.split, cfg.data.fold)
@@ -65,10 +79,12 @@ def main() -> None:
     optimizer = build_optimizer(model, cfg.optimizer)
     scheduler = build_scheduler(optimizer, cfg.get("scheduler"), cfg.train.epochs)
 
-    train_set = SliceDataset(cfg, train_ids, augment=build_augment(cfg.get("augment")), debug=args.debug)
+    # augmentation is applied per batch on the GPU inside train(), not in the dataset workers
+    train_set = SliceDataset(cfg, train_ids, augment=None, debug=args.debug)
     val_set = SliceDataset(cfg, val_ids, debug=args.debug)
+    gpu_augmenter = build_augment(cfg.get("augment"))
 
-    train_summary = train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir, device)
+    train_summary = train(model, loss_fn, optimizer, scheduler, train_set, val_set, cfg, run_dir, device, gpu_augment=gpu_augmenter)
 
     summary = {
         "experiment": cfg.experiment, "run": run_name,
@@ -79,16 +95,21 @@ def main() -> None:
     }
 
     metrics_3d = cfg.get("eval", {}).get("metrics_3d") or []
+    postprocess = cfg.get("eval", {}).get("postprocess") or []
     if args.debug or train_summary["best_epoch"] < 0 or not metrics_3d:
         print(">> Skipping 3D evaluation (debug run, no best epoch, or no eval.metrics_3d)")
     else:
         print(f">> 3D evaluation ({', '.join(metrics_3d)}) of best_epoch/val")
-        summary["metrics_3d"] = evaluate_3d(run_dir, cfg, val_ids, metrics_3d)
+        summary.update(evaluate_3d(run_dir, cfg, val_ids, metrics_3d, build_postprocess(postprocess)))
+        if postprocess:
+            summary["postprocess"] = postprocess
 
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
+    tracking.finish(_flat(summary), run_dir)
     print(f">>> Best 2D val Dice {summary['val_dice_2d']} at epoch {summary['best_epoch']}")
-    for name, m in summary.get("metrics_3d", {}).items():
-        print(f">>> 3D {name}: {m['mean']}")
+    for key in ("metrics_3d", "metrics_3d_post"):
+        for name, m in summary.get(key, {}).items():
+            print(f">>> 3D {name}{' (post)' if key.endswith('post') else ''}: {m['mean']}")
     print(f">>> Done: {run_dir / 'summary.json'}  (then: python compare.py)")
 
 

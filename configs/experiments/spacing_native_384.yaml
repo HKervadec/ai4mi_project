@@ -1,0 +1,15 @@
+# Native in-plane resolution, on top of `current` (which resamples to 1.95 x 1.95 x 2.5 mm, 256x256).
+# At 1.95 mm the thin esophagus and the trachea lose detail: pushing the GT itself through the
+# slicing + stitching round-trip caps esophagus Dice at 0.922 (trachea 0.938); at 0.98 x 0.98 x 2.0 mm
+# the round-trip is lossless. z = 2.0 mm keeps every slice of the 2.0 mm patients (2.5 mm drops some,
+# and a 2D model gains nothing from a common slice thickness).
+# 384x384 at 0.98 mm = 375 mm field of view; the organs of all 40 patients lie within 146.5 mm of
+# the image centre (300 px), so the crop keeps every organ with ~40 mm margin, at 2.25x the pixels.
+# Compare against `current` and against `spacing_1.5_256` (same pixel count as current).
+base: ../current.yaml
+owner: Elena
+idea: "Native in-plane resolution: resample to 0.98 x 0.98 x 2.0 mm and center crop to 384x384 (vs 1.95 x 1.95 x 2.5 mm, 256x256), to see the thin esophagus and trachea better."
+
+data:
+  target_spacing: [0.98, 0.98, 2.0]
+  shape: [384, 384]

@@ -5,11 +5,40 @@ import torch
 import torchvision.transforms.functional as TF
 import torchvision.transforms as T
 
+
+def per_slice(op, img, factor):
+    """Apply an intensity op to every channel on its own.
+
+    torchvision's intensity ops only accept 1- or 3-channel images, and a 2.5D stack
+    (input.context_slices > 0) is neither a grayscale slice nor an RGB image. Treating each
+    channel as its own grayscale slice keeps them usable, and for the plain 2D case (1 channel)
+    it is exactly what they did before.
+
+    Works on a batch [B, C, H, W]: each channel is passed as a [B, 1, H, W] batch of grayscale
+    slices, so the per-image statistics (e.g. contrast mean) are unchanged.
+    """
+    return torch.cat([op(img[:, c:c + 1], factor) for c in range(img.shape[1])], dim=1)
+
+
 class Combined:
-    # affine, roll (SULBA), elastic, brightness, contrast (from branch Testing-data-augmentation).
-    # Draws all randomness from the per-worker `rng` seeded in run.py, so augmentation
+    # affine, roll, elastic, brightness, contrast (from branch Testing-data-augmentation).
+    # Draws all randomness from `rng` (seeded from train.seed in train.py), so augmentation
     # is reproducible for a given train.seed.
+    # Default: one random draw per batch, so every slice in a batch gets the same transform.
+    # per_sample=True: an independent draw for every slice in the batch (separate experiment).
+    def __init__(self, per_sample: bool = False):
+        self.per_sample = per_sample
+
     def __call__(self, img, gt, rng):
+        if not self.per_sample:
+            return self._apply(img, gt, rng)
+        pairs = [self._apply(img[b:b + 1], gt[b:b + 1], rng) for b in range(img.shape[0])]
+        return torch.cat([i for i, _ in pairs]), torch.cat([g for _, g in pairs])
+
+    def _apply(self, img, gt, rng):
+        # img is now [Batch, Channels, Height, Width]
+        # gt is now [Batch, Classes, Height, Width]
+        
         # spatial transforms are applied to both image and ground truth
         if rng.random() > 0.5:
             # rotating and scaling
@@ -20,27 +49,24 @@ class Combined:
             gt = TF.affine(gt, angle=angle, translate=[0, 0], scale=scale, shear=0, interpolation=TF.InterpolationMode.NEAREST)
 
             # make sure that the ground truth is not empty after the transformation
-            empty_pixels = gt.sum(dim=0) == 0
-            gt[0, empty_pixels] = 1
+            empty_pixels = gt.sum(dim=1) == 0
+            gt[:, 0][empty_pixels] = 1
 
-        # adding SULBA (Stepwise Upper and Lowe Boundaries Augmentation)
+        # adding random roll
         if rng.random() > 0.5:
             # get image dimensions
-            _, W, H = img.shape
+            B, C, H, W = img.shape
 
             # pick a random shift amount (up to 25% of the image size)
             shift_w = int(rng.integers(-W // 4, W // 4 + 1))
             shift_h = int(rng.integers(-H // 4, H // 4 + 1))
 
-            # roll the image and ground truth
-            img = torch.roll(img, shifts=(shift_w, shift_h), dims=(1, 2))
-            gt = torch.roll(gt, shifts=(shift_w, shift_h), dims=(1, 2))
+            # roll the image and ground truth (using -2 and -1 to always target H and W)
+            img = torch.roll(img, shifts=(shift_h, shift_w), dims=(-2, -1))
+            gt = torch.roll(gt, shifts=(shift_h, shift_w), dims=(-2, -1))
 
         # adding elastic deformation
         if rng.random() > 0.5:
-            # ElasticTransform samples its displacement field from torch's global RNG
-            # and gives no generator hook, so we seed it deterministically from `rng`
-            # and reuse the same seed for image and GT to keep their geometry aligned.
             seed = int(rng.integers(0, 2 ** 31))
 
             # apply to image
@@ -54,19 +80,19 @@ class Combined:
             gt = elastic_transform_gt(gt)
 
             # make sure that the ground truth is not empty after the transformation
-            empty_pixels = gt.sum(dim=0) == 0
-            gt[0, empty_pixels] = 1
+            empty_pixels = gt.sum(dim=1) == 0
+            gt[:, 0][empty_pixels] = 1
 
         # intensity transforms are applied only to the image
         if rng.random() > 0.5:
             # adjust brightness
             brightness_factor = float(rng.uniform(0.8, 1.2))
-            img = TF.adjust_brightness(img, brightness_factor)
+            img = per_slice(TF.adjust_brightness, img, brightness_factor)
 
         if rng.random() > 0.5:
             # adjust contrast
             contrast_factor = float(rng.uniform(0.8, 1.2))
-            img = TF.adjust_contrast(img, contrast_factor)
+            img = per_slice(TF.adjust_contrast, img, contrast_factor)
 
         return img, gt
 

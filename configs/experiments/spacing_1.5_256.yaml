@@ -1,0 +1,12 @@
+# Finer resolution at the same cost as `current`: 1.5 mm in-plane instead of 1.95 mm, still 256x256
+# pixels, so the difference with `current` is the resolution, not extra compute.
+# 256x256 at 1.5 mm = 384 mm field of view; the organs of all 40 patients lie within 146.5 mm of the
+# image centre (293 mm), so no organ is cropped. z = 2.0 mm keeps every slice of the 2.0 mm patients.
+# GT round-trip ceiling at 1.5 x 1.5 x 2.5 mm: esophagus Dice 0.944, trachea 0.953 (current: 0.922, 0.938).
+# Compare against `current` and `spacing_native_384` (native resolution, 2.25x the pixels).
+base: ../current.yaml
+owner: Elena
+idea: "Finer resolution at equal cost: resample to 1.5 x 1.5 x 2.0 mm, center crop to 256x256 (vs 1.95 x 1.95 x 2.5 mm), to separate the effect of resolution from compute."
+
+data:
+  target_spacing: [1.5, 1.5, 2.0]

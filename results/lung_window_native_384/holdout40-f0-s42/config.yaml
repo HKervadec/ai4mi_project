@@ -1,0 +1,69 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows:
+  - - -600
+    - 1500
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess: []
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: Lung window [-600, 1500] as a 2nd input channel, at native resolution (0.98
+  x 0.98 x 2.0 mm, 384x384).
+experiment: lung_window_native_384
+_run:
+  config_file: configs/experiments/lung_window_native_384.yaml
+  overrides:
+  - train.seed=42
+  device: mps
+  debug: false
+  started: '2026-10-04T09:45:47'
+  git:
+    commit: 65a53e7
+    branch: master
+    dirty: true

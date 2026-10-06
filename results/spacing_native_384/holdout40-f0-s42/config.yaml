@@ -1,0 +1,67 @@
+data:
+  extra_windows: []
+  fold: 0
+  gt: data/segthor_full
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2
+  window:
+  - 40
+  - 400
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    factor: 2
+    kernels: 8
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  betas:
+  - 0.9
+  - 0.999
+  lr: 0.0005
+  name: adam
+scheduler:
+  name: none
+augment: []
+train:
+  batch_size: 8
+  epochs: 25
+  num_workers: 5
+  seed: 42
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess: []
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Native in-plane resolution: resample to 0.98 x 0.98 x 2.0 mm and center crop
+  to 384x384 (vs 1.95 x 1.95 x 2.5 mm, 256x256), to see the thin esophagus and trachea
+  better.'
+experiment: spacing_native_384
+_run:
+  config_file: configs/experiments/spacing_native_384.yaml
+  debug: false
+  device: mps
+  git:
+    branch: master
+    commit: 65a53e7
+    dirty: true
+  overrides: []
+  started: 2026-10-02 05:50:02

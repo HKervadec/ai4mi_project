@@ -1,0 +1,62 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  target_spacing:
+  - 1.95
+  - 1.95
+  - 2.5
+  shape:
+  - 256
+  - 256
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 1
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 1
+  batch_size: 8
+  seed: 42
+  num_workers: 0
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+owner: David
+idea: '2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 ->
+  ENet), everything else as current'
+experiment: enet_25d
+_run:
+  config_file: configs/experiments/enet_25d.yaml
+  overrides:
+  - train.epochs=1
+  - train.num_workers=0
+  device: cpu
+  debug: true
+  started: '2026-09-30T10:14:07'
+  git:
+    commit: 16cc381
+    branch: master
+    dirty: true

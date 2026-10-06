@@ -79,13 +79,13 @@ def build_report(runs: list[dict]) -> str:
     # 3D boundary metrics (only shown if any run has them): HD95 / ASSD in mm
     # (lower is better), NSD as a fraction (higher is better). digits: 2 for the
     # mm distances, 3 for the NSD fraction.
-    boundary = [("hd95", "HD95 (mm)", 2), ("assd", "ASSD (mm)", 2), ("nsd", "NSD@1mm", 3)]
+    boundary = [("hd95", "HD95 (mm)", 2), ("assd", "ASSD (mm)", 2), ("nsd", "NSD@1mm", 3), ("nsd3", "NSD@3mm", 3)]
     if any(metric_3d(s, name) is not None for s in runs for name, _, _ in boundary):
         header = ["Experiment", "Split", "Runs"]
         for _, label, _ in boundary:
             header += [label, f"Δ {label}"]
         lines += ["", "3D boundary metrics at the best epoch, mean over the 4 organs (± std over runs). "
-                  "HD95/ASSD are in mm (lower is better); NSD is a fraction within 1 mm (higher is better). "
+                  "HD95/ASSD are in mm (lower is better); NSD is the fraction of surface within 1 or 3 mm (higher is better). "
                   "Δ is against `current` on the same split.", "",
                   "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
         for key in sorted(groups):
@@ -107,6 +107,34 @@ def build_report(runs: list[dict]) -> str:
             members = groups[key]
             cells = [experiment, split, str(len(members))]
             cells += [fmt([metric_3d(s, "hd95", o) for s in members], 2) for o in ORGANS]
+            lines.append("| " + " | ".join(cells) + " |")
+
+    # Post-processing (eval.postprocess / eval_run.py --postprocess): the same predictions
+    # scored raw and post-processed, so Δ is the effect of the post-processing alone.
+    def post_3d(s, name):
+        m = s.get("metrics_3d_post", {}).get(name)
+        return None if m is None else m["mean"]
+
+    post_groups = {key: [s for s in members if "metrics_3d_post" in s] for key, members in groups.items()}
+    post_groups = {key: members for key, members in post_groups.items() if members}
+    if post_groups:
+        post_metrics = [("dice", "Dice", 3), ("hd95", "HD95 (mm)", 2), ("assd", "ASSD (mm)", 2), ("nsd", "NSD@1mm", 3), ("nsd3", "NSD@3mm", 3)]
+        header = ["Experiment", "Split", "Runs", "Post-processing"]
+        for _, label, _ in post_metrics:
+            header += [f"{label} raw", f"{label} post", "Δ"]
+        lines += ["", "Post-processing of the stitched 3D predictions: raw vs post-processed scores of the "
+                  "same runs (mean over the 4 organs). Δ = post - raw.", "",
+                  "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+        for key in sorted(post_groups):
+            experiment, split = key
+            members = post_groups[key]
+            cells = [experiment, split, str(len(members)), ", ".join(map(str, members[0].get("postprocess") or []))]
+            for name, _, digits in post_metrics:
+                raw = [metric_3d(s, name) for s in members]
+                post = [post_3d(s, name) for s in members]
+                pairs = [(r, p) for r, p in zip(raw, post) if r is not None and p is not None]
+                cells += [fmt(raw, digits), fmt(post, digits),
+                          f"{np.mean([p - r for r, p in pairs]):+.{digits}f}" if pairs else ""]
             lines.append("| " + " | ".join(cells) + " |")
 
     header = ["Experiment", "Run", "2D val Dice", "3D Dice", "3D HD95", "Best epoch", "Minutes", "Commit", "Device"]

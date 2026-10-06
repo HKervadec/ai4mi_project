@@ -1,0 +1,67 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 1.5
+  - 1.5
+  - 2.0
+  shape:
+  - 256
+  - 256
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess: []
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Finer resolution at equal cost: resample to 1.5 x 1.5 x 2.0 mm, center crop
+  to 256x256 (vs 1.95 x 1.95 x 2.5 mm), to separate the effect of resolution from
+  compute.'
+experiment: spacing_1.5_256
+_run:
+  config_file: configs/experiments/spacing_1.5_256.yaml
+  overrides: []
+  device: mps
+  debug: true
+  started: '2026-10-01T01:11:18'
+  git:
+    commit: 65a53e7
+    branch: master
+    dirty: true

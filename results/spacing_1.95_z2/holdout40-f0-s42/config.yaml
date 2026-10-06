@@ -1,0 +1,67 @@
+data:
+  extra_windows: []
+  fold: 0
+  gt: data/segthor_full
+  shape:
+  - 256
+  - 256
+  split: holdout40
+  target_spacing:
+  - 1.95
+  - 1.95
+  - 2
+  window:
+  - 40
+  - 400
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    factor: 2
+    kernels: 8
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  betas:
+  - 0.9
+  - 0.999
+  lr: 0.0005
+  name: adam
+scheduler:
+  name: none
+augment: []
+train:
+  batch_size: 8
+  epochs: 25
+  num_workers: 5
+  seed: 42
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess: []
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Slice thickness only: resample z to 2.0 mm instead of 2.5 mm, in-plane unchanged
+  (1.95 mm, 256x256), to separate the z effect from the in-plane resolution in the
+  spacing experiments.'
+experiment: spacing_1.95_z2
+_run:
+  config_file: configs/experiments/spacing_1.95_z2.yaml
+  debug: false
+  device: mps
+  git:
+    branch: master
+    commit: 65a53e7
+    dirty: true
+  overrides: []
+  started: 2026-10-01 10:43:58

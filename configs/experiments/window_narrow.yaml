@@ -1,0 +1,11 @@
+# Narrower soft-tissue window, on top of `current` (mediastinal window level 40, width 400 -> [-160, 240] HU).
+# Level 40, width 300 -> [-110, 190] HU: the same 256 grey levels spread over 300 instead of 400 HU,
+# so ~33% more contrast between the esophagus wall (~20-60 HU) and the surrounding fat (~-100 HU),
+# which is still just inside the window. Air (trachea lumen, lungs) stays clipped to 0 as before.
+# Only the intensity mapping changes, so the difference with `current` is the value of the extra contrast.
+base: ../current.yaml
+owner: Elena
+idea: "Narrower soft-tissue window [40, 300] instead of [40, 400], for more contrast between the esophagus and the surrounding fat."
+
+data:
+  window: [40, 300]

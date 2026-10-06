@@ -1,0 +1,7 @@
+base: ../current.yaml
+owner: David
+idea: "Train up to 50 epochs (vs 25) with early stopping on 2D val Dice, to see if current is under-trained."
+
+train:
+  epochs: 50
+  early_stopping: {patience: 10, min_delta: 0.001}

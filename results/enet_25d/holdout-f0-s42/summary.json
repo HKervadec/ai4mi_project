@@ -1,0 +1,69 @@
+{
+  "experiment": "enet_25d",
+  "run": "holdout-f0-s42",
+  "owner": "David",
+  "idea": "2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 42,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "a1ea44e",
+    "branch": "2.5D",
+    "dirty": true
+  },
+  "best_epoch": 21,
+  "val_dice_2d": 0.7768,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.6465,
+    "heart": 0.9101,
+    "trachea": 0.7137,
+    "aorta": 0.8368
+  },
+  "train_minutes": 56.8,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.5039,
+      "per_class": {
+        "esophagus": 0.4005,
+        "heart": 0.8747,
+        "trachea": 0.0,
+        "aorta": 0.7403
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.3862,
+          "heart": 0.9186,
+          "trachea": 0.0,
+          "aorta": 0.8345
+        },
+        "Patient_11": {
+          "esophagus": 0.393,
+          "heart": 0.881,
+          "trachea": 0.0,
+          "aorta": 0.7431
+        },
+        "Patient_15": {
+          "esophagus": 0.3423,
+          "heart": 0.9021,
+          "trachea": 0.0,
+          "aorta": 0.57
+        },
+        "Patient_17": {
+          "esophagus": 0.468,
+          "heart": 0.7809,
+          "trachea": 0.0,
+          "aorta": 0.779
+        },
+        "Patient_19": {
+          "esophagus": 0.4132,
+          "heart": 0.8909,
+          "trachea": 0.0,
+          "aorta": 0.7751
+        }
+      }
+    }
+  }
+}

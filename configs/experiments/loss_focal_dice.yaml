@@ -1,0 +1,9 @@
+base: ../current.yaml
+owner: Puck
+idea: "Focal (gamma 2) + Dice (organs only). Compare against loss_ce_dice: only the pixel term differs (focal instead of CE)."
+
+loss:
+  name: focal_dice
+  gamma: 2.0
+  dice_weight: 1.0
+  include_background: false

@@ -1,0 +1,6 @@
+base: ../current.yaml
+owner: Puck
+idea: "Cross-entropy baseline with full 40-patient data, HU windowing and voxel-spacing resampling."
+
+loss:
+  name: ce

@@ -1,0 +1,9 @@
+base: ../current.yaml
+owner: Britt
+idea: "CE plus boundary penalty (L1 between Sobel edge maps) per organ, so boundaries between touching organs count, weight 0.1."
+
+# Only the boundary regularizer changes; weight scales its contribution to the CE loss.
+regularizers:
+  - name: boundary
+    per_class: true
+    weight: 0.1
