@@ -41,6 +41,7 @@ from torch.utils.data import DataLoader
 from functools import partial 
 
 from dataset import SliceDataset
+from data_augmentation import RandomAffinePair
 from ShallowNet import shallowCNN
 from ENet import ENet
 from utils import (Dcm,
@@ -60,14 +61,19 @@ datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2, 'kernels': 8, 'fac
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 
-def img_transform(img):
+def img_transform(img, augmentation=None):
         img = img.convert('L')
+        if augmentation is not None:
+            img = augmentation.transform_image(img)
         img = np.array(img)[np.newaxis, ...]
         img = img / 255  # max <= 1
         img = torch.tensor(img, dtype=torch.float32)
         return img
 
-def gt_transform(K, img):
+def gt_transform(K, img, augmentation=None):
+        img = img.convert('L')
+        if augmentation is not None:
+            img = augmentation.transform_mask(img)
         img = np.array(img)[...]
         # The idea is that the classes are mapped to {0, 255} for binary cases
         # {0, 85, 170, 255} for 4 classes
@@ -104,12 +110,22 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     B: int = datasets_params[args.dataset]['B']
     root_dir = args.data_root / args.dataset
 
+    # Select mild or strong augmentation for training or no augmentation at all
+    augmentation = None
+    if args.augmentation == 'mild':
+        augmentation = RandomAffinePair()
+    elif args.augmentation == 'strong':
+        augmentation = RandomAffinePair(
+            degrees=10,
+            translate_fraction=0.05,
+            scale_range=(0.9, 1.1),
+        )
 
 
     train_set = SliceDataset('train',
                              root_dir,
-                             img_transform=img_transform,
-                             gt_transform= partial(gt_transform, K),
+                             img_transform=partial(img_transform, augmentation=augmentation),
+                             gt_transform=partial(gt_transform, K, augmentation=augmentation),
                              debug=args.debug)
     train_loader = DataLoader(train_set,
                               batch_size=B,
@@ -251,6 +267,9 @@ def main():
                         help="Parent directory containing the selected dataset directory.")
     parser.add_argument('--workers', default=5, type=int,
                         help="Number of DataLoader worker processes.")
+    parser.add_argument('--augmentation', default='none',
+                        choices=['none', 'mild', 'strong'],
+                        help="Online affine augmentation profile for training slices.")
     parser.add_argument('--seed', default=0, type=int,
                         help="Random seed for reproducible model initialization and shuffling.")
 
