@@ -20,6 +20,17 @@ def per_slice(op, img, factor):
     return torch.cat([op(img[:, c:c + 1], factor) for c in range(img.shape[1])], dim=1)
 
 
+def fill_background(gt):
+    """Mark GT pixels without any class (moved in from outside the image) as background.
+
+    torch.where instead of a boolean-mask assignment (gt[:, 0][empty] = 1), which crashes at
+    random on MPS with older torch versions.
+    """
+    empty_pixels = gt.sum(dim=1) == 0
+    background = torch.where(empty_pixels, torch.ones_like(gt[:, 0]), gt[:, 0])
+    return torch.cat([background[:, None], gt[:, 1:]], dim=1)
+
+
 class Combined:
     # affine, roll, elastic, brightness, contrast (from branch Testing-data-augmentation).
     # Draws all randomness from `rng` (seeded from train.seed in train.py), so augmentation
@@ -49,8 +60,7 @@ class Combined:
             gt = TF.affine(gt, angle=angle, translate=[0, 0], scale=scale, shear=0, interpolation=TF.InterpolationMode.NEAREST)
 
             # make sure that the ground truth is not empty after the transformation
-            empty_pixels = gt.sum(dim=1) == 0
-            gt[:, 0][empty_pixels] = 1
+            gt = fill_background(gt)
 
         # adding random roll
         if rng.random() > 0.5:
@@ -74,14 +84,16 @@ class Combined:
             elastic_transform = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.BILINEAR)
             img = elastic_transform(img)
 
-            # apply to ground truth
+            # apply the same displacement (same seed) to the ground truth, with fill=None: torchvision's
+            # fill does a boolean-mask assignment that crashes at random on MPS with older torch
+            # versions ("shape mismatch: value tensor of shape [...]"). Pixels from outside the
+            # image become 0 either way, and fill_background below makes them background.
             torch.manual_seed(seed)
-            elastic_transform_gt = T.ElasticTransform(alpha=35.0, sigma=5.0, interpolation=TF.InterpolationMode.NEAREST)
-            gt = elastic_transform_gt(gt)
+            displacement = T.ElasticTransform.get_params([35.0, 35.0], [5.0, 5.0], list(gt.shape[-2:]))
+            gt = TF.elastic_transform(gt, displacement, TF.InterpolationMode.NEAREST, fill=None)
 
             # make sure that the ground truth is not empty after the transformation
-            empty_pixels = gt.sum(dim=1) == 0
-            gt[:, 0][empty_pixels] = 1
+            gt = fill_background(gt)
 
         # intensity transforms are applied only to the image
         if rng.random() > 0.5:
