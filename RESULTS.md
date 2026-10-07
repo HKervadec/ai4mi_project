@@ -31,6 +31,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2_2layer | holdout | 3 | Junis | 0.772 ± 0.062 | +0.053 | 0.573 ± 0.146 | +0.004 | 0.272 ± 0.206 | 0.891 ± 0.008 | 0.437 ± 0.312 | 0.693 ± 0.068 | combines the two individual wins: stage2 placement + 2 stacked transformer layers |
 | enet_tf_stage2_nores | holdout | 3 |  | 0.809 ± 0.002 | +0.090 | 0.666 ± 0.013 | +0.098 | 0.402 ± 0.041 | 0.889 ± 0.008 | 0.667 ± 0.021 | 0.707 ± 0.004 | transformer earlier, end of stage2 (H/8, K*8 channels) |
 | full_data_baseline | holdout40 | 1 | Elena | 0.709 | -0.080 | 0.703 | -0.084 | 0.468 | 0.840 | 0.786 | 0.720 | Starter-code baseline on the full 40-patient data: no HU window, no resampling, ENet + CE + Adam, no augmentation. |
+| loss_ce_dice | holdout40 | 1 | Puck | 0.873 | +0.083 | 0.873 | +0.086 | 0.761 | 0.932 | 0.883 | 0.914 | CE + Dice (organs only, no background term). Only the loss differs from augmentation-native384 (seeds 42, 43). On the old 1.95 mm pipeline CE+Dice gave +0.023 mean Dice, +0.065 esophagus Dice and HD95 14.5 -> 12.4 mm over CE (loss_ce_dice_full40, seed 42). |
 | loss_ce_dice_full40 | holdout40 | 1 | Puck | 0.814 | +0.024 | 0.810 | +0.023 | 0.626 | 0.907 | 0.836 | 0.870 | Cross-entropy plus Dice loss with full 40-patient data, HU windowing and voxel-spacing resampling. |
 | loss_ce_tversky_full40 | holdout40 | 1 | Puck | 0.809 | +0.020 | 0.811 | +0.024 | 0.630 | 0.915 | 0.835 | 0.862 | Cross-entropy plus false-negative-weighted Tversky loss with full 40-patient data, HU windowing and voxel-spacing resampling. |
 | loss_focal_dice | holdout40 | 1 | Puck | 0.877 | +0.088 | 0.877 | +0.090 | 0.767 | 0.933 | 0.885 | 0.925 | Focal (gamma 2) + Dice (organs only). Compare against loss_ce_dice: only the pixel term differs (focal instead of CE). |
@@ -86,6 +87,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |  |  |
 | enet_tf_stage2_nores | holdout | 3 |  |  |  |  |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 23.31 | +8.82 | 5.43 | +2.50 | 0.360 | -0.080 |  |  |
+| loss_ce_dice | holdout40 | 1 | 16.79 | +2.30 | 2.76 | -0.17 | 0.605 | +0.165 | 0.839 |  |
 | loss_ce_dice_full40 | holdout40 | 1 | 12.44 | -2.05 | 2.66 | -0.27 | 0.493 | +0.053 |  |  |
 | loss_ce_tversky_full40 | holdout40 | 1 | 19.92 | +5.44 | 3.43 | +0.50 | 0.489 | +0.049 |  |  |
 | loss_focal_dice | holdout40 | 1 | 12.75 | -1.74 | 2.30 | -0.62 | 0.599 | +0.159 | 0.858 |  |
@@ -138,6 +140,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |
 | enet_tf_stage2_nores | holdout | 3 |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 16.32 | 36.73 | 20.90 | 19.27 |
+| loss_ce_dice | holdout40 | 1 | 8.70 | 28.38 | 10.95 | 19.13 |
 | loss_ce_dice_full40 | holdout40 | 1 | 10.27 | 12.52 | 11.89 | 15.07 |
 | loss_ce_tversky_full40 | holdout40 | 1 | 12.55 | 34.61 | 10.44 | 22.08 |
 | loss_focal_dice | holdout40 | 1 | 9.18 | 25.44 | 9.26 | 7.12 |
@@ -168,6 +171,7 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 | augmentation-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.861 ± 0.001 | 0.863 ± 0.001 | +0.002 | 13.87 ± 1.71 | 8.44 ± 0.00 | -5.43 | 2.28 ± 0.22 | 1.72 ± 0.05 | -0.56 | 0.577 ± 0.004 | 0.585 ± 0.004 | +0.008 |  |  |  |
 | augmentation-per-sample-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.865 ± 0.005 | 0.866 ± 0.006 | +0.001 | 13.07 ± 0.59 | 8.24 ± 0.64 | -4.83 | 2.28 ± 0.09 | 1.67 ± 0.07 | -0.60 | 0.592 ± 0.007 | 0.597 ± 0.007 | +0.005 |  |  |  |
 | enet_25d_lung | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.870 | 0.870 | +0.000 | 10.43 | 8.28 | -2.15 | 1.91 | 1.71 | -0.19 | 0.600 | 0.602 | +0.002 | 0.868 | 0.869 | +0.001 |
+| loss_ce_dice | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.873 | 0.876 | +0.003 | 16.79 | 10.11 | -6.68 | 2.76 | 1.79 | -0.97 | 0.605 | 0.614 | +0.009 | 0.839 | 0.850 | +0.011 |
 | loss_focal_dice | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.877 | 0.879 | +0.001 | 12.75 | 8.60 | -4.15 | 2.30 | 1.67 | -0.63 | 0.599 | 0.603 | +0.004 | 0.858 | 0.863 | +0.005 |
 | sampler_weighted | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.870 | 0.873 | +0.003 | 18.56 | 7.33 | -11.22 | 2.53 | 1.61 | -0.92 | 0.594 | 0.601 | +0.007 | 0.858 | 0.867 | +0.009 |
 
@@ -228,6 +232,7 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 | enet_tf_stage2_nores | holdout-f0-s43 | 0.809 | 0.679 |  | 24 / 25 | 58.5 | ce978f2* | cuda |
 | enet_tf_stage2_nores | holdout-f0-s44 | 0.806 | 0.649 |  | 24 / 25 | 60.5 | ce978f2* | cuda |
 | full_data_baseline | holdout40-f0-s42 | 0.709 | 0.703 | 23.31 | 14 / 25 | 237.3 | 16cc381* | mps |
+| loss_ce_dice | holdout40-f0-s42 | 0.873 | 0.873 | 16.79 | 21 / 25 | 476.9 | fa66df6 | mps |
 | loss_ce_dice_full40 | holdout40-f0-s42 | 0.814 | 0.810 | 12.44 | 21 / 25 | 106.4 | 67ed316* | cuda |
 | loss_ce_tversky_full40 | holdout40-f0-s42 | 0.809 | 0.811 | 19.92 | 19 / 25 | 103.3 | 67ed316* | cuda |
 | loss_focal_dice | holdout40-f0-s42 | 0.877 | 0.877 | 12.75 | 21 / 25 | 422.6 | fa66df6* | mps |
