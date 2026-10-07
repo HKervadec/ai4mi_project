@@ -239,7 +239,7 @@ Groups will have to submit:
     * inference;
     * metrics computation/scripts to run the metrics submodule;
 * the best trained model;
-* predictions on the test set (`sha256sum -c data/test.zip.sha256` as optional checksum);
+* predictions on the [test set](https://amsuni-my.sharepoint.com/:u:/g/personal/h_t_g_kervadec_uva_nl/EWZH7ylUUFFCg3lEzzLzJqMBG7OrPw1K4M78wq9t5iBj_w?e=Yejv5d) (`sha256sum -c data/test.zip.sha256` as optional checksum);
 * predictions on the group's internal validation set, the labels of their validation set, and the metrics they computed (akin to Assignment 3).
 
 The main criterions for scoring will include (listed here only for convenience, please see Canvas for reference rubric):
