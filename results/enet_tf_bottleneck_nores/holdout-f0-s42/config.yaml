@@ -43,7 +43,7 @@ owner: Junis
 idea: transformer at the ENet bottleneck (baseline placement)
 experiment: enet_tf_bottleneck_nores
 _run:
-  config_file: configs/experiments/enet_tf_bottleneck.yaml
+  config_file: configs/experiments/enet_tf_bottleneck_nores.yaml
   overrides:
   - train.seed=42
   device: cuda

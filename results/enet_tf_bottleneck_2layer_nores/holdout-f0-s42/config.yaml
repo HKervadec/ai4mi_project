@@ -45,7 +45,7 @@ idea: same as enet_tf_bottleneck, but 2 stacked transformer layers instead of 1 
   check if  depth helps
 experiment: enet_tf_bottleneck_2layer_nores
 _run:
-  config_file: configs/experiments/enet_tf_bottleneck_2layer.yaml
+  config_file: configs/experiments/enet_tf_bottleneck_2layer_nores.yaml
   overrides:
   - train.seed=42
   device: cuda

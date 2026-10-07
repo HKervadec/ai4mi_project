@@ -44,7 +44,7 @@ owner: Junis
 idea: same placement, ablates sinusoidal positional embedding
 experiment: enet_tf_bottleneck_posembed_nores
 _run:
-  config_file: configs/experiments/enet_tf_bottleneck_posembed.yaml
+  config_file: configs/experiments/enet_tf_bottleneck_posembed_nores.yaml
   overrides:
   - train.seed=43
   device: cuda

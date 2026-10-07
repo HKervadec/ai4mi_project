@@ -42,7 +42,7 @@ eval:
 idea: transformer earlier, end of stage2 (H/8, K*8 channels)
 experiment: enet_tf_stage2_nores
 _run:
-  config_file: configs/experiments/enet_tf_stage2.yaml
+  config_file: configs/experiments/enet_tf_stage2_nores.yaml
   overrides:
   - train.seed=42
   device: cuda
