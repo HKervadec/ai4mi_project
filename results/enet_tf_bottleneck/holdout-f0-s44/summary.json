@@ -1,0 +1,69 @@
+{
+  "experiment": "enet_tf_bottleneck",
+  "run": "holdout-f0-s44",
+  "owner": "Junis",
+  "idea": "transformer at the ENet bottleneck (baseline placement)",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 44,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "ce978f2",
+    "branch": "ViT",
+    "dirty": true
+  },
+  "best_epoch": 24,
+  "val_dice_2d": 0.7036,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.4481,
+    "heart": 0.9217,
+    "trachea": 0.7137,
+    "aorta": 0.7311
+  },
+  "train_minutes": 61.0,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.3864,
+      "per_class": {
+        "esophagus": 0.0,
+        "heart": 0.8794,
+        "trachea": 0.0,
+        "aorta": 0.6662
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.0,
+          "heart": 0.9106,
+          "trachea": 0.0,
+          "aorta": 0.7258
+        },
+        "Patient_11": {
+          "esophagus": 0.0,
+          "heart": 0.8636,
+          "trachea": 0.0,
+          "aorta": 0.603
+        },
+        "Patient_15": {
+          "esophagus": 0.0,
+          "heart": 0.9073,
+          "trachea": 0.0,
+          "aorta": 0.5847
+        },
+        "Patient_17": {
+          "esophagus": 0.0,
+          "heart": 0.8378,
+          "trachea": 0.0,
+          "aorta": 0.6806
+        },
+        "Patient_19": {
+          "esophagus": 0.0,
+          "heart": 0.8778,
+          "trachea": 0.0,
+          "aorta": 0.737
+        }
+      }
+    }
+  }
+}

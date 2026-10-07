@@ -1,0 +1,26 @@
+{
+  "experiment": "enet_tf_stage2",
+  "run": "holdout-f0-s42-debug",
+  "owner": null,
+  "idea": "transformer earlier, end of stage2 (H/8, K*8 channels)",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 42,
+  "epochs": 1,
+  "debug": true,
+  "device": "cuda",
+  "git": {
+    "commit": "ce978f2",
+    "branch": "ViT",
+    "dirty": true
+  },
+  "best_epoch": 0,
+  "val_dice_2d": 0.175,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.7,
+    "heart": 0.0,
+    "trachea": 0.0,
+    "aorta": 0.0
+  },
+  "train_minutes": 0.1
+}

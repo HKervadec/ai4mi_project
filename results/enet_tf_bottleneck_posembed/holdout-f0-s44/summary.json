@@ -1,0 +1,69 @@
+{
+  "experiment": "enet_tf_bottleneck_posembed",
+  "run": "holdout-f0-s44",
+  "owner": "Junis",
+  "idea": "same placement, ablates sinusoidal positional embedding",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 44,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "ce978f2",
+    "branch": "ViT",
+    "dirty": true
+  },
+  "best_epoch": 24,
+  "val_dice_2d": 0.7233,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.4481,
+    "heart": 0.9221,
+    "trachea": 0.8097,
+    "aorta": 0.7132
+  },
+  "train_minutes": 57.9,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.5291,
+      "per_class": {
+        "esophagus": 0.0,
+        "heart": 0.8801,
+        "trachea": 0.5438,
+        "aorta": 0.6925
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.0,
+          "heart": 0.8966,
+          "trachea": 0.7254,
+          "aorta": 0.7936
+        },
+        "Patient_11": {
+          "esophagus": 0.0,
+          "heart": 0.8678,
+          "trachea": 0.666,
+          "aorta": 0.6773
+        },
+        "Patient_15": {
+          "esophagus": 0.0,
+          "heart": 0.8931,
+          "trachea": 0.4129,
+          "aorta": 0.5669
+        },
+        "Patient_17": {
+          "esophagus": 0.0,
+          "heart": 0.8697,
+          "trachea": 0.723,
+          "aorta": 0.709
+        },
+        "Patient_19": {
+          "esophagus": 0.0,
+          "heart": 0.8732,
+          "trachea": 0.1913,
+          "aorta": 0.7159
+        }
+      }
+    }
+  }
+}

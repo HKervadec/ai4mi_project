@@ -1,0 +1,55 @@
+data:
+  gt: data/gt/watershed_refined
+  window:
+  - 40
+  - 400
+  target_spacing: null
+  shape:
+  - 256
+  - 256
+  split: holdout
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet_transformer
+  params:
+    kernels: 8
+    factor: 2
+    transformer_at:
+    - bottleneck
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+owner: Junis
+idea: transformer at the ENet bottleneck (baseline placement)
+experiment: enet_tf_bottleneck
+_run:
+  config_file: configs/experiments/enet_tf_bottleneck.yaml
+  overrides:
+  - train.seed=42
+  device: cuda
+  debug: false
+  started: '2026-09-21T02:21:14'
+  git:
+    commit: ce978f2
+    branch: ViT
+    dirty: true
