@@ -17,6 +17,7 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | current | holdout40 | 1 |  | 0.789 |  | 0.787 |  | 0.561 | 0.915 | 0.808 | 0.865 |  |
 | enet_25d | holdout | 1 | David | 0.777 | +0.058 | 0.504 | -0.065 | 0.401 | 0.875 | 0.000 | 0.740 | 2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current |
 | enet_25d | holdout40 | 1 | David | 0.792 | +0.003 | 0.789 | +0.002 | 0.570 | 0.914 | 0.822 | 0.850 | 2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current |
+| enet_25d_lung | holdout40 | 1 | David | 0.869 | +0.080 | 0.870 | +0.083 | 0.731 | 0.942 | 0.886 | 0.922 | 2.5D input (1 neighbour slice above/below) plus the lung window [-600, 1500] as extra channel per slice (6 input channels). Only the input differs from augmentation-native384 (seeds 42, 43). |
 | enet_25d_metrics3d | holdout | 3 | David | 0.526 ± 0.098 | -0.193 | 0.524 ± 0.098 | -0.044 | 0.280 ± 0.202 | 0.880 ± 0.012 | 0.206 ± 0.292 | 0.731 ± 0.019 | 2.5D input (slice + 1 neighbour above/below stacked as channels, 3 -> ENet), identical to enet_25d but scored with the full 3D metric suite (dice, hd, hd95, assd, nsd) instead of 3D Dice alone |
 | enet_tf_bottleneck | holdout | 3 | Junis | 0.734 ± 0.026 | +0.015 | 0.434 ± 0.054 | -0.135 | 0.099 ± 0.140 | 0.885 ± 0.004 | 0.050 ± 0.070 | 0.703 ± 0.028 | transformer at the ENet bottleneck (baseline placement) |
 | enet_tf_bottleneck_2layer | holdout | 3 | Junix | 0.798 ± 0.017 | +0.080 | 0.632 ± 0.047 | +0.063 | 0.407 ± 0.041 | 0.870 ± 0.021 | 0.532 ± 0.112 | 0.717 ± 0.015 | same as enet_tf_bottleneck, but 2 stacked transformer layers instead of 1 to check if  depth helps |
@@ -26,6 +27,8 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | enet_tf_stage2 | holdout | 3 |  | 0.809 ± 0.002 | +0.090 | 0.666 ± 0.013 | +0.098 | 0.402 ± 0.041 | 0.889 ± 0.008 | 0.667 ± 0.021 | 0.707 ± 0.004 | transformer earlier, end of stage2 (H/8, K*8 channels) |
 | enet_tf_stage2_2layer | holdout | 3 | Junis | 0.772 ± 0.062 | +0.053 | 0.573 ± 0.146 | +0.004 | 0.272 ± 0.206 | 0.891 ± 0.008 | 0.437 ± 0.312 | 0.693 ± 0.068 | combines the two individual wins: stage2 placement + 2 stacked transformer layers |
 | full_data_baseline | holdout40 | 1 | Elena | 0.709 | -0.080 | 0.703 | -0.084 | 0.468 | 0.840 | 0.786 | 0.720 | Starter-code baseline on the full 40-patient data: no HU window, no resampling, ENet + CE + Adam, no augmentation. |
+| loss_ce_dice_full40 | holdout40 | 1 | Puck | 0.814 | +0.024 | 0.810 | +0.023 | 0.626 | 0.907 | 0.836 | 0.870 | Cross-entropy plus Dice loss with full 40-patient data, HU windowing and voxel-spacing resampling. |
+| loss_ce_tversky_full40 | holdout40 | 1 | Puck | 0.809 | +0.020 | 0.811 | +0.024 | 0.630 | 0.915 | 0.835 | 0.862 | Cross-entropy plus false-negative-weighted Tversky loss with full 40-patient data, HU windowing and voxel-spacing resampling. |
 | lung_window_channel | holdout40 | 1 | Elena | 0.797 | +0.008 | 0.790 | +0.003 | 0.582 | 0.893 | 0.839 | 0.846 | Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window, to see the trachea lumen (air) and airway wall. |
 | lung_window_native_384 | holdout40 | 1 | Elena | 0.846 | +0.057 | 0.847 | +0.059 | 0.662 | 0.933 | 0.883 | 0.908 | Lung window [-600, 1500] as a 2nd input channel, at native resolution (0.98 x 0.98 x 2.0 mm, 384x384). |
 | no-augmentation | holdout | 1 | Githa | 0.773 | +0.055 | 0.609 | +0.040 | 0.331 | 0.868 | 0.609 | 0.628 | Current settings to compare with augmented data. |
@@ -48,48 +51,51 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | spacing_native_384 | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.835 ± 0.013 | +0.048 | 0.659 ± 0.026 | 0.923 ± 0.002 | 0.861 ± 0.013 | 0.899 ± 0.013 | Native in-plane resolution: resample to 0.98 x 0.98 x 2.0 mm and center crop to 384x384 (vs 1.95 x 1.95 x 2.5 mm, 256x256), to see the thin esophagus and trachea better. |
 | window_narrow | holdout40 | 1 | Elena | 0.765 | -0.024 | 0.762 | -0.025 | 0.524 | 0.911 | 0.755 | 0.858 | Narrower soft-tissue window [40, 300] instead of [40, 400], for more contrast between the esophagus and the surrounding fat. |
 
-3D boundary metrics at the best epoch, mean over the 4 organs (± std over runs). HD95/ASSD are in mm (lower is better); NSD is a fraction within 1 mm (higher is better). Δ is against `current` on the same split.
+3D boundary metrics at the best epoch, mean over the 4 organs (± std over runs). HD95/ASSD are in mm (lower is better); NSD is the fraction of surface within 1 or 3 mm (higher is better). Δ is against `current` on the same split.
 
-| Experiment | Split | Runs | HD95 (mm) | Δ HD95 (mm) | ASSD (mm) | Δ ASSD (mm) | NSD@1mm | Δ NSD@1mm |
-|---|---|---|---|---|---|---|---|---|
-| augmentation | holdout | 1 |  |  |  |  |  |  |
-| augmentation-native384 | holdout40 | 2 | 13.87 ± 1.71 | -0.61 | 2.28 ± 0.22 | -0.65 | 0.577 ± 0.004 | +0.138 |
-| augmentation-new-data | holdout40 | 1 | 11.58 | -2.90 | 2.76 | -0.17 | 0.428 | -0.012 |
-| augmentation-new-data2.0 | holdout40 | 1 | 19.52 | +5.04 | 2.97 | +0.04 | 0.483 | +0.043 |
-| augmentation-per-sample-native384 | holdout40 | 2 | 13.07 ± 0.59 | -1.41 | 2.28 ± 0.09 | -0.65 | 0.592 ± 0.007 | +0.152 |
-| augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |
-| augmentation-snellius | holdout | 1 |  |  |  |  |  |  |
-| current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |
-| current | holdout40 | 1 | 14.48 |  | 2.93 |  | 0.440 |  |
-| enet_25d | holdout | 1 |  |  |  |  |  |  |
-| enet_25d | holdout40 | 1 | 22.50 | +8.02 | 3.96 | +1.03 | 0.440 | -0.000 |
-| enet_25d_metrics3d | holdout | 3 | 30.99 ± 8.48 | -12.35 | 5.99 ± 1.24 | -1.70 | 0.294 ± 0.016 | +0.045 |
-| enet_tf_bottleneck | holdout | 3 | 20.55 | -22.79 | 6.24 | -1.45 | 0.208 | -0.041 |
-| enet_tf_bottleneck_2layer | holdout | 3 |  |  |  |  |  |  |
-| enet_tf_bottleneck_posembed | holdout | 3 |  |  |  |  |  |  |
-| enet_tf_decoder1 | holdout | 1 | 12.63 | -30.71 | 3.34 | -4.35 | 0.382 | +0.133 |
-| enet_tf_stage1 | holdout | 3 | 35.66 ± 11.38 | -7.68 | 5.32 ± 0.64 | -2.37 | 0.304 ± 0.018 | +0.055 |
-| enet_tf_stage2 | holdout | 3 |  |  |  |  |  |  |
-| enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |
-| full_data_baseline | holdout40 | 1 | 23.31 | +8.82 | 5.43 | +2.50 | 0.360 | -0.080 |
-| lung_window_channel | holdout40 | 1 | 20.97 | +6.49 | 3.56 | +0.64 | 0.451 | +0.011 |
-| lung_window_native_384 | holdout40 | 1 | 10.21 | -4.28 | 2.20 | -0.72 | 0.567 | +0.127 |
-| no-augmentation | holdout | 1 |  |  |  |  |  |  |
-| no-augmentation-preprocessing | holdout | 1 | 26.89 | -16.45 | 4.40 | -3.29 | 0.299 | +0.050 |
-| no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |
-| no_hu_window | holdout40 | 1 | 29.40 | +14.92 | 5.22 | +2.29 | 0.399 | -0.041 |
-| no_resampling | holdout40 | 1 | 18.79 | +4.31 | 3.82 | +0.90 | 0.420 | -0.020 |
-| post_aug_native_lcc_skip_esophagus | holdout40 | 1 | 7.76 | -6.72 | 1.63 | -1.30 | 0.588 | +0.148 |
-| post_lcc_min_fraction | holdout40 | 1 | 11.19 | -3.29 | 2.55 | -0.38 | 0.444 | +0.004 |
-| post_lcc_skip_esophagus | holdout40 | 1 | 11.35 | -3.14 | 2.56 | -0.37 | 0.443 | +0.003 |
-| post_native_lcc_min_fraction | holdout40 | 2 | 12.51 ± 2.15 | -1.97 | 2.44 ± 0.43 | -0.48 | 0.543 ± 0.023 | +0.104 |
-| post_native_lcc_skip_esophagus | holdout40 | 2 | 18.37 ± 9.19 | +3.89 | 2.99 ± 1.02 | +0.06 | 0.538 ± 0.029 | +0.098 |
-| refined_window_resampled | holdout | 1 | 30.20 | -13.14 | 5.30 | -2.39 | 0.305 | +0.057 |
-| spacing_1.5_256 | holdout40 | 1 | 13.60 | -0.89 | 2.75 | -0.18 | 0.472 | +0.032 |
-| spacing_1.95_crop192 | holdout40 | 1 | 12.88 | -1.60 | 2.67 | -0.26 | 0.488 | +0.048 |
-| spacing_1.95_z2 | holdout40 | 1 | 13.22 | -1.26 | 3.00 | +0.08 | 0.460 | +0.020 |
-| spacing_native_384 | holdout40 | 2 | 21.21 ± 5.47 | +6.73 | 3.26 ± 0.67 | +0.33 | 0.534 ± 0.026 | +0.094 |
-| window_narrow | holdout40 | 1 | 15.42 | +0.94 | 3.30 | +0.38 | 0.414 | -0.026 |
+| Experiment | Split | Runs | HD95 (mm) | Δ HD95 (mm) | ASSD (mm) | Δ ASSD (mm) | NSD@1mm | Δ NSD@1mm | NSD@3mm | Δ NSD@3mm |
+|---|---|---|---|---|---|---|---|---|---|---|
+| augmentation | holdout | 1 |  |  |  |  |  |  |  |  |
+| augmentation-native384 | holdout40 | 2 | 13.87 ± 1.71 | -0.61 | 2.28 ± 0.22 | -0.65 | 0.577 ± 0.004 | +0.138 |  |  |
+| augmentation-new-data | holdout40 | 1 | 11.58 | -2.90 | 2.76 | -0.17 | 0.428 | -0.012 |  |  |
+| augmentation-new-data2.0 | holdout40 | 1 | 19.52 | +5.04 | 2.97 | +0.04 | 0.483 | +0.043 |  |  |
+| augmentation-per-sample-native384 | holdout40 | 2 | 13.07 ± 0.59 | -1.41 | 2.28 ± 0.09 | -0.65 | 0.592 ± 0.007 | +0.152 |  |  |
+| augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |  |  |
+| augmentation-snellius | holdout | 1 |  |  |  |  |  |  |  |  |
+| current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |  |  |
+| current | holdout40 | 1 | 14.48 |  | 2.93 |  | 0.440 |  |  |  |
+| enet_25d | holdout | 1 |  |  |  |  |  |  |  |  |
+| enet_25d | holdout40 | 1 | 22.50 | +8.02 | 3.96 | +1.03 | 0.440 | -0.000 |  |  |
+| enet_25d_lung | holdout40 | 1 | 10.43 | -4.06 | 1.91 | -1.02 | 0.600 | +0.160 | 0.868 |  |
+| enet_25d_metrics3d | holdout | 3 | 30.99 ± 8.48 | -12.35 | 5.99 ± 1.24 | -1.70 | 0.294 ± 0.016 | +0.045 |  |  |
+| enet_tf_bottleneck | holdout | 3 | 20.55 | -22.79 | 6.24 | -1.45 | 0.208 | -0.041 |  |  |
+| enet_tf_bottleneck_2layer | holdout | 3 |  |  |  |  |  |  |  |  |
+| enet_tf_bottleneck_posembed | holdout | 3 |  |  |  |  |  |  |  |  |
+| enet_tf_decoder1 | holdout | 1 | 12.63 | -30.71 | 3.34 | -4.35 | 0.382 | +0.133 |  |  |
+| enet_tf_stage1 | holdout | 3 | 35.66 ± 11.38 | -7.68 | 5.32 ± 0.64 | -2.37 | 0.304 ± 0.018 | +0.055 |  |  |
+| enet_tf_stage2 | holdout | 3 |  |  |  |  |  |  |  |  |
+| enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |  |  |  |  |
+| full_data_baseline | holdout40 | 1 | 23.31 | +8.82 | 5.43 | +2.50 | 0.360 | -0.080 |  |  |
+| loss_ce_dice_full40 | holdout40 | 1 | 12.44 | -2.05 | 2.66 | -0.27 | 0.493 | +0.053 |  |  |
+| loss_ce_tversky_full40 | holdout40 | 1 | 19.92 | +5.44 | 3.43 | +0.50 | 0.489 | +0.049 |  |  |
+| lung_window_channel | holdout40 | 1 | 20.97 | +6.49 | 3.56 | +0.64 | 0.451 | +0.011 |  |  |
+| lung_window_native_384 | holdout40 | 1 | 10.21 | -4.28 | 2.20 | -0.72 | 0.567 | +0.127 |  |  |
+| no-augmentation | holdout | 1 |  |  |  |  |  |  |  |  |
+| no-augmentation-preprocessing | holdout | 1 | 26.89 | -16.45 | 4.40 | -3.29 | 0.299 | +0.050 |  |  |
+| no_hu_window | holdout | 1 | 44.39 | +1.05 | 12.28 | +4.59 | 0.158 | -0.090 |  |  |
+| no_hu_window | holdout40 | 1 | 29.40 | +14.92 | 5.22 | +2.29 | 0.399 | -0.041 |  |  |
+| no_resampling | holdout40 | 1 | 18.79 | +4.31 | 3.82 | +0.90 | 0.420 | -0.020 |  |  |
+| post_aug_native_lcc_skip_esophagus | holdout40 | 1 | 7.76 | -6.72 | 1.63 | -1.30 | 0.588 | +0.148 |  |  |
+| post_lcc_min_fraction | holdout40 | 1 | 11.19 | -3.29 | 2.55 | -0.38 | 0.444 | +0.004 |  |  |
+| post_lcc_skip_esophagus | holdout40 | 1 | 11.35 | -3.14 | 2.56 | -0.37 | 0.443 | +0.003 |  |  |
+| post_native_lcc_min_fraction | holdout40 | 2 | 12.51 ± 2.15 | -1.97 | 2.44 ± 0.43 | -0.48 | 0.543 ± 0.023 | +0.104 |  |  |
+| post_native_lcc_skip_esophagus | holdout40 | 2 | 18.37 ± 9.19 | +3.89 | 2.99 ± 1.02 | +0.06 | 0.538 ± 0.029 | +0.098 |  |  |
+| refined_window_resampled | holdout | 1 | 30.20 | -13.14 | 5.30 | -2.39 | 0.305 | +0.057 |  |  |
+| spacing_1.5_256 | holdout40 | 1 | 13.60 | -0.89 | 2.75 | -0.18 | 0.472 | +0.032 |  |  |
+| spacing_1.95_crop192 | holdout40 | 1 | 12.88 | -1.60 | 2.67 | -0.26 | 0.488 | +0.048 |  |  |
+| spacing_1.95_z2 | holdout40 | 1 | 13.22 | -1.26 | 3.00 | +0.08 | 0.460 | +0.020 |  |  |
+| spacing_native_384 | holdout40 | 2 | 21.21 ± 5.47 | +6.73 | 3.26 ± 0.67 | +0.33 | 0.534 ± 0.026 | +0.094 |  |  |
+| window_narrow | holdout40 | 1 | 15.42 | +0.94 | 3.30 | +0.38 | 0.414 | -0.026 |  |  |
 
 Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 
@@ -106,6 +112,7 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | current | holdout40 | 1 | 13.57 | 11.48 | 15.91 | 16.97 |
 | enet_25d | holdout | 1 |  |  |  |  |
 | enet_25d | holdout40 | 1 | 12.32 | 33.42 | 20.17 | 24.11 |
+| enet_25d_lung | holdout40 | 1 | 9.78 | 7.52 | 7.24 | 17.16 |
 | enet_25d_metrics3d | holdout | 3 | nan ± nan | 24.44 ± 0.67 | nan ± nan | 20.65 ± 6.39 |
 | enet_tf_bottleneck | holdout | 3 | 22.07 | 12.41 | 30.70 | 17.03 |
 | enet_tf_bottleneck_2layer | holdout | 3 |  |  |  |  |
@@ -115,6 +122,8 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | enet_tf_stage2 | holdout | 3 |  |  |  |  |
 | enet_tf_stage2_2layer | holdout | 3 |  |  |  |  |
 | full_data_baseline | holdout40 | 1 | 16.32 | 36.73 | 20.90 | 19.27 |
+| loss_ce_dice_full40 | holdout40 | 1 | 10.27 | 12.52 | 11.89 | 15.07 |
+| loss_ce_tversky_full40 | holdout40 | 1 | 12.55 | 34.61 | 10.44 | 22.08 |
 | lung_window_channel | holdout40 | 1 | 11.45 | 12.55 | 45.15 | 14.74 |
 | lung_window_native_384 | holdout40 | 1 | 10.73 | 8.03 | 13.66 | 8.40 |
 | no-augmentation | holdout | 1 |  |  |  |  |
@@ -136,10 +145,11 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 
 Post-processing of the stitched 3D predictions: raw vs post-processed scores of the same runs (mean over the 4 organs). Δ = post - raw.
 
-| Experiment | Split | Runs | Post-processing | Dice raw | Dice post | Δ | HD95 (mm) raw | HD95 (mm) post | Δ | ASSD (mm) raw | ASSD (mm) post | Δ | NSD@1mm raw | NSD@1mm post | Δ |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| augmentation-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.861 ± 0.001 | 0.863 ± 0.001 | +0.002 | 13.87 ± 1.71 | 8.44 ± 0.00 | -5.43 | 2.28 ± 0.22 | 1.72 ± 0.05 | -0.56 | 0.577 ± 0.004 | 0.585 ± 0.004 | +0.008 |
-| augmentation-per-sample-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.865 ± 0.005 | 0.866 ± 0.006 | +0.001 | 13.07 ± 0.59 | 8.24 ± 0.64 | -4.83 | 2.28 ± 0.09 | 1.67 ± 0.07 | -0.60 | 0.592 ± 0.007 | 0.597 ± 0.007 | +0.005 |
+| Experiment | Split | Runs | Post-processing | Dice raw | Dice post | Δ | HD95 (mm) raw | HD95 (mm) post | Δ | ASSD (mm) raw | ASSD (mm) post | Δ | NSD@1mm raw | NSD@1mm post | Δ | NSD@3mm raw | NSD@3mm post | Δ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| augmentation-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.861 ± 0.001 | 0.863 ± 0.001 | +0.002 | 13.87 ± 1.71 | 8.44 ± 0.00 | -5.43 | 2.28 ± 0.22 | 1.72 ± 0.05 | -0.56 | 0.577 ± 0.004 | 0.585 ± 0.004 | +0.008 |  |  |  |
+| augmentation-per-sample-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.865 ± 0.005 | 0.866 ± 0.006 | +0.001 | 13.07 ± 0.59 | 8.24 ± 0.64 | -4.83 | 2.28 ± 0.09 | 1.67 ± 0.07 | -0.60 | 0.592 ± 0.007 | 0.597 ± 0.007 | +0.005 |  |  |  |
+| enet_25d_lung | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.870 | 0.870 | +0.000 | 10.43 | 8.28 | -2.15 | 1.91 | 1.71 | -0.19 | 0.600 | 0.602 | +0.002 | 0.868 | 0.869 | +0.001 |
 
 ## Runs
 
@@ -160,6 +170,7 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 | current | holdout40-f0-s42 | 0.789 | 0.787 | 14.48 | 22 / 25 | 222.2 | 16cc381* | mps |
 | enet_25d | holdout-f0-s42 | 0.777 | 0.504 |  | 21 / 25 | 56.8 | a1ea44e* | cuda |
 | enet_25d | holdout40-f0-s42 | 0.792 | 0.789 | 22.50 | 22 / 25 | 103.4 | 16cc381* | cuda |
+| enet_25d_lung | holdout40-f0-s42 | 0.869 | 0.870 | 10.43 | 20 / 25 | 723.5 | fa66df6* | mps |
 | enet_25d_metrics3d | holdout-f0-s42 | 0.512 | 0.512 | 38.88 | 22 / 25 | 57.2 | 4e7e7e7* | cuda |
 | enet_25d_metrics3d | holdout-f0-s43 | 0.652 | 0.650 | 34.86 | 24 / 25 | 55.3 | be872ab | cuda |
 | enet_25d_metrics3d | holdout-f0-s44 | 0.413 | 0.411 | 19.23 | 21 / 25 | 57.9 | be872ab* | cuda |
@@ -183,6 +194,8 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 | enet_tf_stage2_2layer | holdout-f0-s43 | 0.828 | 0.713 |  | 23 / 25 | 54.4 | da026c9* | cuda |
 | enet_tf_stage2_2layer | holdout-f0-s44 | 0.685 | 0.371 |  | 23 / 25 | 54.6 | da026c9* | cuda |
 | full_data_baseline | holdout40-f0-s42 | 0.709 | 0.703 | 23.31 | 14 / 25 | 237.3 | 16cc381* | mps |
+| loss_ce_dice_full40 | holdout40-f0-s42 | 0.814 | 0.810 | 12.44 | 21 / 25 | 106.4 | 67ed316* | cuda |
+| loss_ce_tversky_full40 | holdout40-f0-s42 | 0.809 | 0.811 | 19.92 | 19 / 25 | 103.3 | 67ed316* | cuda |
 | lung_window_channel | holdout40-f0-s42 | 0.797 | 0.790 | 20.97 | 24 / 25 | 223.5 | 65a53e7* | mps |
 | lung_window_native_384 | holdout40-f0-s42 | 0.846 | 0.847 | 10.21 | 24 / 25 | 766.8 | 65a53e7* | mps |
 | no-augmentation | holdout-f0-s42 | 0.773 | 0.609 |  | 24 / 25 | 59.3 | e974bc0* | cuda |
