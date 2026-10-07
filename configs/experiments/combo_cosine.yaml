@@ -1,0 +1,6 @@
+# Combination ladder, step 2: core + cosine lr decay (5e-4 -> 0 over 25 epochs).
+base: combo_core_focal.yaml
+owner: Elena
+idea: "combo_core_focal plus cosine lr decay. Only the scheduler differs from combo_core_focal."
+
+scheduler: {name: cosine}
