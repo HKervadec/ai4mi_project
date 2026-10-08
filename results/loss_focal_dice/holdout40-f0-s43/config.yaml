@@ -1,0 +1,77 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: focal_dice
+  gamma: 2.0
+  dice_weight: 1.0
+  include_background: false
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- combined
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 43
+  num_workers: 5
+  early_stopping:
+    patience: null
+    min_delta: 0.0
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  - nsd3
+  postprocess:
+  - name: largest_cc
+    min_fraction: 0.1
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Puck
+idea: 'Focal (gamma 2) + Dice (organs only). Compare against loss_ce_dice: only the
+  pixel term differs (focal instead of CE).'
+experiment: loss_focal_dice
+_run:
+  config_file: configs/experiments/loss_focal_dice.yaml
+  overrides:
+  - train.seed=43
+  device: cuda
+  debug: false
+  started: '2026-10-07T21:02:47'
+  git:
+    commit: 860d278
+    branch: master
+    dirty: true
