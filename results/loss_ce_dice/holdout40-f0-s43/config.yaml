@@ -1,0 +1,77 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce_dice
+  dice_weight: 1.0
+  include_background: false
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- combined
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 43
+  num_workers: 5
+  early_stopping:
+    patience: null
+    min_delta: 0.0
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  - nsd3
+  postprocess:
+  - name: largest_cc
+    min_fraction: 0.1
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Puck
+idea: CE + Dice (organs only, no background term). Only the loss differs from augmentation-native384
+  (seeds 42, 43). On the old 1.95 mm pipeline CE+Dice gave +0.023 mean Dice, +0.065
+  esophagus Dice and HD95 14.5 -> 12.4 mm over CE (loss_ce_dice_full40, seed 42).
+experiment: loss_ce_dice
+_run:
+  config_file: configs/experiments/loss_ce_dice.yaml
+  overrides:
+  - train.seed=43
+  device: cuda
+  debug: false
+  started: '2026-10-07T21:02:14'
+  git:
+    commit: 860d278
+    branch: master
+    dirty: true
