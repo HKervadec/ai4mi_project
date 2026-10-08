@@ -1,0 +1,14 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): on spacing_native_384's predictions, first close the esophagus along z
+  (radius 5 mm, bridges up to ~10 mm of missing slices), then largest_cc with min_fraction 0.1. The
+  esophagus falls apart into fragments along z, which min_fraction then partly removes; closing should
+  join them first. Compare against post_native_lcc_min_fraction.
+
+source: spacing_native_384   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: closing, radius_mm: 5, axis: z, skip: [heart, trachea, aorta]}
+    - {name: largest_cc, min_fraction: 0.1}

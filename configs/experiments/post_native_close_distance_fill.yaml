@@ -1,0 +1,14 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): all three on spacing_native_384's predictions: close the esophagus
+  along z (radius 5 mm), keep per organ the largest component plus everything within 20 mm of it, then fill
+  holes per axial slice. Compare against post_native_lcc_min_fraction and the three single-step runs.
+
+source: spacing_native_384   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: closing, radius_mm: 5, axis: z, skip: [heart, trachea, aorta]}
+    - {name: largest_cc, max_distance_mm: 20}
+    - {name: fill_holes, per_slice: true}

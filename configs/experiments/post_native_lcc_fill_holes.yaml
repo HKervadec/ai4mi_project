@@ -1,0 +1,12 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): post_native_lcc_min_fraction followed by filling holes per organ in
+  every axial slice. Isolates the effect of hole filling. Compare against post_native_lcc_min_fraction.
+
+source: spacing_native_384   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: largest_cc, min_fraction: 0.1}
+    - {name: fill_holes, per_slice: true}

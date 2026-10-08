@@ -1,0 +1,9 @@
+# combo_core_ce with a twice as wide ENet (kernels 16 instead of 8): 1.12M instead of 0.28M parameters,
+# ~2x the time per step. More capacity should mostly help the thin structures (esophagus).
+# ~7.5 h training on gpu_mig: submit with sbatch --time=12:00:00.
+base: combo_core_ce.yaml
+owner: Elena
+idea: "combo_core_ce (CE + Dice, weighted sampler) with ENet kernels 16 instead of 8. Only the network width differs from combo_core_ce."
+
+model:
+  params: {kernels: 16}
