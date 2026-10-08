@@ -1,0 +1,14 @@
+# Same as combo_core_focal with CE + Dice instead of focal + Dice: settles the loss choice inside
+# the combination. On their own the two tied on Dice (0.876 vs 0.879), CE+Dice had the worse HD95 (10.1 vs 8.6 mm).
+# Based on current.yaml, not on combo_core_focal: the loss dicts would merge and carry focal's gamma along.
+base: ../current.yaml
+owner: Elena
+idea: "CE + Dice loss (organs only) plus the weighted slice sampler. Only the loss differs from combo_core_focal."
+
+loss:
+  name: ce_dice
+  dice_weight: 1.0
+  include_background: false
+
+train:
+  sampler: {empty_weight: 0.7, class_weights: {esophagus: 2.0}}

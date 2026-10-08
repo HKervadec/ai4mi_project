@@ -1,0 +1,14 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): on spacing_native_384's predictions, keep per organ the largest 3D
+  connected component plus every component within 20 mm of it (largest_cc max_distance_mm), instead of by
+  size (min_fraction 0.1). Real fragments of the esophagus lie next to the main part, stray blobs far away
+  (seed 43: esophagus blobs ~6 cm in front; Patient_30: a heart fragment 126 mm away). Compare against
+  post_native_lcc_min_fraction.
+
+source: spacing_native_384   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: largest_cc, max_distance_mm: 20}

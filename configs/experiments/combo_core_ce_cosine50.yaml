@@ -1,0 +1,12 @@
+# combo_core_ce trained twice as long, with cosine lr decay (5e-4 -> 0 over 50 epochs).
+# At 25 epochs every run still peaks at epoch 20-24, and cosine alone cost 0.009 Dice (schedule_cosine)
+# because it lowers the lr before the model has converged; in combo_cosine it did make the last epochs
+# stable (val Dice +-0.001 instead of +-0.005-0.03). With 50 epochs it gets the time to do both.
+# ~7.5 h training on gpu_mig: submit with sbatch --time=12:00:00.
+base: combo_core_ce.yaml
+owner: Elena
+idea: "combo_core_ce (CE + Dice, weighted sampler) for 50 epochs with cosine lr decay. Compare against combo_core_ce (25 epochs, constant lr)."
+
+scheduler: {name: cosine}
+train:
+  epochs: 50

@@ -1,0 +1,16 @@
+# Combination ladder (2026-10-07), step 1: the two proven single-seed winners together.
+# focal_dice: +0.016 Dice / +0.047 esophagus over CE (loss_focal_dice, seed 42), HD95 at baseline level.
+# sampler_weighted: +0.009 Dice, best post-processed HD95 (7.3 vs 8.4 mm).
+# Both push towards the esophagus, so watch esophagus HD95 and the raw (pre-LCC) stray blobs.
+base: ../current.yaml
+owner: Elena
+idea: "Focal + Dice loss (organs only) plus the weighted slice sampler. Compare against augmentation-native384 (CE), loss_focal_dice and sampler_weighted: do the two add up?"
+
+loss:
+  name: focal_dice
+  gamma: 2.0
+  dice_weight: 1.0
+  include_background: false
+
+train:
+  sampler: {empty_weight: 0.7, class_weights: {esophagus: 2.0}}
