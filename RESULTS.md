@@ -13,6 +13,12 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | augmentation-per-sample-native384 | holdout40 | 2 | Githa | 0.864 ± 0.005 | +0.075 | 0.865 ± 0.005 | +0.078 | 0.717 ± 0.015 | 0.943 ± 0.001 | 0.874 ± 0.001 | 0.925 ± 0.004 | Same as augmentation-native384, but with an independent augmentation draw per slice instead of one per batch. |
 | augmentation-preprocessing | holdout | 1 | Githa | 0.724 | +0.006 | 0.721 | +0.152 | 0.429 | 0.923 | 0.731 | 0.801 | Data augmentation from Testing-data-augmentation, with new metrics and preprocessing. |
 | augmentation-snellius | holdout | 1 | Githa | 0.750 | +0.031 | 0.465 | -0.104 | 0.179 | 0.927 | 0.005 | 0.749 | Data augmentation from Testing-data-augmentation, to compare against current. |
+| boundary | holdout40 | 1 |  | 0.788 | -0.001 | 0.784 | -0.003 | 0.578 | 0.907 | 0.809 | 0.844 |  |
+| boundary_per_organ | holdout40 | 2 | Britt | 0.863 ± 0.003 | +0.074 | 0.863 ± 0.003 | +0.076 | 0.727 ± 0.009 | 0.932 ± 0.001 | 0.880 ± 0.004 | 0.915 ± 0.001 | CE plus boundary penalty (L1 between Sobel edge maps) per organ, so boundaries between touching organs count, weight 0.1. |
+| boundary_per_organ_w1 | holdout40 | 1 | Britt | 0.793 | +0.004 | 0.791 | +0.004 | 0.583 | 0.914 | 0.807 | 0.862 | CE plus boundary penalty (L1 between Sobel edge maps) per organ, so boundaries between touching organs count, weight 1.0. |
+| boundary_per_organ_w5 | holdout40 | 2 | Britt | 0.867 ± 0.000 | +0.078 | 0.867 ± 0.000 | +0.080 | 0.729 ± 0.002 | 0.936 ± 0.006 | 0.884 ± 0.002 | 0.920 ± 0.003 | CE plus boundary penalty (L1 between Sobel edge maps) per organ, so boundaries between touching organs count, weight 5.0. |
+| boundary_w1 | holdout40 | 1 | Britt | 0.782 | -0.007 | 0.776 | -0.011 | 0.519 | 0.905 | 0.822 | 0.858 | CE plus boundary penalty (L1 between Sobel edge maps) on the merged foreground, weight 1.0. |
+| boundary_w5 | holdout40 | 1 | Britt | 0.703 | -0.086 | 0.696 | -0.091 | 0.292 | 0.871 | 0.809 | 0.813 | CE plus boundary penalty (L1 between Sobel edge maps) on the merged foreground, weight 5.0. |
 | current | holdout | 3 |  | 0.719 ± 0.078 |  | 0.569 ± 0.124 |  | 0.276 ± 0.205 | 0.874 ± 0.014 | 0.413 ± 0.292 | 0.712 ± 0.031 |  |
 | current | holdout40 | 1 |  | 0.789 |  | 0.787 |  | 0.561 | 0.915 | 0.808 | 0.865 |  |
 | enet_25d | holdout | 1 | David | 0.777 | +0.058 | 0.504 | -0.065 | 0.401 | 0.875 | 0.000 | 0.740 | 2.5D input: the slice plus 1 neighbour above/below stacked as channels (3 -> ENet), everything else as current |
@@ -69,6 +75,12 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | augmentation-per-sample-native384 | holdout40 | 2 | 13.07 ± 0.59 | -1.41 | 2.28 ± 0.09 | -0.65 | 0.592 ± 0.007 | +0.152 |  |  |
 | augmentation-preprocessing | holdout | 1 | 17.11 | -26.23 | 3.57 | -4.12 | 0.361 | +0.112 |  |  |
 | augmentation-snellius | holdout | 1 |  |  |  |  |  |  |  |  |
+| boundary | holdout40 | 1 | 16.74 | +2.26 | 3.29 | +0.36 | 0.436 | -0.004 |  |  |
+| boundary_per_organ | holdout40 | 2 | 13.77 ± 0.87 | -0.71 | 2.32 ± 0.11 | -0.61 | 0.570 ± 0.005 | +0.130 | 0.840 ± 0.002 |  |
+| boundary_per_organ_w1 | holdout40 | 1 | 26.52 | +12.04 | 3.59 | +0.66 | 0.455 | +0.015 |  |  |
+| boundary_per_organ_w5 | holdout40 | 2 | 8.68 ± 0.14 | -5.81 | 1.89 ± 0.00 | -1.03 | 0.597 ± 0.005 | +0.157 | 0.849 ± 0.010 |  |
+| boundary_w1 | holdout40 | 1 | 19.69 | +5.21 | 3.36 | +0.43 | 0.452 | +0.012 |  |  |
+| boundary_w5 | holdout40 | 1 | 36.18 | +21.70 | 6.37 | +3.44 | 0.381 | -0.059 |  |  |
 | current | holdout | 3 | 43.34 |  | 7.69 |  | 0.249 |  |  |  |
 | current | holdout40 | 1 | 14.48 |  | 2.93 |  | 0.440 |  |  |  |
 | enet_25d | holdout | 1 |  |  |  |  |  |  |  |  |
@@ -122,6 +134,12 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | augmentation-per-sample-native384 | holdout40 | 2 | 8.67 ± 0.13 | 16.39 ± 9.27 | 21.42 ± 11.88 | 5.80 ± 0.37 |
 | augmentation-preprocessing | holdout | 1 | 17.57 | 21.30 | 14.77 | 14.80 |
 | augmentation-snellius | holdout | 1 |  |  |  |  |
+| boundary | holdout40 | 1 | 13.35 | 11.44 | 10.43 | 31.74 |
+| boundary_per_organ | holdout40 | 2 | 10.23 ± 0.52 | 14.27 ± 4.65 | 10.95 ± 0.33 | 19.63 ± 0.98 |
+| boundary_per_organ_w1 | holdout40 | 1 | 19.11 | 11.49 | 59.86 | 15.63 |
+| boundary_per_organ_w5 | holdout40 | 2 | 8.71 ± 0.09 | 7.40 ± 0.59 | 10.22 ± 0.57 | 8.38 ± 0.51 |
+| boundary_w1 | holdout40 | 1 | 24.07 | 32.60 | 10.90 | 11.19 |
+| boundary_w5 | holdout40 | 1 | 80.73 | 15.83 | 13.69 | 34.47 |
 | current | holdout | 3 | 59.80 | 67.00 | 24.94 | 21.62 |
 | current | holdout40 | 1 | 13.57 | 11.48 | 15.91 | 16.97 |
 | enet_25d | holdout | 1 |  |  |  |  |
@@ -170,6 +188,8 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | augmentation-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.861 ± 0.001 | 0.863 ± 0.001 | +0.002 | 13.87 ± 1.71 | 8.44 ± 0.00 | -5.43 | 2.28 ± 0.22 | 1.72 ± 0.05 | -0.56 | 0.577 ± 0.004 | 0.585 ± 0.004 | +0.008 |  |  |  |
 | augmentation-per-sample-native384 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.865 ± 0.005 | 0.866 ± 0.006 | +0.001 | 13.07 ± 0.59 | 8.24 ± 0.64 | -4.83 | 2.28 ± 0.09 | 1.67 ± 0.07 | -0.60 | 0.592 ± 0.007 | 0.597 ± 0.007 | +0.005 |  |  |  |
+| boundary_per_organ | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.863 ± 0.003 | 0.865 ± 0.003 | +0.002 | 13.77 ± 0.87 | 8.98 ± 0.60 | -4.79 | 2.32 ± 0.11 | 1.81 ± 0.04 | -0.51 | 0.570 ± 0.005 | 0.576 ± 0.005 | +0.006 | 0.840 ± 0.002 | 0.847 ± 0.001 | +0.007 |
+| boundary_per_organ_w5 | holdout40 | 2 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.867 ± 0.000 | 0.868 ± 0.000 | +0.001 | 8.68 ± 0.14 | 9.61 ± 0.38 | +0.93 | 1.89 ± 0.00 | 1.81 ± 0.04 | -0.08 | 0.597 ± 0.005 | 0.600 ± 0.006 | +0.003 | 0.849 ± 0.010 | 0.851 ± 0.010 | +0.002 |
 | enet_25d_lung | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.870 | 0.870 | +0.000 | 10.43 | 8.28 | -2.15 | 1.91 | 1.71 | -0.19 | 0.600 | 0.602 | +0.002 | 0.868 | 0.869 | +0.001 |
 | loss_ce_dice | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.873 | 0.876 | +0.003 | 16.79 | 10.11 | -6.68 | 2.76 | 1.79 | -0.97 | 0.605 | 0.614 | +0.009 | 0.839 | 0.850 | +0.011 |
 | loss_focal_dice | holdout40 | 1 | {'name': 'largest_cc', 'min_fraction': 0.1} | 0.877 | 0.879 | +0.001 | 12.75 | 8.60 | -4.15 | 2.30 | 1.67 | -0.63 | 0.599 | 0.603 | +0.004 | 0.858 | 0.863 | +0.005 |
@@ -188,6 +208,14 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 | augmentation-per-sample-native384 | holdout40-f0-s43 | 0.869 | 0.869 | 12.48 | 24 / 25 | 231.1 | a5cca05* | cuda |
 | augmentation-preprocessing | holdout-f0-s42 | 0.724 | 0.721 | 17.11 | 23 / 25 | 47.7 | 636a87a* | cuda |
 | augmentation-snellius | holdout-f0-s42 | 0.750 | 0.465 |  | 24 / 25 | 153.8 | e974bc0* | cuda |
+| boundary | holdout40-f0-s42 | 0.788 | 0.784 | 16.74 | 23 / 25 | 102.2 | 20b70c7* | cuda |
+| boundary_per_organ | holdout40-f0-s42 | 0.860 | 0.860 | 12.90 | 19 / 25 | 193.3 | 32a7d8d* | cuda |
+| boundary_per_organ | holdout40-f0-s43 | 0.866 | 0.867 | 14.64 | 21 / 25 | 171.2 | 32a7d8d* | cuda |
+| boundary_per_organ_w1 | holdout40-f0-s42 | 0.793 | 0.791 | 26.52 | 24 / 25 | 106.3 | 65a53e7* | cuda |
+| boundary_per_organ_w5 | holdout40-f0-s42 | 0.867 | 0.867 | 8.54 | 24 / 25 | 182.3 | 32a7d8d* | cuda |
+| boundary_per_organ_w5 | holdout40-f0-s43 | 0.868 | 0.868 | 8.81 | 24 / 25 | 170.4 | 32a7d8d* | cuda |
+| boundary_w1 | holdout40-f0-s42 | 0.782 | 0.776 | 19.69 | 23 / 25 | 101.8 | 65a53e7* | cuda |
+| boundary_w5 | holdout40-f0-s42 | 0.703 | 0.696 | 36.18 | 24 / 25 | 102.1 | 65a53e7* | cuda |
 | current | holdout-f0-s42 | 0.621 | 0.622 | 43.34 | 24 / 25 | 129.9 | 6849221* | mps |
 | current | holdout-f0-s43 | 0.812 | 0.687 |  | 24 / 25 | 58.4 | ce978f2* | cuda |
 | current | holdout-f0-s44 | 0.723 | 0.398 |  | 19 / 25 | 57.9 | ce978f2* | cuda |
