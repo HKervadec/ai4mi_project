@@ -50,6 +50,10 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | post_aug_native_lcc_skip_esophagus | holdout40 | 1 | Elena | 0.861 | +0.072 | 0.864 | +0.077 | 0.720 | 0.943 | 0.875 | 0.916 | Post-processing only (no training): post_native_lcc_skip_esophagus on augmentation-native384's predictions. Keep only the largest 3D connected component of heart, trachea and aorta; leave the esophagus as predicted. largest_cc with min_fraction 0.1 removed real esophagus pieces there (esophagus HD95 8.2 -> 10.8 mm, Patient_22 ~6-10 -> 24-36 mm in all runs). |
 | post_lcc_min_fraction | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.789 | +0.002 | 0.562 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping per organ every 3D connected component at least 10% the size of the largest one. Plain largest-CC cut the esophagus, which the model predicts as several big fragments along z; the threshold should keep those while still removing the small stray blobs that inflate HD95. |
 | post_lcc_skip_esophagus | holdout40 | 1 | Elena | 0.789 | +0.000 | 0.788 | +0.001 | 0.561 | 0.915 | 0.810 | 0.867 | Post-processing only (no training): rescore current's predictions, keeping only the largest 3D connected component of heart, trachea and aorta, and leaving the esophagus as predicted. Plain largest-CC helped those three but cut the esophagus, which the model predicts as several fragments. |
+| post_native_close_distance_fill | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.843 ± 0.011 | +0.056 | 0.683 ± 0.016 | 0.923 ± 0.002 | 0.865 ± 0.013 | 0.900 ± 0.013 | Post-processing only (no training): all three on spacing_native_384's predictions: close the esophagus along z (radius 5 mm), keep per organ the largest component plus everything within 20 mm of it, then fill holes per axial slice. Compare against post_native_lcc_min_fraction and the three single-step runs. |
+| post_native_close_lcc | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.843 ± 0.012 | +0.056 | 0.680 ± 0.019 | 0.923 ± 0.002 | 0.869 ± 0.014 | 0.900 ± 0.011 | Post-processing only (no training): on spacing_native_384's predictions, first close the esophagus along z (radius 5 mm, bridges up to ~10 mm of missing slices), then largest_cc with min_fraction 0.1. The esophagus falls apart into fragments along z, which min_fraction then partly removes; closing should join them first. Compare against post_native_lcc_min_fraction. |
+| post_native_lcc_distance | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.838 ± 0.009 | +0.051 | 0.663 ± 0.007 | 0.923 ± 0.002 | 0.865 ± 0.013 | 0.900 ± 0.013 | Post-processing only (no training): on spacing_native_384's predictions, keep per organ the largest 3D connected component plus every component within 20 mm of it (largest_cc max_distance_mm), instead of by size (min_fraction 0.1). Real fragments of the esophagus lie next to the main part, stray blobs far away (seed 43: esophagus blobs ~6 cm in front; Patient_30: a heart fragment 126 mm away). Compare against post_native_lcc_min_fraction. |
+| post_native_lcc_fill_holes | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.840 ± 0.012 | +0.053 | 0.666 ± 0.019 | 0.923 ± 0.002 | 0.869 ± 0.014 | 0.900 ± 0.011 | Post-processing only (no training): post_native_lcc_min_fraction followed by filling holes per organ in every axial slice. Isolates the effect of hole filling. Compare against post_native_lcc_min_fraction. |
 | post_native_lcc_min_fraction | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.840 ± 0.012 | +0.053 | 0.666 ± 0.019 | 0.923 ± 0.002 | 0.869 ± 0.014 | 0.900 ± 0.011 | Post-processing only (no training): post_lcc_min_fraction on spacing_native_384's predictions. Per organ, keep every 3D connected component at least 10% the size of the largest one. |
 | post_native_lcc_skip_esophagus | holdout40 | 2 | Elena | 0.835 ± 0.013 | +0.046 | 0.834 ± 0.017 | +0.047 | 0.659 ± 0.026 | 0.923 ± 0.002 | 0.862 ± 0.021 | 0.893 ± 0.018 | Post-processing only (no training): post_lcc_skip_esophagus on spacing_native_384's predictions. Keep only the largest 3D connected component of heart, trachea and aorta; leave the esophagus as predicted. At native resolution min_fraction 0.1 removed real esophagus pieces (esophagus HD95 9.3 -> 14.0 mm). |
 | refined_window_resampled | holdout | 1 |  | 0.687 | -0.032 | 0.683 | +0.115 | 0.435 | 0.890 | 0.678 | 0.730 | Voxel-spacing resampling to 1.95/1.95/2.5 mm (crop/pad) vs per-slice resize. |
@@ -106,6 +110,10 @@ Dice at the best epoch (chosen on 2D val Dice), mean over the 4 organs (± std o
 | post_aug_native_lcc_skip_esophagus | holdout40 | 1 | 7.76 | -6.72 | 1.63 | -1.30 | 0.588 | +0.148 |  |  |
 | post_lcc_min_fraction | holdout40 | 1 | 11.19 | -3.29 | 2.55 | -0.38 | 0.444 | +0.004 |  |  |
 | post_lcc_skip_esophagus | holdout40 | 1 | 11.35 | -3.14 | 2.56 | -0.37 | 0.443 | +0.003 |  |  |
+| post_native_close_distance_fill | holdout40 | 2 | 10.25 ± 1.16 | -4.23 | 2.17 ± 0.20 | -0.76 | 0.543 ± 0.023 | +0.103 | 0.815 ± 0.019 |  |
+| post_native_close_lcc | holdout40 | 2 | 10.93 ± 0.67 | -3.55 | 2.29 ± 0.29 | -0.64 | 0.546 ± 0.023 | +0.106 | 0.817 ± 0.020 |  |
+| post_native_lcc_distance | holdout40 | 2 | 11.80 ± 0.54 | -2.68 | 2.51 ± 0.17 | -0.42 | 0.540 ± 0.021 | +0.100 | 0.812 ± 0.016 |  |
+| post_native_lcc_fill_holes | holdout40 | 2 | 12.48 ± 2.18 | -2.00 | 2.44 ± 0.43 | -0.49 | 0.544 ± 0.023 | +0.104 | 0.816 ± 0.020 |  |
 | post_native_lcc_min_fraction | holdout40 | 2 | 12.51 ± 2.15 | -1.97 | 2.44 ± 0.43 | -0.48 | 0.543 ± 0.023 | +0.104 |  |  |
 | post_native_lcc_skip_esophagus | holdout40 | 2 | 18.37 ± 9.19 | +3.89 | 2.99 ± 1.02 | +0.06 | 0.538 ± 0.029 | +0.098 |  |  |
 | refined_window_resampled | holdout | 1 | 30.20 | -13.14 | 5.30 | -2.39 | 0.305 | +0.057 |  |  |
@@ -162,6 +170,10 @@ Per-organ HD95 (mm) at the best epoch, mean ± std over runs (lower is better).
 | post_aug_native_lcc_skip_esophagus | holdout40 | 1 | 8.07 | 6.57 | 7.08 | 9.35 |
 | post_lcc_min_fraction | holdout40 | 1 | 12.95 | 10.73 | 10.51 | 10.57 |
 | post_lcc_skip_esophagus | holdout40 | 1 | 13.57 | 10.73 | 10.51 | 10.57 |
+| post_native_close_distance_fill | holdout40 | 2 | 13.00 ± 0.75 | 8.89 ± 0.20 | 10.73 ± 1.56 | 8.39 ± 2.12 |
+| post_native_close_lcc | holdout40 | 2 | 16.18 ± 2.59 | 8.97 ± 0.18 | 8.24 ± 0.04 | 10.33 ± 0.11 |
+| post_native_lcc_distance | holdout40 | 2 | 19.14 ± 5.99 | 8.94 ± 0.15 | 10.73 ± 1.56 | 8.39 ± 2.12 |
+| post_native_lcc_fill_holes | holdout40 | 2 | 22.51 ± 8.51 | 8.86 ± 0.29 | 8.24 ± 0.04 | 10.33 ± 0.11 |
 | post_native_lcc_min_fraction | holdout40 | 2 | 22.51 ± 8.51 | 8.97 ± 0.18 | 8.24 ± 0.04 | 10.33 ± 0.11 |
 | post_native_lcc_skip_esophagus | holdout40 | 2 | 39.56 ± 30.24 | 8.97 ± 0.18 | 9.52 ± 1.32 | 15.45 ± 5.00 |
 | refined_window_resampled | holdout | 1 | 22.70 | 44.11 | 34.15 | 19.83 |
@@ -262,6 +274,14 @@ Post-processing of the stitched 3D predictions: raw vs post-processed scores of 
 | post_aug_native_lcc_skip_esophagus | holdout40-f0-s42 | 0.861 | 0.864 | 7.76 | 24 / 25 | 160.8 | e45a22c | cuda |
 | post_lcc_min_fraction | holdout40-f0-s42 | 0.789 | 0.789 | 11.19 | 22 / 25 | 222.2 | b77b794* | mps |
 | post_lcc_skip_esophagus | holdout40-f0-s42 | 0.789 | 0.788 | 11.35 | 22 / 25 | 222.2 | b77b794* | mps |
+| post_native_close_distance_fill | holdout40-f0-s42 | 0.848 | 0.854 | 9.09 | 24 / 25 | 571.3 | 1c69d2c* | mps |
+| post_native_close_distance_fill | holdout40-f0-s43 | 0.822 | 0.832 | 11.41 | 20 / 25 | 565.0 | 1c69d2c* | mps |
+| post_native_close_lcc | holdout40-f0-s42 | 0.848 | 0.855 | 10.26 | 24 / 25 | 571.3 | 1c69d2c* | mps |
+| post_native_close_lcc | holdout40-f0-s43 | 0.822 | 0.832 | 11.60 | 20 / 25 | 565.0 | 1c69d2c* | mps |
+| post_native_lcc_distance | holdout40-f0-s42 | 0.848 | 0.846 | 12.34 | 24 / 25 | 571.3 | 1c69d2c* | mps |
+| post_native_lcc_distance | holdout40-f0-s43 | 0.822 | 0.829 | 11.26 | 20 / 25 | 565.0 | 1c69d2c* | mps |
+| post_native_lcc_fill_holes | holdout40-f0-s42 | 0.848 | 0.851 | 10.30 | 24 / 25 | 571.3 | 1c69d2c* | mps |
+| post_native_lcc_fill_holes | holdout40-f0-s43 | 0.822 | 0.828 | 14.67 | 20 / 25 | 565.0 | 1c69d2c* | mps |
 | post_native_lcc_min_fraction | holdout40-f0-s42 | 0.848 | 0.851 | 10.36 | 24 / 25 | 571.3 | 65a53e7* | mps |
 | post_native_lcc_min_fraction | holdout40-f0-s43 | 0.822 | 0.828 | 14.67 | 20 / 25 | 565.0 | 65a53e7* | mps |
 | post_native_lcc_skip_esophagus | holdout40-f0-s42 | 0.848 | 0.851 | 9.19 | 24 / 25 | 571.3 | 65a53e7* | mps |
