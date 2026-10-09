@@ -64,3 +64,14 @@ owner: Britt
 idea: CE plus boundary penalty (L1 between Sobel edge maps) per organ, so boundaries
   between touching organs count, weight 0.1.
 experiment: boundary_per_organ
+_run:
+  config_file: configs/experiments/boundary_per_organ.yaml
+  overrides:
+  - train.seed=43
+  device: cuda
+  debug: false
+  started: '2026-10-07T18:24:51'
+  git:
+    commit: 32a7d8d
+    branch: master
+    dirty: true
