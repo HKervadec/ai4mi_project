@@ -1,0 +1,83 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce_dice
+  dice_weight: 1.0
+  include_background: false
+regularizers:
+- name: boundary
+  per_class: true
+  weight: 5.0
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- combined
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+  early_stopping:
+    patience: null
+    min_delta: 0.0
+  sampler:
+    empty_weight: 0.7
+    class_weights:
+      esophagus: 2.0
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  - nsd3
+  postprocess:
+  - name: largest_cc
+    min_fraction: 0.1
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: combo_core_ce (CE + Dice, weighted sampler) plus the per-organ boundary regularizer
+  (Sobel edge L1, weight 5). Only the regularizer differs from combo_core_ce.
+experiment: combo_core_ce_boundary_w5
+_run:
+  config_file: configs/experiments/combo_core_ce_boundary_w5.yaml
+  overrides:
+  - train.seed=42
+  device: cuda
+  debug: false
+  started: '2026-10-08T22:39:00'
+  git:
+    commit: 343351f
+    branch: britt-boundary-results
+    dirty: false
