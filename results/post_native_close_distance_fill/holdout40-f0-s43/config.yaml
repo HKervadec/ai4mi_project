@@ -1,0 +1,85 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- combined
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 43
+  num_workers: 5
+  early_stopping:
+    patience: null
+    min_delta: 0.0
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  - nsd3
+  postprocess:
+  - name: closing
+    radius_mm: 5
+    axis: z
+    skip:
+    - heart
+    - trachea
+    - aorta
+  - name: largest_cc
+    max_distance_mm: 20
+  - name: fill_holes
+    per_slice: true
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Post-processing only (no training): all three on spacing_native_384''s predictions:
+  close the esophagus along z (radius 5 mm), keep per organ the largest component
+  plus everything within 20 mm of it, then fill holes per axial slice. Compare against
+  post_native_lcc_min_fraction and the three single-step runs.'
+source: spacing_native_384
+experiment: post_native_close_distance_fill
+_run:
+  config_file: configs/experiments/post_native_close_distance_fill.yaml
+  overrides:
+  - train.seed=43
+  source_run: results/spacing_native_384/holdout40-f0-s43
+  started: '2026-10-07T17:30:44'
+  git:
+    commit: 1c69d2c
+    branch: master
+    dirty: true

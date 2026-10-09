@@ -1,0 +1,39 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=01:00:00
+#SBATCH --output=slurm_logs/%x_%j.out # wordt job-file-name + job-id
+#SBATCH --error=slurm_logs/%x_%j.err
+
+#SBATCH --job-name=install_env # doesn't have to be the same as file name
+
+set -euo pipefail # make the script exit on any error, and treat unset variables as errors
+
+PROJECT_DIR="$HOME/ai_medical_imaging_group28/"
+VENV_DIR="${PROJECT_DIR}/ai4mi"
+
+echo "-->Loading Snellius modules"
+module purge
+module load 2025
+module load Python-bundle-PyPI/2025.04-GCCcore-14.2.0
+module load CUDA/12.9.1
+
+echo "-->Creating virtual environment at ${VENV_DIR}"
+if [ ! -d "${VENV_DIR}" ]; then
+    python -m venv "${VENV_DIR}"
+fi
+source "${VENV_DIR}/bin/activate"
+which python
+
+echo "--> Upgrading pip"
+python -m pip install --upgrade pip
+
+echo "--> Installing project requirements"
+python -m pip install -r "${PROJECT_DIR}/requirements.txt"
+
+echo "--> Freezing exact resolved versions for reproducibility"
+python -m pip freeze > "${PROJECT_DIR}/requirements-frozen.txt"
+
+# activate met "source ai4mi/bin/activate"

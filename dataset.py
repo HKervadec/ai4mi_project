@@ -25,6 +25,8 @@
 from pathlib import Path
 from typing import Callable, Union
 
+import numpy as np
+import torch
 from torch import Tensor
 from PIL import Image
 from torch.utils.data import Dataset
@@ -47,7 +49,6 @@ def make_dataset(root, subset) -> list[tuple[Path, Path | None]]:
         full_labels = [None] * len(images)
 
     return list(zip(images, full_labels))
-
 
 class SliceDataset(Dataset):
     def __init__(self, subset, root_dir, img_transform=None,
@@ -74,16 +75,24 @@ class SliceDataset(Dataset):
 
         img: Tensor = self.img_transform(Image.open(img_path))
 
-        data_dict = {"images": img,
-                     "stems": img_path.stem}
-
         if not self.test_mode:
             gt: Tensor = self.gt_transform(Image.open(gt_path))
+        else:
+            gt = None
 
+        # apply augmentations if a callable pipeline was provided and we are not in test mode
+        if self.augmentation is not None and not self.test_mode:
+            # Provide a localized random generator to maintain deterministic seeding
+            rng = np.random.default_rng(np.random.randint(0, 2 ** 32))
+            img, gt = self.augmentation(img, gt, rng)
+
+        data_dict = {"images": img,
+                             "stems": img_path.stem}
+
+        if not self.test_mode:
             _, W, H = img.shape
             K, _, _ = gt.shape
             assert gt.shape == (K, W, H)
-
             data_dict["gts"] = gt
-
+        
         return data_dict

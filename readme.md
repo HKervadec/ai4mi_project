@@ -29,6 +29,36 @@
 ## Project overview
 The project is based around the SegTHOR challenge data, which was kindly allowed by Caroline Petitjean (challenge organizer) to use for the course. The challenge was originally on the segmentation of different organs: heart, aorta, esophagus and trachea.
 
+> **Group 28 — our pipeline.** This README documents the original starter codebase
+> (the `main.py` / `make data/SEGTHOR` workflow), which still works. For our own
+> experiments we use a config-driven pipeline on top of it:
+>
+> ```bash
+> python run.py --config configs/current.yaml            # one experiment end-to-end
+> python compare.py                                       # collect runs -> RESULTS.md
+> ```
+>
+> Each technique (loss, model, optimizer, augmentation, ...) is a small entry in a
+> `segpipe/` registry plus a short YAML in `configs/experiments/`. Start here:
+> - [`PIPELINE_PLAN.md`](PIPELINE_PLAN.md) — how the pipeline works and how to add an experiment
+> - [`METRICS_PLAN.md`](METRICS_PLAN.md) — the metrics we report (Dice, HD/HD95/ASSD, NSD), how they work and why
+> - [`DECISIONS.md`](DECISIONS.md) — current choices and why
+> - [`HANDOFF.md`](HANDOFF.md) — data fixes (aorta/esophagus GT, HU windowing) and history
+>
+> **Best results so far** (full 40-patient data, 8 validation patients, 3D Dice; details and
+> evidence in [`DECISIONS.md` → Best so far](DECISIONS.md#best-so-far)):
+> - **Native resolution** (`spacing_native_384`: 0.98 mm pixels, 384×384 crop) is the best setup:
+>   3D Dice 0.836 (two seeds: 0.849 and 0.822) vs 0.787 for `current`. The gain is largest for
+>   the small organs (esophagus 0.56 → 0.66, trachea 0.81 → 0.86), which lose their detail when
+>   the scan is downsampled to 1.95 mm. About two thirds comes from the resolution, one third
+>   from the tighter crop. Proposed as the new `current`.
+> - **HU windowing** [40, 400] and **resampling** to a common voxel size both help and stay
+>   (+0.036 and +0.020); a narrower window and resampling only the slice thickness do not.
+> - **Post-processing** (keep the largest connected component per organ) removes stray blobs
+>   far from the organ: Dice barely changes, HD95 drops. Keeping every piece ≥10% of the
+>   largest works best: HD95 21.2 → 12.5 mm on the native runs (mean of two seeds).
+> - Augmentation, 2.5D input and the lung-window channel show no clear gain yet at 25 epochs.
+
 
 <a id="codebase-features"></a>
 ## Codebase features
@@ -298,7 +328,7 @@ $ tar cf group-XX.tar.gz - group-XX/
 ## Known issues
 <a id="cannot-pickle-lambda-in-the-dataloader"></a>
 ### Cannot pickle lambda in the dataloader
-Some installs (probably due to Python/Pytorch version mismatch) throw an error about an inability to pickle lambda functions (at the dataloader stage). Short of reinstalling everything, setting the number of workers to 0 seems to get around the problem (`--num_workers 0`).
+Some installs (probably due to Python/Pytorch version mismatch) throw an error about an inability to pickle lambda functions (at the dataloader stage). This is most common on Windows. Short of reinstalling everything, setting the number of workers to 0 seems to get around the problem: pass `--num_workers 0` on the old `main.py` path, or set `train.num_workers: 0` in your config for the `run.py` / segpipe pipeline.
 
 <a id="pytorch-not-compiled-for-numpy-20"></a>
 ### Pytorch not compiled for Numpy 2.0

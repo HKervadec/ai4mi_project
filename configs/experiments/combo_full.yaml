@@ -1,0 +1,11 @@
+# Combination ladder, step 3: core + cosine + per-organ boundary regularizer.
+# The weight 0.1 was chosen relative to CE alone; with the Dice term the total loss has a different
+# scale, so this combination is untested.
+base: combo_cosine.yaml
+owner: Elena
+idea: "combo_cosine plus the per-organ boundary regularizer (Sobel edge L1, weight 0.1). Only the regularizer differs from combo_cosine."
+
+regularizers:
+  - name: boundary
+    per_class: true
+    weight: 0.1

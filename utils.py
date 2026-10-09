@@ -34,6 +34,7 @@ from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
 
+
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
                 bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{rate_fmt}{postfix}]')
@@ -153,7 +154,29 @@ def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -
 
 
 dice_coef = partial(meta_dice, "bk...->bk")
-dice_batch = partial(meta_dice, "bk...->k")  # used for 3d dice
+
+
+# meta_dice divides per slice, and its smoothing turns a class that is absent from
+# both label and pred into (0 + eps) / (0 + eps) = 1.0. Averaging that over slices
+# pays full marks for organs the model never has to find, which on SegTHOR (most
+# slices contain no esophagus/trachea) is most of the score. These two functions
+# keep the counts unreduced so a caller can pool them over a whole patient and
+# divide once -- the same reduction segpipe/evaluate.py uses in 3D.
+def dice_parts(label: Tensor, pred: Tensor) -> Tuple[Tensor, Tensor]:
+    """Dice numerator and denominator, unreduced: (inter, card), both (B, K)."""
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    inter: Tensor = einsum("bk...->bk", [intersection(label, pred)]).type(torch.float32)
+    card: Tensor = (einsum("bk...->bk", [label]) + einsum("bk...->bk", [pred])).type(torch.float32)
+
+    return inter, card
+
+
+def dice_from_parts(inter: Tensor, card: Tensor) -> Tensor:
+    """Dice from (pooled) counts. card == 0 means the class is in neither mask -> 1.0."""
+    return torch.where(card > 0, 2 * inter / card.clamp(min=1), torch.ones_like(card))
 
 
 def intersection(a: Tensor, b: Tensor) -> Tensor:
@@ -176,3 +199,10 @@ def union(a: Tensor, b: Tensor) -> Tensor:
     assert sset(res, [0, 1])
 
     return res
+
+# IoU metric
+def iou_coef(pred, gt):
+    inter = intersection(pred, gt).sum(dim=(2, 3))
+    uni   = union(pred, gt).sum(dim=(2, 3))
+    return inter / (uni + 1e-8)
+

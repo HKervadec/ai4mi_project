@@ -1,0 +1,13 @@
+# combo_core_ce + Britt's per-organ boundary regularizer at weight 5 (boundary_per_organ_w5).
+# On its own (CE, 2 seeds) weight 5 gave +0.005 Dice and cut the raw HD95 from 13.9 to 8.7 mm by removing
+# stray blobs, but after largest_cc post-processing HD95 was worse (9.6 vs 8.4 mm): the regularizer and LCC
+# largely do the same job. Weight 0.1 did nothing (boundary_per_organ, and combo_full vs combo_cosine).
+# The weight was set relative to CE alone; here the total loss also has the Dice term.
+base: combo_core_ce.yaml
+owner: Elena
+idea: "combo_core_ce (CE + Dice, weighted sampler) plus the per-organ boundary regularizer (Sobel edge L1, weight 5). Only the regularizer differs from combo_core_ce."
+
+regularizers:
+  - name: boundary
+    per_class: true
+    weight: 5.0

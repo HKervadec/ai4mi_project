@@ -1,0 +1,13 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): rescore current's predictions, keeping per organ every 3D
+  connected component at least 10% the size of the largest one. Plain largest-CC cut the esophagus,
+  which the model predicts as several big fragments along z; the threshold should keep those while
+  still removing the small stray blobs that inflate HD95.
+
+source: current   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: largest_cc, min_fraction: 0.1}

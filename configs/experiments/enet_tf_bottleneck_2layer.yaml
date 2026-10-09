@@ -1,0 +1,5 @@
+base: enet_tf_bottleneck.yaml
+owner: Junix
+idea: "same as enet_tf_bottleneck, but 2 stacked transformer layers instead of 1 to check if  depth helps"
+model:
+  params: {transformer_at: [bottleneck], num_layers: 2}

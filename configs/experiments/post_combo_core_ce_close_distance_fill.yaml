@@ -1,0 +1,16 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): post_native_close_distance_fill on combo_core_ce's predictions. Close
+  the esophagus along z (radius 5 mm), keep per organ the largest component plus everything within 20 mm of
+  it, then fill holes per axial slice. On spacing_native_384 this beat min_fraction 0.1 on both seeds (HD95
+  12.5 -> 10.3 mm, ASSD 2.44 -> 2.17 mm, Dice +0.003). Compare against combo_core_ce's metrics_3d_post
+  (min_fraction 0.1).
+
+source: combo_core_ce   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: closing, radius_mm: 5, axis: z, skip: [heart, trachea, aorta]}
+    - {name: largest_cc, max_distance_mm: 20}
+    - {name: fill_holes, per_slice: true}

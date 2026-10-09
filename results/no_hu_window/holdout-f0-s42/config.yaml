@@ -1,0 +1,60 @@
+data:
+  gt: data/gt/watershed_refined
+  window: null
+  target_spacing: null
+  shape:
+  - 256
+  - 256
+  split: holdout
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+owner: Elena
+idea: 'Does HU windowing add value? This run disables the mediastinal HU window and
+  falls back to legacy per-volume min-max intensity normalisation. Compare it against
+  the baseline (current.yaml, which uses data.window [40, 400]). Same GT (watershed_refined),
+  split (holdout), and seed (42), so the only variable is the intensity normalisation
+  -> the Dice/HD95/NSD difference is the value of HU windowing.
+
+  '
+experiment: no_hu_window
+_run:
+  config_file: configs/experiments/no_hu_window.yaml
+  overrides: []
+  device: mps
+  debug: false
+  started: '2026-09-21T03:39:00'
+  git:
+    commit: '6849221'
+    branch: Britt_metrics
+    dirty: true

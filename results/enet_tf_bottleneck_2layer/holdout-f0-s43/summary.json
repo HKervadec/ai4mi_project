@@ -1,0 +1,69 @@
+{
+  "experiment": "enet_tf_bottleneck_2layer",
+  "run": "holdout-f0-s43",
+  "owner": "Junix",
+  "idea": "same as enet_tf_bottleneck, but 2 stacked transformer layers instead of 1 to check if  depth helps",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 43,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "ce978f2",
+    "branch": "ViT",
+    "dirty": true
+  },
+  "best_epoch": 24,
+  "val_dice_2d": 0.8202,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.6742,
+    "heart": 0.929,
+    "trachea": 0.85,
+    "aorta": 0.8275
+  },
+  "train_minutes": 61.0,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.6916,
+      "per_class": {
+        "esophagus": 0.4613,
+        "heart": 0.891,
+        "trachea": 0.6756,
+        "aorta": 0.7385
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.4595,
+          "heart": 0.906,
+          "trachea": 0.781,
+          "aorta": 0.8119
+        },
+        "Patient_11": {
+          "esophagus": 0.5074,
+          "heart": 0.9023,
+          "trachea": 0.675,
+          "aorta": 0.7769
+        },
+        "Patient_15": {
+          "esophagus": 0.2886,
+          "heart": 0.8967,
+          "trachea": 0.6649,
+          "aorta": 0.5722
+        },
+        "Patient_17": {
+          "esophagus": 0.5435,
+          "heart": 0.8684,
+          "trachea": 0.6996,
+          "aorta": 0.7619
+        },
+        "Patient_19": {
+          "esophagus": 0.5076,
+          "heart": 0.8817,
+          "trachea": 0.5574,
+          "aorta": 0.7695
+        }
+      }
+    }
+  }
+}

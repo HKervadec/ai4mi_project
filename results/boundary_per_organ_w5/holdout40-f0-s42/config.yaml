@@ -1,0 +1,77 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers:
+- name: boundary
+  per_class: true
+  weight: 5.0
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- combined
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 42
+  num_workers: 5
+  early_stopping:
+    patience: null
+    min_delta: 0.0
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  - nsd3
+  postprocess:
+  - name: largest_cc
+    min_fraction: 0.1
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Britt
+idea: CE plus boundary penalty (L1 between Sobel edge maps) per organ, so boundaries
+  between touching organs count, weight 5.0.
+experiment: boundary_per_organ_w5
+_run:
+  config_file: configs/experiments/boundary_per_organ_w5.yaml
+  overrides:
+  - train.seed=42
+  device: cuda
+  debug: false
+  started: '2026-10-07T18:25:10'
+  git:
+    commit: 32a7d8d
+    branch: master
+    dirty: true

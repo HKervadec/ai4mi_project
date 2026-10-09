@@ -1,0 +1,69 @@
+{
+  "experiment": "enet_tf_stage2_2layer",
+  "run": "holdout-f0-s42",
+  "owner": "Junis",
+  "idea": "combines the two individual wins: stage2 placement + 2 stacked transformer layers",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 42,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "da026c9",
+    "branch": "master",
+    "dirty": true
+  },
+  "best_epoch": 21,
+  "val_dice_2d": 0.803,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.5916,
+    "heart": 0.9441,
+    "trachea": 0.8473,
+    "aorta": 0.8292
+  },
+  "train_minutes": 52.9,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.6356,
+      "per_class": {
+        "esophagus": 0.3202,
+        "heart": 0.8838,
+        "trachea": 0.601,
+        "aorta": 0.7374
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.375,
+          "heart": 0.8981,
+          "trachea": 0.7201,
+          "aorta": 0.8168
+        },
+        "Patient_11": {
+          "esophagus": 0.1651,
+          "heart": 0.8882,
+          "trachea": 0.5154,
+          "aorta": 0.7237
+        },
+        "Patient_15": {
+          "esophagus": 0.2755,
+          "heart": 0.9192,
+          "trachea": 0.5108,
+          "aorta": 0.6025
+        },
+        "Patient_17": {
+          "esophagus": 0.4243,
+          "heart": 0.8548,
+          "trachea": 0.743,
+          "aorta": 0.7817
+        },
+        "Patient_19": {
+          "esophagus": 0.3613,
+          "heart": 0.8589,
+          "trachea": 0.5156,
+          "aorta": 0.7621
+        }
+      }
+    }
+  }
+}

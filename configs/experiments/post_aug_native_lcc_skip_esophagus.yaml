@@ -1,0 +1,13 @@
+base: ../current.yaml
+owner: Elena
+idea: >-
+  Post-processing only (no training): post_native_lcc_skip_esophagus on augmentation-native384's predictions.
+  Keep only the largest 3D connected component of heart, trachea and aorta; leave the esophagus as predicted.
+  largest_cc with min_fraction 0.1 removed real esophagus pieces there (esophagus HD95 8.2 -> 10.8 mm, Patient_22
+  ~6-10 -> 24-36 mm in all runs).
+
+source: augmentation-native384   # experiment whose saved predictions are rescored (postprocess_run.py)
+
+eval:
+  postprocess:
+    - {name: largest_cc, skip: [esophagus]}

@@ -1,0 +1,5 @@
+base: ../current.yaml
+idea: "transformer earlier, end of stage2 (H/8, K*8 channels)"
+model:
+  name: enet_transformer
+  params: {transformer_at: [stage2]}

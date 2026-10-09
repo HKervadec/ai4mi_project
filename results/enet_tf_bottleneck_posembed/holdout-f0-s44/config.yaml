@@ -1,0 +1,56 @@
+data:
+  gt: data/gt/watershed_refined
+  window:
+  - 40
+  - 400
+  target_spacing: null
+  shape:
+  - 256
+  - 256
+  split: holdout
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet_transformer
+  params:
+    kernels: 8
+    factor: 2
+    transformer_at:
+    - bottleneck
+    use_pos_embed: true
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment: []
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 44
+  num_workers: 5
+eval:
+  metrics_3d:
+  - dice
+owner: Junis
+idea: same placement, ablates sinusoidal positional embedding
+experiment: enet_tf_bottleneck_posembed
+_run:
+  config_file: configs/experiments/enet_tf_bottleneck_posembed.yaml
+  overrides:
+  - train.seed=44
+  device: cuda
+  debug: false
+  started: '2026-09-21T02:21:09'
+  git:
+    commit: ce978f2
+    branch: ViT
+    dirty: true

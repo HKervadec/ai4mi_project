@@ -1,0 +1,26 @@
+{
+  "experiment": "enet_tf_bottleneck_posembed",
+  "run": "holdout-f0-s42-debug",
+  "owner": "Junis",
+  "idea": "same placement, ablates sinusoidal positional embedding",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 42,
+  "epochs": 1,
+  "debug": true,
+  "device": "cuda",
+  "git": {
+    "commit": "ce978f2",
+    "branch": "ViT",
+    "dirty": true
+  },
+  "best_epoch": 0,
+  "val_dice_2d": 0.0,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.0,
+    "heart": 0.0,
+    "trachea": 0.0,
+    "aorta": 0.0
+  },
+  "train_minutes": 0.1
+}

@@ -1,0 +1,39 @@
+# Current choices. Change a line when the group agrees and add an entry to DECISIONS.md.
+# Experiments in configs/experiments/ start from this file with `base: ../current.yaml`.
+
+# This file currently includes the following changes from the original baseline:
+# - Updated target_spacing to [1.95, 1.95, 2.5]
+# - HU windowing is applied (window: [40, 400])
+# - Full 40-patient dataset (data/segthor_full) with the holdout40 split (32 train / 8 val)
+data:
+  gt: data/segthor_full # full 40-patient release (clean GT); was data/gt/watershed_refined (20 patients, repaired)
+  window: [40, 400]     # HU [level, width] used when slicing; null = per-volume min-max
+  extra_windows: []     # more HU [level, width] windows, one extra input channel each (e.g. [[-600, 1500]] = lung)
+  target_spacing: [0.98, 0.98, 2.0]  # [sx, sy, sz] mm to resample every volume + center crop/pad; null = resize each slice (original)
+  shape: [384, 384]
+  split: holdout40      # holdout40 | cv5_40 (40 patients); holdout | cv4 are the old 20-patient splits
+  fold: 0
+
+input:
+  context_slices: 0     # 2.5D: neighbours per side stacked as input channels (0 = plain 2D)
+
+model:
+  name: enet
+  params: {kernels: 8, factor: 2}
+  pretrained: false
+
+loss: {name: ce}
+regularizers: []
+optimizer: {name: adam, lr: 0.0005, betas: [0.9, 0.999]}
+scheduler: {name: none}
+augment: [combined]
+
+train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5}
+eval:
+  metrics_3d: [dice, hd, hd95, assd, nsd, nsd3]   # 3D metrics after training (overlap + boundary, in mm); best epoch still chosen on 2D val Dice
+  postprocess: [{name: largest_cc, min_fraction: 0.1}]   # e.g. [largest_cc]: also score post-processed volumes (summary.json: metrics_3d_post); raw scores are kept
+  
+train: {epochs: 25, batch_size: 8, seed: 42, num_workers: 5,
+        early_stopping: {patience: null, min_delta: 0.0}}  # stop after `patience` epochs without val Dice gain > min_delta; null = off
+# Weights & Biases logging: automatic when WANDB_API_KEY is set (env var or .env file). Set the shared names once.
+wandb: {enabled: true, entity: ai4migroup28, project: ai4mi-segthor}

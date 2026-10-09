@@ -5,4 +5,7 @@ torchvision
 tqdm
 pillow
 scikit-image
+scipy
 matplotlib
+pyyaml
+wandb

@@ -1,0 +1,6 @@
+base: ../current.yaml
+owner: David
+idea: "2.5D input (slice + 1 neighbour above/below stacked as channels, 3 -> ENet), identical to enet_25d but scored with the full 3D metric suite (dice, hd, hd95, assd, nsd) instead of 3D Dice alone"
+
+input:
+  context_slices: 1

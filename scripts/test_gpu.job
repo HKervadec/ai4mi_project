@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=01:00:00
+#SBATCH --output=slurm_logs/%x_%j.out # wordt job-file-name + job-id
+#SBATCH --error=slurm_logs/%x_%j.err
+
+#SBATCH --job-name=install_env # doesn't have to be the same as file name
+
+set -euo pipefail # make the script exit on any error, and treat unset variables as errors
+
+echo "CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-unset}" # 0 betekent dat er 1 is gevonden

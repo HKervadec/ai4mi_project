@@ -1,0 +1,6 @@
+base: ../current.yaml
+owner: David
+idea: "Weighted slice sampling: empty slices drawn less often (weight 0.7, ~15-20% of draws), esophagus slices 2x, same epoch length."
+
+train:
+  sampler: {empty_weight: 0.7, class_weights: {esophagus: 2.0}}

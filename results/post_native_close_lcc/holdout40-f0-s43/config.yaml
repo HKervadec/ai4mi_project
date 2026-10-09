@@ -1,0 +1,84 @@
+data:
+  gt: data/segthor_full
+  window:
+  - 40
+  - 400
+  extra_windows: []
+  target_spacing:
+  - 0.98
+  - 0.98
+  - 2.0
+  shape:
+  - 384
+  - 384
+  split: holdout40
+  fold: 0
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    kernels: 8
+    factor: 2
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  name: adam
+  lr: 0.0005
+  betas:
+  - 0.9
+  - 0.999
+scheduler:
+  name: none
+augment:
+- combined
+train:
+  epochs: 25
+  batch_size: 8
+  seed: 43
+  num_workers: 5
+  early_stopping:
+    patience: null
+    min_delta: 0.0
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  - nsd3
+  postprocess:
+  - name: closing
+    radius_mm: 5
+    axis: z
+    skip:
+    - heart
+    - trachea
+    - aorta
+  - name: largest_cc
+    min_fraction: 0.1
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: 'Post-processing only (no training): on spacing_native_384''s predictions, first
+  close the esophagus along z (radius 5 mm, bridges up to ~10 mm of missing slices),
+  then largest_cc with min_fraction 0.1. The esophagus falls apart into fragments
+  along z, which min_fraction then partly removes; closing should join them first.
+  Compare against post_native_lcc_min_fraction.'
+source: spacing_native_384
+experiment: post_native_close_lcc
+_run:
+  config_file: configs/experiments/post_native_close_lcc.yaml
+  overrides:
+  - train.seed=43
+  source_run: results/spacing_native_384/holdout40-f0-s43
+  started: '2026-10-07T16:54:37'
+  git:
+    commit: 1c69d2c
+    branch: master
+    dirty: true

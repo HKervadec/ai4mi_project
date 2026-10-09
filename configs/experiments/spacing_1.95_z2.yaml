@@ -1,0 +1,11 @@
+# Slice thickness only: 2.0 mm instead of current's 2.5 mm, in-plane unchanged (1.95 mm, 256x256).
+# spacing_1.5_256 and spacing_native_384 change the in-plane spacing *and* z (2.5 -> 2.0 mm); this run
+# isolates the z part, so their gain can be split into in-plane resolution vs slice thickness.
+# At 2.5 mm the 2.0 mm patients lose slices (fewer training samples, coarser z on the way back to the
+# native grid); a 2D model gains nothing from a common slice thickness.
+base: ../current.yaml
+owner: Elena
+idea: "Slice thickness only: resample z to 2.0 mm instead of 2.5 mm, in-plane unchanged (1.95 mm, 256x256), to separate the z effect from the in-plane resolution in the spacing experiments."
+
+data:
+  target_spacing: [1.95, 1.95, 2.0]

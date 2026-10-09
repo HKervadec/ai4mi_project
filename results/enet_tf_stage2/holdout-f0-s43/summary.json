@@ -1,0 +1,69 @@
+{
+  "experiment": "enet_tf_stage2",
+  "run": "holdout-f0-s43",
+  "owner": null,
+  "idea": "transformer earlier, end of stage2 (H/8, K*8 channels)",
+  "split": "holdout",
+  "fold": 0,
+  "seed": 43,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "ce978f2",
+    "branch": "ViT",
+    "dirty": true
+  },
+  "best_epoch": 24,
+  "val_dice_2d": 0.8088,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.6727,
+    "heart": 0.9245,
+    "trachea": 0.8268,
+    "aorta": 0.8112
+  },
+  "train_minutes": 58.5,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.679,
+      "per_class": {
+        "esophagus": 0.4536,
+        "heart": 0.8788,
+        "trachea": 0.6814,
+        "aorta": 0.7024
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.5826,
+          "heart": 0.8886,
+          "trachea": 0.7902,
+          "aorta": 0.8306
+        },
+        "Patient_11": {
+          "esophagus": 0.3545,
+          "heart": 0.8667,
+          "trachea": 0.6646,
+          "aorta": 0.65
+        },
+        "Patient_15": {
+          "esophagus": 0.2778,
+          "heart": 0.8949,
+          "trachea": 0.6355,
+          "aorta": 0.5449
+        },
+        "Patient_17": {
+          "esophagus": 0.5483,
+          "heart": 0.8776,
+          "trachea": 0.7018,
+          "aorta": 0.7578
+        },
+        "Patient_19": {
+          "esophagus": 0.5047,
+          "heart": 0.8663,
+          "trachea": 0.6148,
+          "aorta": 0.729
+        }
+      }
+    }
+  }
+}

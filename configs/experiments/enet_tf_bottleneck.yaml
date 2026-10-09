@@ -1,0 +1,6 @@
+base: ../current.yaml
+owner: Junis
+idea: "transformer at the ENet bottleneck (baseline placement)"
+model:
+  name: enet_transformer
+  params: {transformer_at: [bottleneck]}

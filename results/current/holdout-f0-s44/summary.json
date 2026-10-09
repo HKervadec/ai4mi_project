@@ -1,0 +1,69 @@
+{
+  "experiment": "current",
+  "run": "holdout-f0-s44",
+  "owner": null,
+  "idea": null,
+  "split": "holdout",
+  "fold": 0,
+  "seed": 44,
+  "epochs": 25,
+  "debug": false,
+  "device": "cuda",
+  "git": {
+    "commit": "ce978f2",
+    "branch": "ViT",
+    "dirty": true
+  },
+  "best_epoch": 19,
+  "val_dice_2d": 0.7233,
+  "val_dice_2d_per_class": {
+    "esophagus": 0.4481,
+    "heart": 0.9197,
+    "trachea": 0.7137,
+    "aorta": 0.8116
+  },
+  "train_minutes": 57.9,
+  "metrics_3d": {
+    "dice": {
+      "mean": 0.3975,
+      "per_class": {
+        "esophagus": 0.0,
+        "heart": 0.8925,
+        "trachea": 0.0,
+        "aorta": 0.6975
+      },
+      "per_patient": {
+        "Patient_01": {
+          "esophagus": 0.0,
+          "heart": 0.9206,
+          "trachea": 0.0,
+          "aorta": 0.7753
+        },
+        "Patient_11": {
+          "esophagus": 0.0,
+          "heart": 0.914,
+          "trachea": 0.0,
+          "aorta": 0.6955
+        },
+        "Patient_15": {
+          "esophagus": 0.0,
+          "heart": 0.8903,
+          "trachea": 0.0,
+          "aorta": 0.5598
+        },
+        "Patient_17": {
+          "esophagus": 0.0,
+          "heart": 0.8379,
+          "trachea": 0.0,
+          "aorta": 0.7136
+        },
+        "Patient_19": {
+          "esophagus": 0.0,
+          "heart": 0.8996,
+          "trachea": 0.0,
+          "aorta": 0.7434
+        }
+      }
+    }
+  }
+}

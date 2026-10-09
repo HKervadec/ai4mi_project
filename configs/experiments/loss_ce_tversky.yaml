@@ -1,0 +1,10 @@
+base: ../current.yaml
+owner: Puck
+idea: "CE + Tversky (alpha 0.3, beta 0.7: false negatives weighted more; organs only). Compare against loss_ce_dice (only the overlap term differs). On the old pipeline it matched CE+Dice on Dice but had worse HD95 from stray blobs, so judge it on metrics_3d_post."
+
+loss:
+  name: ce_tversky
+  alpha: 0.3
+  beta: 0.7
+  tversky_weight: 1.0
+  include_background: false

@@ -1,0 +1,68 @@
+data:
+  extra_windows:
+  - - -600
+    - 1500
+  fold: 0
+  gt: data/segthor_full
+  shape:
+  - 256
+  - 256
+  split: holdout40
+  target_spacing:
+  - 1.95
+  - 1.95
+  - 2.5
+  window:
+  - 40
+  - 400
+input:
+  context_slices: 0
+model:
+  name: enet
+  params:
+    factor: 2
+    kernels: 8
+  pretrained: false
+loss:
+  name: ce
+regularizers: []
+optimizer:
+  betas:
+  - 0.9
+  - 0.999
+  lr: 0.0005
+  name: adam
+scheduler:
+  name: none
+augment: []
+train:
+  batch_size: 8
+  epochs: 25
+  num_workers: 5
+  seed: 42
+eval:
+  metrics_3d:
+  - dice
+  - hd
+  - hd95
+  - assd
+  - nsd
+  postprocess: []
+wandb:
+  enabled: true
+  entity: ai4migroup28
+  project: ai4mi-segthor
+owner: Elena
+idea: Lung window [-600, 1500] as a 2nd input channel next to the mediastinal window,
+  to see the trachea lumen (air) and airway wall.
+experiment: lung_window_channel
+_run:
+  config_file: configs/experiments/lung_window_channel.yaml
+  debug: false
+  device: mps
+  git:
+    branch: master
+    commit: 65a53e7
+    dirty: true
+  overrides: []
+  started: 2026-10-01 06:03:04
