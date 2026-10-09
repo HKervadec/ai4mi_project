@@ -35,7 +35,7 @@ import numpy as np
 import nibabel as nib
 from skimage.io import imsave
 from skimage.transform import resize
-
+from pixel_space_norm import fov_target_size, center_crop_or_pad
 from utils import map_, tqdm_
 
 
@@ -81,7 +81,7 @@ resize_: Callable = partial(resize, mode="constant", preserve_range=True, anti_a
 
 
 def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int, int],
-                  test_mode: bool = False) -> tuple[float, float, float]:
+                  test_mode: bool = False, target_fov: float | None = None) -> tuple[float, float, float]:
     id_path: Path = source_path / ("train" if not test_mode else "test") / id_
 
     ct_path: Path = (id_path / f"{id_}.nii.gz") if not test_mode else (source_path / "test" / f"{id_}.nii.gz")
@@ -102,7 +102,12 @@ def slice_patient(id_: str, dest_path: Path, source_path: Path, shape: tuple[int
         assert sanity_gt(gt, ct)
     else:
         gt = np.zeros_like(ct, dtype=np.uint8)
-
+    
+    if target_fov is not None:
+        size = fov_target_size(dx, target_fov)
+        ct = center_crop_or_pad(ct, (size, size), pad_value=-1000)
+        gt = center_crop_or_pad(gt, (size, size), pad_value=0)
+    
     norm_ct: np.ndarray = norm_arr(ct)
 
     to_slice_ct = norm_ct
@@ -180,7 +185,9 @@ def main(args: argparse.Namespace):
                                  dest_path=dest_mode,
                                  source_path=src_path,
                                  shape=tuple(args.shape),
-                                 test_mode=mode == 'test')
+                                 test_mode=mode == 'test',
+                                 target_fov=args.target_fov)
+        
         resolutions: list[tuple[float, float, float]]
         iterator = tqdm_(split_ids)
         match args.process:
@@ -210,6 +217,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--process', '-p', type=int, default=1,
                         help="The number of cores to use for processing")
+    parser.add_argument('--target_fov', type=float, default=None,
+                        help="Normalise in-plane FoV to this many mm (e.g. 500). Off by default.")
     args = parser.parse_args()
     random.seed(args.seed)
 

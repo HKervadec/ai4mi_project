@@ -34,20 +34,25 @@ from skimage.io import imread
 from skimage.transform import resize
 
 from utils import map_, tqdm_
-
+from pixel_space_norm import fov_target_size, center_crop_or_pad
 
 def get_z(image: Path) -> int:
     return int(image.stem.split('_')[-1])
 
 
 def merge_patient(id_: str, dest_folder: str, images: list[Path],
-                  idxes: list[int], K: int, source_pattern: str) -> None:
+                  idxes: list[int], K: int, source_pattern: str,
+                  target_fov: float | None = None) -> None:
     # print(source_pattern.format(id_=id_))
     orig_nib = nib.load(source_pattern.format(id_=id_))
     orig_shape = np.asarray(orig_nib.dataobj).shape
     # print(orig_nib.affine)
 
     X, Y, Z = orig_shape
+    resize_shape = (X, Y)
+    if target_fov is not None:
+        t = fov_target_size(orig_nib.header.get_zooms()[0], target_fov)
+        resize_shape = (t, t)
     assert Z == len(idxes)
 
     res_arr: np.ndarray = np.zeros((X, Y, Z), dtype=np.int16)
@@ -60,12 +65,14 @@ def merge_patient(id_: str, dest_folder: str, images: list[Path],
         assert img_arr.dtype == np.uint8
         assert set(np.unique(img_arr)) <= set(range(K))
 
-        resized: np.ndarray = resize(img_arr, (X, Y),
+        resized: np.ndarray = resize(img_arr, resize_shape, 
                                      mode="constant",
                                      preserve_range=True,
                                      anti_aliasing=False,
                                      order=0)
-
+        if target_fov is not None:
+            resized = center_crop_or_pad(resized, (X, Y), pad_value=0)
+        
         res_arr[:, :, z] = resized[...]
 
     assert set(np.unique(res_arr)) <= set(range(K))
@@ -105,7 +112,8 @@ def main(args) -> None:
     args.dest_folder.mkdir(parents=True, exist_ok=True)
 
     for p in tqdm_(unique_patients):
-        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes, args.source_scan_pattern)
+        merge_patient(p, args.dest_folder, images, idx_map[p], args.num_classes,
+                      args.source_scan_pattern, args.target_fov)
     # mmap_(lambda p: merge_patient(p, args.dest_folder, images, idx_map[p], K=args.num_classes), patients)
 
 
@@ -119,7 +127,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--grp_regex', type=str, required=True)
 
     parser.add_argument('--num_classes', type=int, default=4)
-
+    parser.add_argument('--target_fov', type=float, default=None,
+                        help="Must match the --target_fov used in slice_segthor.py.")
     args = parser.parse_args()
 
     print(args)
