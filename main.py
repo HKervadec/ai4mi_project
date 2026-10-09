@@ -63,7 +63,6 @@ from utils import (Dcm,
                    save_images)
 
 from losses import CrossEntropy, GeneralizedDiceLoss, CrossEntropyDice
-from pixel_space_norm import normalize_inplane_fov
 
 METRIC_SPACING_MM = (500 / 256, 500 / 256)
 
@@ -118,9 +117,7 @@ def img_transform(img, pixel_spacing_mm=None):
         #img = cv.morphologyEx(img, cv.MORPH_CLOSE, morph_kernel)
 
         # Pixel space normalization
-        if pixel_spacing_mm is None:
-            pixel_spacing_mm = (1.0, 1.0)
-        img = normalize_inplane_fov([img], pixel_spacing_mm[:2])[0]
+        
 
         # Normalize and add the model's channel dimension.
         img = img.astype(np.float32) / 255
