@@ -51,3 +51,29 @@ class CrossEntropy():
 class PartialCrossEntropy(CrossEntropy):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
+
+
+class TverskyLoss():
+    def __init__(self, **kwargs):
+        self.idk = kwargs['idk']
+        self.alpha = kwargs.get('alpha', 0.3)
+        self.beta = kwargs.get('beta', 1.0 - self.alpha)
+        self.smooth = kwargs.get('smooth', 1e-6)
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        pred = pred_softmax[:, self.idk, ...]
+        mask = weak_target[:, self.idk, ...].float()
+
+        tp = einsum("bkwh,bkwh->k", pred, mask)
+        fp = einsum("bkwh,bkwh->k", pred, 1.0 - mask)
+        fn = einsum("bkwh,bkwh->k", 1.0 - pred, mask)
+
+        tversky = (tp + self.smooth) / (tp + self.alpha * fp + self.beta * fn + self.smooth)
+
+        return 1.0 - tversky.mean()
+
