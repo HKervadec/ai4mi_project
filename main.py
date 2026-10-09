@@ -51,10 +51,13 @@ from utils import (Dcm,
                    probs2class,
                    tqdm_,
                    dice_coef,
+                   nsd_score,
+                   cldice,
                    save_images)
 
-from losses import (CrossEntropy)
+from losses import (CrossEntropy, TverskyLoss)
 
+METRIC_SPACING_MM = (500 / 256, 500 / 256)
 
 models = {
     "ENet": ENet,
@@ -70,6 +73,10 @@ datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor
 datasets_params["SEGTHOR_CLEAN"] = {'K': 5, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_CLEAN_BG"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
 datasets_params["SEGTHOR_FULL"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["SEGTHOR_FULL_CROPPED"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+datasets_params["SEGTHOR_FULL_RM_BG"] = {'K': 5, 'net': ENet, 'B': 8, 'kernels': 8, 'factor': 2}
+
+
 
 
 def resize_if_needed(img, img_size, resampling):
@@ -167,25 +174,47 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
 
 def runTraining(args):
+
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+
+    
     print(f">>> Setting up to train {args.model} on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     if args.mode == "full":
-        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
+        idk = list(range(K))  # Supervise both background and foreground
     elif args.mode in ["partial"] and args.dataset == 'SEGTHOR':
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+        idk = [0, 1, 3, 4]  # Do not supervise the heart (class 2)
     else:
         raise ValueError(args.mode, args.dataset)
+
+    match args.loss:
+        case "ce":
+            loss_fn = CrossEntropy(idk=idk)
+        case "tversky":
+            loss_fn = TverskyLoss(idk=idk, alpha=args.alpha, beta=1.0 - args.alpha)
+        case _:
+            raise ValueError(args.loss)
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
     log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
     log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_nsd_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_cldice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
 
     best_dice: float = 0
+    best_epoch: int = 0
 
     for e in range(args.epochs):
+        # NSD and clDice are slow so we do it every N epochs.
+        slow_metrics: bool = args.metric_every > 0 and (
+            (e % args.metric_every == 0) or (e == args.epochs - 1))
         for m in ['train', 'val']:
             match m:
                 case 'train':
@@ -227,6 +256,11 @@ def runTraining(args):
                     # print(f"pred_seg size: {pred_seg.size()}")
                     log_dice[e, j:j + B, :] = dice_coef(pred_seg, gt)  # One DSC value per sample and per class
 
+                    # only calculate NSD and clDice for validation
+                    if m == 'val' and slow_metrics:
+                        log_nsd_val[e, j:j + B, :] = nsd_score(pred_seg, gt, METRIC_SPACING_MM)
+                        log_cldice_val[e, j:j + B, :] = cldice(pred_seg, gt)   
+
                     loss = loss_fn(pred_probs, gt)
                     log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
 
@@ -247,6 +281,9 @@ def runTraining(args):
                     # For the DSC average: do not take the background class (0) into account:
                     postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
                                                     "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
+                    if m == 'val' and slow_metrics:
+                        postfix_dict |= {"NSD": f"{log_nsd_val[e, :j, 1:].mean():05.3f}",
+                                         "clDice": f"{log_cldice_val[e, :j, 1:].mean():05.3f}"}
                     if K > 2:
                         postfix_dict |= {f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
                                          for k in range(1, K)}
@@ -257,12 +294,15 @@ def runTraining(args):
         np.save(args.dest / "dice_tra.npy", log_dice_tra)
         np.save(args.dest / "loss_val.npy", log_loss_val)
         np.save(args.dest / "dice_val.npy", log_dice_val)
+        np.save(args.dest / "nsd_val.npy", log_nsd_val)
+        np.save(args.dest / "cldice_val.npy", log_cldice_val)
 
         current_dice: float = log_dice_val[e, :, 1:].mean().item()
         if current_dice > best_dice:
             message = f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC"
             print(message)
             best_dice = current_dice
+            best_epoch = e
             with open(args.dest / "best_epoch.txt", 'w') as f:
                 f.write(message)
 
@@ -274,8 +314,87 @@ def runTraining(args):
             torch.save(net, args.dest / "bestmodel.pkl")
             torch.save(net.state_dict(), args.dest / "bestweights.pt")
 
+    # Ensure NSD and clDice are available for the best epoch even if it was not a slow_metrics epoch
+    best_slow_computed: bool = args.metric_every > 0 and (
+        (best_epoch % args.metric_every == 0) or (best_epoch == args.epochs - 1)
+    )
+    if args.metric_every > 0 and not best_slow_computed and (args.dest / "bestweights.pt").exists():
+        print(f"\n>>> Computing NSD and clDice for best epoch ({best_epoch})...")
+        net.load_state_dict(torch.load(args.dest / "bestweights.pt", map_location=device))
+        net.eval()
+        with torch.no_grad():
+            j = 0
+            for data in val_loader:
+                img = data['images'].to(device)
+                gt = data['gts'].to(device)
+                B = img.shape[0]
+                pred_logits = net(img)
+                pred_probs = F.softmax(1 * pred_logits, dim=1)
+                pred_seg = probs2one_hot(pred_probs)
+                log_nsd_val[best_epoch, j:j + B, :] = nsd_score(pred_seg, gt, METRIC_SPACING_MM)
+                log_cldice_val[best_epoch, j:j + B, :] = cldice(pred_seg, gt)
+                j += B
+        np.save(args.dest / "nsd_val.npy", log_nsd_val)
+        np.save(args.dest / "cldice_val.npy", log_cldice_val)
+
+    class_names = {
+        0: "0 (Background)",
+        1: "1 (Esophagus)",
+        2: "2 (Heart)",
+        3: "3 (Trachea)",
+        4: "4 (Aorta)",
+    } if K == 5 else {0: "0 (Background)", **{k: f"Class {k}" for k in range(1, K)}}
+
+    sep = "=" * 78
+    row_sep = "-" * 20 + "+" + "-" * 12 + "+" + "-" * 12 + "+" + "-" * 12 + "+" + "-" * 12
+    table_lines = [
+        sep,
+        f"{f'Best Epoch Metrics (Epoch {best_epoch})':^78}",
+        sep,
+        f"{'Class':<20}|{'Val Dice':>12}|{'Val NSD':>12}|{'Val clDice':>12}|{'Train Dice':>12}",
+        row_sep,
+    ]
+    for k in range(K):
+        c_name = class_names.get(k, f"Class {k}")
+        v_dice = log_dice_val[best_epoch, :, k].mean().item()
+        v_nsd = log_nsd_val[best_epoch, :, k].mean().item()
+        v_cldice = log_cldice_val[best_epoch, :, k].mean().item()
+        t_dice = log_dice_tra[best_epoch, :, k].mean().item()
+        table_lines.append(
+            f"{c_name:<20}|{v_dice:>12.3f}|{v_nsd:>12.3f}|{v_cldice:>12.3f}|{t_dice:>12.3f}"
+        )
+
+    table_lines.append(row_sep)
+    fg_label = f"Mean (FG 1..{K - 1})" if K > 2 else "Mean (FG 1)"
+    table_lines.append(
+        f"{fg_label:<20}|"
+        f"{log_dice_val[best_epoch, :, 1:].mean().item():>12.3f}|"
+        f"{log_nsd_val[best_epoch, :, 1:].mean().item():>12.3f}|"
+        f"{log_cldice_val[best_epoch, :, 1:].mean().item():>12.3f}|"
+        f"{log_dice_tra[best_epoch, :, 1:].mean().item():>12.3f}"
+    )
+    table_lines.append(
+        f"{f'Mean (All 0..{K - 1})':<20}|"
+        f"{log_dice_val[best_epoch, :, :].mean().item():>12.3f}|"
+        f"{log_nsd_val[best_epoch, :, :].mean().item():>12.3f}|"
+        f"{log_cldice_val[best_epoch, :, :].mean().item():>12.3f}|"
+        f"{log_dice_tra[best_epoch, :, :].mean().item():>12.3f}"
+    )
+    table_lines.append(row_sep)
+    val_loss_best = log_loss_val[best_epoch].mean().item()
+    tra_loss_best = log_loss_tra[best_epoch].mean().item()
+    table_lines.append(
+        f"{'Loss':<20}|  Val: {val_loss_best:<18.2e}|  Train: {tra_loss_best:<18.2e}"
+    )
+    table_lines.append(sep)
+    table_str = "\n".join(table_lines)
+
     print("\n Training finished. ")
     print(f"\n Best dice: {best_dice}")
+    print(f"\n{table_str}")
+
+    with open(args.dest / "best_epoch.txt", 'a') as f:
+        f.write(f"\n\n{table_str}\n")
 
 
 def main():
@@ -294,7 +413,15 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logics around epochs and logging easily.")
+    parser.add_argument('--seed', default=0, type=int)
 
+
+    parser.add_argument('--metric_every', default=5, type=int,
+                        help="Compute the slow metrics (NSD and clDice) every N epochs. ")
+    parser.add_argument('--loss', default='ce', choices=['ce', 'tversky'],
+                        help="Loss function to use for training.")
+    parser.add_argument('--alpha', default=0.3, type=float,
+                        help="Weight for false positives in Tversky loss (beta = 1 - alpha).")
     args = parser.parse_args()
 
     pprint(args)
