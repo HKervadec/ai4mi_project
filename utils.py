@@ -33,6 +33,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from torch import Tensor, einsum
+from scipy.ndimage import binary_erosion, distance_transform_edt
+from skimage.morphology import skeletonize
 
 tqdm_ = partial(tqdm, dynamic_ncols=True,
                 leave=True,
@@ -150,6 +152,79 @@ def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -
     dices: Tensor = (2 * inter_size + smooth) / (sum_sizes + smooth)
 
     return dices
+
+def nsd_score(label: Tensor, pred: Tensor, spacing: Tensor | tuple[float, float], threshold: float = 1.0) -> Tensor:
+    """Compute normalized surface distance for each sample and class.
+
+    The inputs are one-hot 2D segmentations with shape (B, K, W, H).
+    spacing is the pixel spacing in millimetres as (W, H).
+    """
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    pixel_spacing = tuple(float(value) for value in torch.as_tensor(spacing).flatten())
+    if len(pixel_spacing) != 2:
+        raise ValueError(f"Expected two pixel spacings, got {spacing!r}")
+
+    scores = torch.empty(label.shape[:2], dtype=torch.float32, device=label.device)
+    for batch_index in range(label.shape[0]):
+        for class_index in range(label.shape[1]):
+            label_mask = label[batch_index, class_index].detach().cpu().numpy().astype(bool)
+            pred_mask = pred[batch_index, class_index].detach().cpu().numpy().astype(bool)
+            label_surface = label_mask & ~binary_erosion(label_mask)
+            pred_surface = pred_mask & ~binary_erosion(pred_mask)
+
+            label_count = int(label_surface.sum())
+            pred_count = int(pred_surface.sum())
+            if label_count == 0 and pred_count == 0:
+                score = 1.0
+            elif label_count == 0 or pred_count == 0:
+                score = 0.0
+            else:
+                distance_to_label = distance_transform_edt(~label_surface, sampling=pixel_spacing)
+                distance_to_pred = distance_transform_edt(~pred_surface, sampling=pixel_spacing)
+                label_to_pred = distance_to_pred[label_surface]
+                pred_to_label = distance_to_label[pred_surface]
+                score = float((
+                    (label_to_pred <= threshold).sum() +
+                    (pred_to_label <= threshold).sum()
+                ) / (label_count + pred_count))
+            scores[batch_index, class_index] = score
+
+    return scores
+
+def cldice(label: Tensor, pred: Tensor, smooth: float = 1e-8) -> Tensor:
+    """Compute topology-preserving centerline Dice for each sample and class."""
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    scores = torch.empty(label.shape[:2], dtype=torch.float32, device=label.device)
+    for batch_index in range(label.shape[0]):
+        for class_index in range(label.shape[1]):
+            label_mask = label[batch_index, class_index].detach().cpu().numpy().astype(bool)
+            pred_mask = pred[batch_index, class_index].detach().cpu().numpy().astype(bool)
+            label_skeleton = skeletonize(label_mask)
+            pred_skeleton = skeletonize(pred_mask)
+            label_size = int(label_skeleton.sum())
+            pred_size = int(pred_skeleton.sum())
+
+            if label_size == 0 and pred_size == 0:
+                score = 1.0
+            elif label_size == 0 or pred_size == 0:
+                score = 0.0
+            else:
+                true_positive = np.logical_and(pred_skeleton, label_mask).sum()
+                sensitivity = np.logical_and(label_skeleton, pred_mask).sum()
+                topology_precision = (true_positive + smooth) / (pred_size + smooth)
+                topology_sensitivity = (sensitivity + smooth) / (label_size + smooth)
+                score = 2 * topology_precision * topology_sensitivity / (
+                    topology_precision + topology_sensitivity
+                )
+            scores[batch_index, class_index] = score
+
+    return scores
 
 
 dice_coef = partial(meta_dice, "bk...->bk")
