@@ -33,7 +33,7 @@ def dice(a, b, k):
 root = Path(sys.argv[1])
 for pid in sys.argv[2:]:
     nib_obj = nib.load(root / "train" / pid / "GT.nii.gz")
-    gt = np.asarray(nib_obj.dataobj)
+    gt = np.asarray(nib_obj.dataobj)mat
     dx = nib_obj.header.get_zooms()[0]
     base, _ = roundtrip(gt, dx, None)
     fov, lost = roundtrip(gt, dx, 500)
